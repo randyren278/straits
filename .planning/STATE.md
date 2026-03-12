@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-03-12T06:39:55.682Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-12T14:39:12.707Z"
 last_activity: 2026-03-12 — Anomaly detection UI (badges, notifications, watchlist panel)
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 16
+  completed_plans: 14
   percent: 100
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
-**Current focus:** Phase 3 — Anomaly Detection (Complete)
+**Current focus:** Phase 4 — Historical Analytics (In Progress)
 
 ## Current Position
 
-Phase: 3 of 4 (Anomaly Detection)
-Plan: 4 of 4 in current phase
-Status: Complete
-Last activity: 2026-03-12 — Anomaly detection UI (badges, notifications, watchlist panel)
+Phase: 4 of 4 (Historical Analytics)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-12 — Analytics data layer (types, route classifier, DB queries)
 
-Progress: [##########] 100%
+Progress: [████████░░] 87%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [##########] 100%
 - Trend: stable
 
 *Updated after each plan completion*
+| Phase 04 P02 | 3 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,8 @@ Recent decisions affecting current work:
 - Badge icons: Radio for going_dark, Navigation for loitering, Gauge for speed (03-04)
 - Alert refresh: 30-second polling interval in NotificationBell (03-04)
 - WatchlistPanel: Absolute left-4 top-20 positioning for non-interfering sidebar (03-04)
+- [Phase 04]: Default chokepoints: all three (hormuz, babel_mandeb, suez) for immediate visibility
+- [Phase 04]: Correlation API: date-keyed Map for O(1) traffic-price merge
 
 ### Pending Todos
 
@@ -121,6 +124,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T07:14:00.000Z
-Stopped at: Completed 03-04-PLAN.md
-Resume file: .planning/phases/03-anomaly-detection/03-04-SUMMARY.md
+Last session: 2026-03-12T14:38:30Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: .planning/phases/04-historical-analytics/04-01-SUMMARY.md

@@ -42,7 +42,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Historical Analytics
 
-- [ ] **HIST-01**: User can view historical analytics with charts, trends, and correlations over time
+- [x] **HIST-01**: User can view historical analytics with charts, trends, and correlations over time
 - [x] **HIST-02**: User can create vessel watchlist and receive alerts on watched vessels
 
 ## v2 Requirements
@@ -92,7 +92,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INTL-03 | Phase 2 | Complete |
 | ANOM-01 | Phase 3 | Complete |
 | ANOM-02 | Phase 3 | Complete |
-| HIST-01 | Phase 4 | Pending |
+| HIST-01 | Phase 4 | Complete |
 | HIST-02 | Phase 3 | Complete |
 
 **Coverage:**
