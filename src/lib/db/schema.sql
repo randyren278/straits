@@ -121,3 +121,56 @@ CREATE TABLE IF NOT EXISTS news_items (
 
 -- Index for fetching recent news: sorted by publish time
 CREATE INDEX IF NOT EXISTS idx_news_items_time ON news_items(published_at DESC);
+
+-- =============================================================================
+-- Phase 3: Anomaly Detection
+-- =============================================================================
+
+-- Vessel anomalies table (ANOM-01, ANOM-02)
+-- Stores detected anomalies with type-specific details in JSONB
+CREATE TABLE IF NOT EXISTS vessel_anomalies (
+  id SERIAL PRIMARY KEY,
+  imo VARCHAR(10) NOT NULL REFERENCES vessels(imo),
+  anomaly_type VARCHAR(50) NOT NULL,           -- 'going_dark', 'loitering', 'deviation', 'speed'
+  confidence VARCHAR(20) DEFAULT 'confirmed',  -- 'confirmed', 'suspected', 'unknown'
+  detected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ,                     -- NULL = still active
+  details JSONB,                               -- Type-specific data (last position, radius, etc.)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Index for active anomalies (resolved_at IS NULL)
+CREATE INDEX IF NOT EXISTS idx_anomalies_active ON vessel_anomalies(imo, anomaly_type)
+  WHERE resolved_at IS NULL;
+
+-- Index for efficient lookup by type
+CREATE INDEX IF NOT EXISTS idx_anomalies_type ON vessel_anomalies(anomaly_type, detected_at DESC);
+
+-- User watchlist table (HIST-02)
+-- Session-based user tracking without full auth
+CREATE TABLE IF NOT EXISTS watchlist (
+  user_id VARCHAR(50) NOT NULL,               -- UUID from localStorage
+  imo VARCHAR(10) NOT NULL REFERENCES vessels(imo),
+  added_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  notes TEXT,
+  PRIMARY KEY (user_id, imo)
+);
+
+-- Index for user's watchlist
+CREATE INDEX IF NOT EXISTS idx_watchlist_user ON watchlist(user_id, added_at DESC);
+
+-- User alerts table (HIST-02)
+-- Notifications for watched vessels
+CREATE TABLE IF NOT EXISTS alerts (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(50) NOT NULL,
+  imo VARCHAR(10) NOT NULL REFERENCES vessels(imo),
+  alert_type VARCHAR(50) NOT NULL,            -- 'going_dark', 'loitering', 'chokepoint_enter', etc.
+  triggered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  read_at TIMESTAMPTZ,                        -- NULL = unread
+  details JSONB                               -- Context about the alert
+);
+
+-- Index for unread alerts
+CREATE INDEX IF NOT EXISTS idx_alerts_unread ON alerts(user_id, triggered_at DESC)
+  WHERE read_at IS NULL;
