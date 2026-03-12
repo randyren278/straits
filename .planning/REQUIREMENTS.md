@@ -90,10 +90,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INTL-01 | Phase 2 | Complete |
 | INTL-02 | Phase 2 | Complete |
 | INTL-03 | Phase 2 | Complete |
-| ANOM-01 | Phase 3 | Pending |
-| ANOM-02 | Phase 3 | Pending |
+| ANOM-01 | Phase 3 | In Progress |
+| ANOM-02 | Phase 3 | In Progress |
 | HIST-01 | Phase 4 | Pending |
-| HIST-02 | Phase 3 | Pending |
+| HIST-02 | Phase 3 | In Progress |
 
 **Coverage:**
 - v1 requirements: 20 total
@@ -102,4 +102,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-12 after 02-03-PLAN completion — INTL-02 oil prices and INTL-03 news feed complete*
+*Last updated: 2026-03-12 after 03-01-PLAN completion — ANOM-01, ANOM-02, HIST-02 foundation (schema, types, geo utilities) complete*

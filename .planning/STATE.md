@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-03-12T05:58:17.188Z"
-last_activity: 2026-03-12 — Vessel search autocomplete and chokepoint monitoring widgets
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-03-12T06:20:00.000Z"
+last_activity: 2026-03-12 — Anomaly detection foundation (schema, types, geo utilities)
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
-  percent: 90
+  total_plans: 13
+  completed_plans: 10
+  percent: 77
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
-**Current focus:** Phase 2 — Intelligence Layers
+**Current focus:** Phase 3 — Anomaly Detection
 
 ## Current Position
 
-Phase: 2 of 4 (Intelligence Layers)
-Plan: 4 of 5 in current phase
+Phase: 3 of 4 (Anomaly Detection)
+Plan: 1 of 4 in current phase
 Status: In Progress
-Last activity: 2026-03-12 — Vessel search autocomplete and chokepoint monitoring widgets
+Last activity: 2026-03-12 — Anomaly detection foundation (schema, types, geo utilities)
 
-Progress: [█████████-] 90%
+Progress: [███████---] 77%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: 7 min
-- Total execution time: 62 min
+- Total execution time: 69 min
 
 **By Phase:**
 
@@ -45,9 +45,10 @@ Progress: [█████████-] 90%
 |-------|-------|-------|----------|
 | 01-foundation | 5 | 41 min | 8 min |
 | 02-intelligence-layers | 4 | 21 min | 5 min |
+| 03-anomaly-detection | 1 | 7 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 15, 3, 6, 6, 6 min
+- Last 5 plans: 3, 6, 6, 6, 7 min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -91,6 +92,10 @@ Recent decisions affecting current work:
 - Search: 300ms debounce for autocomplete, 2-char minimum query length (02-04)
 - Chokepoints: 1-hour freshness window for vessel counting (02-04)
 - Map navigation: Zustand mapCenter state for decoupled flyTo triggering (02-04)
+- Session ID: uuid v4 for localStorage-based watchlist user identification (03-01)
+- Anomaly storage: JSONB details column for flexible type-specific anomaly data (03-01)
+- Coverage zones: Simple bounding boxes (not PostGIS) for rectangular AIS coverage regions (03-01)
+- Anchorages: Generous bounds to prevent false loitering alerts at known waiting areas (03-01)
 
 ### Pending Todos
 
@@ -104,6 +109,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T05:53:00.000Z
-Stopped at: Completed 02-04-PLAN.md
-Resume file: .planning/phases/02-intelligence-layers/02-04-SUMMARY.md
+Last session: 2026-03-12T06:20:00.000Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: .planning/phases/03-anomaly-detection/03-01-SUMMARY.md
