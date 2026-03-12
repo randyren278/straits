@@ -83,7 +83,7 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Types, route classification, analytics DB queries (TimescaleDB time_bucket)
+- [x] 04-01-PLAN.md — Types, route classification, analytics DB queries (TimescaleDB time_bucket)
 - [ ] 04-02-PLAN.md — Zustand store, traffic API, correlation API endpoints
 - [ ] 04-03-PLAN.md — TrafficChart, selectors, analytics page, header navigation
 
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Foundation | 5/5 | Complete    | 2026-03-12 |
 | 2. Intelligence Layers | 4/4 | Complete    | 2026-03-12 |
 | 3. Anomaly Detection | 4/4 | Complete    | 2026-03-12 |
-| 4. Historical Analytics | 0/3 | In Progress | - |
+| 4. Historical Analytics | 1/3 | In Progress | - |
 
 ---
 *Roadmap created: 2026-03-11*
