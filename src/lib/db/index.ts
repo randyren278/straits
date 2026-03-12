@@ -2,7 +2,7 @@
  * Database connection pool for TimescaleDB/PostgreSQL.
  * Uses connection pooling with configurable limits.
  */
-import { Pool, QueryResult } from 'pg';
+import { Pool, QueryResultRow } from 'pg';
 
 /**
  * Connection pool configured for production use.
@@ -28,7 +28,7 @@ export const pool = new Pool({
  * @example
  * const vessels = await query<Vessel>('SELECT * FROM vessels WHERE imo = $1', ['1234567']);
  */
-export async function query<T>(sql: string, params?: unknown[]): Promise<T[]> {
-  const result: QueryResult<T> = await pool.query(sql, params);
+export async function query<T extends QueryResultRow>(sql: string, params?: unknown[]): Promise<T[]> {
+  const result = await pool.query<T>(sql, params);
   return result.rows;
 }
