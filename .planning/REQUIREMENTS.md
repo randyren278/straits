@@ -90,8 +90,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INTL-01 | Phase 2 | Complete |
 | INTL-02 | Phase 2 | Complete |
 | INTL-03 | Phase 2 | Complete |
-| ANOM-01 | Phase 3 | In Progress |
-| ANOM-02 | Phase 3 | In Progress |
+| ANOM-01 | Phase 3 | Complete |
+| ANOM-02 | Phase 3 | Complete |
 | HIST-01 | Phase 4 | Pending |
 | HIST-02 | Phase 3 | Complete |
 
@@ -102,4 +102,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-12 after 03-03-PLAN completion — HIST-02 (watchlist and alerts) complete*
+*Last updated: 2026-03-12 after 03-04-PLAN completion — ANOM-01, ANOM-02 (anomaly detection UI) complete, Phase 3 done*

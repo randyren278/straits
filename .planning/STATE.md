@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-03-12T06:24:00.000Z"
-last_activity: 2026-03-12 — Watchlist and alerts system (CRUD, APIs, Zustand state)
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-03-12T07:14:00.000Z"
+last_activity: 2026-03-12 — Anomaly detection UI (badges, notifications, watchlist panel)
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 13
-  completed_plans: 11
-  percent: 85
+  completed_plans: 13
+  percent: 100
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
-**Current focus:** Phase 3 — Anomaly Detection
+**Current focus:** Phase 3 — Anomaly Detection (Complete)
 
 ## Current Position
 
 Phase: 3 of 4 (Anomaly Detection)
-Plan: 3 of 4 in current phase
-Status: In Progress
-Last activity: 2026-03-12 — Watchlist and alerts system (CRUD, APIs, Zustand state)
+Plan: 4 of 4 in current phase
+Status: Complete
+Last activity: 2026-03-12 — Anomaly detection UI (badges, notifications, watchlist panel)
 
-Progress: [████████--] 85%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 13
 - Average duration: 6 min
-- Total execution time: 73 min
+- Total execution time: 85 min
 
 **By Phase:**
 
@@ -45,7 +45,7 @@ Progress: [████████--] 85%
 |-------|-------|-------|----------|
 | 01-foundation | 5 | 41 min | 8 min |
 | 02-intelligence-layers | 4 | 21 min | 5 min |
-| 03-anomaly-detection | 2 | 11 min | 6 min |
+| 03-anomaly-detection | 4 | 23 min | 6 min |
 
 **Recent Trend:**
 - Last 5 plans: 6, 6, 6, 7, 4 min
@@ -104,6 +104,10 @@ Recent decisions affecting current work:
 - Watchlist API: X-User-Id header for session-based user identification (03-03)
 - Alerts API: LEFT JOIN with vessels for API responses to include vessel names (03-03)
 - Zustand store: Optimistic updates for responsive UI (03-03)
+- Anomaly color priority: going_dark_confirmed > going_dark_suspected > loitering > sanctioned > tanker (03-04)
+- Badge icons: Radio for going_dark, Navigation for loitering, Gauge for speed (03-04)
+- Alert refresh: 30-second polling interval in NotificationBell (03-04)
+- WatchlistPanel: Absolute left-4 top-20 positioning for non-interfering sidebar (03-04)
 
 ### Pending Todos
 
@@ -117,6 +121,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T06:24:00.000Z
-Stopped at: Completed 03-03-PLAN.md
-Resume file: .planning/phases/03-anomaly-detection/03-03-SUMMARY.md
+Last session: 2026-03-12T07:14:00.000Z
+Stopped at: Completed 03-04-PLAN.md
+Resume file: .planning/phases/03-anomaly-detection/03-04-SUMMARY.md

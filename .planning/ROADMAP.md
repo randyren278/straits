@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - AIS data pipeline, interactive map, and password-protected access
 - [x] **Phase 2: Intelligence Layers** - Sanctions flags, oil prices, news feed, vessel search, and chokepoint widgets (completed 2026-03-12)
-- [ ] **Phase 3: Anomaly Detection** - Going-dark detection, route anomaly flags, and vessel watchlist with alerts
+- [x] **Phase 3: Anomaly Detection** - Going-dark detection, route anomaly flags, and vessel watchlist with alerts (completed 2026-03-12)
 - [ ] **Phase 4: Historical Analytics** - Charts, trends, and oil price correlation over accumulated position history
 
 ## Phase Details
@@ -64,13 +64,13 @@ Plans:
   1. User can see vessels flagged for going dark (AIS gap in a terrestrial coverage zone) with a confidence indicator distinguishing suspected from confirmed
   2. User can see vessels flagged for route anomalies including loitering and unusual deviations from expected paths
   3. User can add vessels to a personal watchlist and receive an alert when a watched vessel triggers an anomaly or enters a monitored chokepoint
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 03-01-PLAN.md — Schema extension, type definitions, geo utilities (haversine, coverage zones, anchorages)
-- [ ] 03-02-PLAN.md — Detection logic: going-dark, loitering, speed anomaly, cron jobs
+- [x] 03-02-PLAN.md — Detection logic: going-dark, loitering, speed anomaly, cron jobs
 - [x] 03-03-PLAN.md — Watchlist and alerts: CRUD, APIs, Zustand state
-- [ ] 03-04-PLAN.md — UI integration: anomaly badges, vessel panel, notification bell, watchlist sidebar
+- [x] 03-04-PLAN.md — UI integration: anomaly badges, vessel panel, notification bell, watchlist sidebar
 
 ### Phase 4: Historical Analytics
 **Goal**: Users can explore accumulated tanker traffic trends, route-level patterns, and correlations with oil price movements over selectable time ranges
@@ -91,7 +91,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation | 5/5 | Complete    | 2026-03-12 |
 | 2. Intelligence Layers | 4/4 | Complete    | 2026-03-12 |
-| 3. Anomaly Detection | 3/4 | In Progress|  |
+| 3. Anomaly Detection | 4/4 | Complete    | 2026-03-12 |
 | 4. Historical Analytics | 0/TBD | Not started | - |
 
 ---
