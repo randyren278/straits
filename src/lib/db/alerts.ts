@@ -145,3 +145,58 @@ export async function generateAlertsForAnomaly(
     params
   );
 }
+
+/**
+ * Extended alert with vessel info for API responses.
+ */
+export interface AlertWithVessel {
+  id: number;
+  imo: string;
+  alertType: string;
+  triggeredAt: Date;
+  readAt: Date | null;
+  details: object;
+  vesselName: string | null;
+  flag: string | null;
+}
+
+/**
+ * Get user's alerts with vessel information.
+ * Joins with vessels table for display names.
+ *
+ * @param userId - User session ID
+ * @param limit - Maximum number of alerts to return
+ * @returns Array of alerts with vessel details
+ */
+export async function getAlertsWithVessels(userId: string, limit: number = 50): Promise<AlertWithVessel[]> {
+  const result = await pool.query<{
+    id: number;
+    imo: string;
+    alert_type: string;
+    triggered_at: Date;
+    read_at: Date | null;
+    details: object;
+    name: string | null;
+    flag: string | null;
+  }>(
+    `SELECT a.id, a.imo, a.alert_type, a.triggered_at, a.read_at, a.details,
+            v.name, v.flag
+     FROM alerts a
+     LEFT JOIN vessels v ON v.imo = a.imo
+     WHERE a.user_id = $1
+     ORDER BY a.triggered_at DESC
+     LIMIT $2`,
+    [userId, limit]
+  );
+
+  return result.rows.map(row => ({
+    id: row.id,
+    imo: row.imo,
+    alertType: row.alert_type,
+    triggeredAt: row.triggered_at,
+    readAt: row.read_at,
+    details: row.details,
+    vesselName: row.name,
+    flag: row.flag,
+  }));
+}
