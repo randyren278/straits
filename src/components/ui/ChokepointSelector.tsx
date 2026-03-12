@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { CHOKEPOINTS } from '@/lib/geo/chokepoints';
+import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
 
 interface ChokepointSelectorProps {
   selected: string[];

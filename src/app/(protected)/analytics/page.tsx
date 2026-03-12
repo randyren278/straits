@@ -12,7 +12,7 @@ import { TrafficChart } from '@/components/charts/TrafficChart';
 import { TimeRangeSelector } from '@/components/ui/TimeRangeSelector';
 import { ChokepointSelector } from '@/components/ui/ChokepointSelector';
 import { useAnalyticsStore } from '@/stores/analytics';
-import { CHOKEPOINTS } from '@/lib/geo/chokepoints';
+import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
 import type { TrafficWithPrices } from '@/types/analytics';
 
 interface CorrelationData {

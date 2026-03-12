@@ -17,10 +17,10 @@ import type { VesselWithPosition } from '@/types/vessel';
  * @param tankersOnly - If true, return only tankers; if false, return all
  * @returns Filtered array of vessels
  */
-export function filterTankers(
-  vessels: VesselWithPosition[],
+export function filterTankers<T extends VesselWithPosition>(
+  vessels: T[],
   tankersOnly: boolean
-): VesselWithPosition[] {
+): T[] {
   if (!tankersOnly) {
     return vessels;
   }
