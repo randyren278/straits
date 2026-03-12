@@ -13,7 +13,7 @@ The project builds in four phases ordered by dependency: first the data pipeline
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - AIS data pipeline, interactive map, and password-protected access
-- [x] **Phase 2: Intelligence Layers** - Sanctions flags, oil prices, news feed, vessel search, and chokepoint widgets (completed 2026-03-12)
+- [x] **Phase 2: Intelligence Layers** - Sanctions flags, oil prices, news feed, vessel search, and chokepoint widgets (completed 2026-03-12)
 - [ ] **Phase 3: Anomaly Detection** - Going-dark detection, route anomaly flags, and vessel watchlist with alerts
 - [ ] **Phase 4: Historical Analytics** - Charts, trends, and oil price correlation over accumulated position history
 
@@ -54,7 +54,7 @@ Plans:
 - [x] 02-01-PLAN.md — Wave 0: Install dependencies, extend schema, create test scaffolds
 - [x] 02-02-PLAN.md — Sanctions layer: OpenSanctions integration, IMO matching, vessel badges
 - [x] 02-03-PLAN.md — Oil prices + News: Alpha Vantage/FRED fetchers, NewsAPI headlines, panels
-- [ ] 02-04-PLAN.md — Search + Chokepoints: Vessel search autocomplete, chokepoint widgets
+- [x] 02-04-PLAN.md — Search + Chokepoints: Vessel search autocomplete, chokepoint widgets
 
 ### Phase 3: Anomaly Detection
 **Goal**: The system detects and surfaces suspicious vessel behavior — AIS gaps in coverage zones, loitering, and route deviations — and users can create a watchlist to receive alerts on specific vessels
@@ -64,7 +64,13 @@ Plans:
   1. User can see vessels flagged for going dark (AIS gap in a terrestrial coverage zone) with a confidence indicator distinguishing suspected from confirmed
   2. User can see vessels flagged for route anomalies including loitering and unusual deviations from expected paths
   3. User can add vessels to a personal watchlist and receive an alert when a watched vessel triggers an anomaly or enters a monitored chokepoint
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Schema extension, type definitions, geo utilities (haversine, coverage zones, anchorages)
+- [ ] 03-02-PLAN.md — Detection logic: going-dark, loitering, speed anomaly, cron jobs
+- [ ] 03-03-PLAN.md — Watchlist and alerts: CRUD, APIs, Zustand state
+- [ ] 03-04-PLAN.md — UI integration: anomaly badges, vessel panel, notification bell, watchlist sidebar
 
 ### Phase 4: Historical Analytics
 **Goal**: Users can explore accumulated tanker traffic trends, route-level patterns, and correlations with oil price movements over selectable time ranges
@@ -84,11 +90,12 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 5/5 | Complete    | 2026-03-12 |
-| 2. Intelligence Layers | 3/4 | Complete    | 2026-03-12 |
-| 3. Anomaly Detection | 0/TBD | Not started | - |
+| 2. Intelligence Layers | 4/4 | Complete    | 2026-03-12 |
+| 3. Anomaly Detection | 0/4 | Planned | - |
 | 4. Historical Analytics | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-03-11*
 *Phase 1 planned: 2026-03-11*
 *Phase 2 planned: 2026-03-11*
+*Phase 3 planned: 2026-03-11*
