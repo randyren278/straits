@@ -3,7 +3,7 @@
 /**
  * Main map component using Mapbox GL JS.
  * Renders vessel positions as GeoJSON points on a dark-themed map.
- * Requirements: MAP-01, MAP-02, MAP-03
+ * Requirements: MAP-01, MAP-02, MAP-03, MAP-06, MAP-07, INTL-01
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
@@ -11,6 +11,7 @@ import { useVesselStore } from '@/stores/vessel';
 import { vesselsToGeoJSON } from '@/lib/map/geojson';
 import { filterTankers } from '@/lib/map/filter';
 import type { VesselWithPosition } from '@/types/vessel';
+import type { VesselWithSanctions } from '@/lib/db/sanctions';
 
 // Set Mapbox token from environment
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
@@ -18,10 +19,10 @@ mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 export function VesselMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const [vessels, setVessels] = useState<VesselWithPosition[]>([]);
+  const [vessels, setVessels] = useState<VesselWithSanctions[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
 
-  const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack } =
+  const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack, mapCenter, setMapCenter } =
     useVesselStore();
 
   // Initialize map
@@ -44,7 +45,7 @@ export function VesselMap() {
         data: { type: 'FeatureCollection', features: [] },
       });
 
-      // Vessel circle layer - amber for tankers, gray for others
+      // Vessel circle layer - red for sanctioned, amber for tankers, gray for others
       map.current.addLayer({
         id: 'vessel-circles',
         type: 'circle',
@@ -53,13 +54,18 @@ export function VesselMap() {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 10, 8],
           'circle-color': [
             'case',
+            // Priority 1: Sanctioned vessels (red)
+            ['==', ['get', 'isSanctioned'], true],
+            '#ef4444',
+            // Priority 2: Tankers (amber)
             [
               'all',
               ['>=', ['get', 'shipType'], 80],
               ['<=', ['get', 'shipType'], 89],
             ],
-            '#f59e0b', // Amber for tankers
-            '#6b7280', // Gray for others
+            '#f59e0b',
+            // Default: Other vessels (gray)
+            '#6b7280',
           ],
           'circle-stroke-width': 1,
           'circle-stroke-color': '#ffffff',
@@ -72,8 +78,8 @@ export function VesselMap() {
         const props = e.features[0].properties;
         const coords = (e.features[0].geometry as GeoJSON.Point).coordinates;
 
-        // Reconstruct VesselWithPosition from feature properties
-        const vessel: VesselWithPosition = {
+        // Reconstruct VesselWithSanctions from feature properties
+        const vessel: VesselWithSanctions = {
           imo: props?.imo || '',
           mmsi: props?.mmsi || '',
           name: props?.name || '',
@@ -81,6 +87,9 @@ export function VesselMap() {
           shipType: props?.shipType || 0,
           destination: props?.destination || null,
           lastSeen: new Date(),
+          isSanctioned: props?.isSanctioned || false,
+          sanctioningAuthority: props?.sanctioningAuthority || null,
+          sanctionReason: null, // Not stored in GeoJSON properties
           position: {
             time: new Date(),
             mmsi: props?.mmsi || '',
@@ -215,6 +224,20 @@ export function VesselMap() {
   useEffect(() => {
     updateTrackLayer();
   }, [updateTrackLayer]);
+
+  // Handle map navigation from search or chokepoint selection
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !mapCenter) return;
+
+    map.current.flyTo({
+      center: [mapCenter.lon, mapCenter.lat],
+      zoom: mapCenter.zoom,
+      duration: 1500,
+    });
+
+    // Clear the navigation request after flying
+    setMapCenter(null);
+  }, [mapCenter, mapLoaded, setMapCenter]);
 
   return <div ref={mapContainer} className="w-full h-full" />;
 }

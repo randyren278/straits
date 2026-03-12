@@ -3,9 +3,10 @@
 /**
  * Vessel detail side panel component.
  * Displays selected vessel information with track toggle.
- * Requirements: MAP-02, MAP-04
+ * Requirements: MAP-02, MAP-04, INTL-01
  */
 import { useVesselStore } from '@/stores/vessel';
+import { AlertTriangle } from 'lucide-react';
 
 export function VesselPanel() {
   const { selectedVessel, showTrack, setShowTrack, setSelectedVessel } =
@@ -100,6 +101,26 @@ export function VesselPanel() {
           </span>
         </div>
       </div>
+
+      {/* Sanctions Alert Section */}
+      {'isSanctioned' in selectedVessel &&
+        (selectedVessel as Record<string, unknown>).isSanctioned === true && (
+        <div className="mt-4 p-3 bg-red-900/30 border border-red-700 rounded-lg">
+          <div className="flex items-center gap-2 text-red-400">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="font-semibold">SANCTIONED</span>
+          </div>
+          <p className="text-sm text-red-300 mt-1">
+            {('sanctioningAuthority' in selectedVessel &&
+              (selectedVessel as Record<string, unknown>).sanctioningAuthority) as React.ReactNode}{' '}
+            {'\u2022'}{' '}
+            {'sanctionReason' in selectedVessel &&
+              (selectedVessel as Record<string, unknown>).sanctionReason
+              ? String((selectedVessel as Record<string, unknown>).sanctionReason)
+              : 'Sanctioned entity'}
+          </p>
+        </div>
+      )}
 
       <button
         onClick={() => setShowTrack(!showTrack)}

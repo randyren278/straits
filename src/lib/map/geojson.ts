@@ -1,8 +1,14 @@
 /**
  * GeoJSON conversion utilities for vessel map rendering.
- * Requirements: MAP-01
+ * Requirements: MAP-01, INTL-01
  */
 import type { VesselWithPosition } from '@/types/vessel';
+
+// Extended vessel type that may include sanctions data
+interface VesselWithPossibleSanctions extends VesselWithPosition {
+  isSanctioned?: boolean;
+  sanctioningAuthority?: string | null;
+}
 
 /**
  * Converts an array of vessels with positions to a GeoJSON FeatureCollection.
@@ -12,7 +18,7 @@ import type { VesselWithPosition } from '@/types/vessel';
  * @returns GeoJSON FeatureCollection for map rendering
  */
 export function vesselsToGeoJSON(
-  vessels: VesselWithPosition[]
+  vessels: VesselWithPossibleSanctions[]
 ): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: 'FeatureCollection',
@@ -36,6 +42,9 @@ export function vesselsToGeoJSON(
           course: v.position!.course,
           heading: v.position!.heading,
           lowConfidence: v.position!.lowConfidence,
+          // Sanctions properties
+          isSanctioned: v.isSanctioned || false,
+          sanctioningAuthority: v.sanctioningAuthority || null,
         },
       })),
   };

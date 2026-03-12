@@ -4,6 +4,10 @@
  * Matches vessel IMO numbers against OpenSanctions and other sanctions lists.
  * Supports OFAC, EU, and UN sanctions lists.
  */
+import { getSanction } from '../db/sanctions';
+
+// Re-export normalizeIMO from opensanctions for backwards compatibility
+export { normalizeIMO } from '../external/opensanctions';
 
 export interface SanctionMatch {
   imo: string;
@@ -15,25 +19,24 @@ export interface SanctionMatch {
 }
 
 /**
- * Normalize an IMO number to 7-digit format.
- * Removes "IMO" prefix if present and pads with leading zeros.
- *
- * @param imo - Raw IMO number string
- * @returns Normalized 7-digit IMO string, or empty string if invalid
- */
-export function normalizeIMO(imo: string): string {
-  // TODO: Implement IMO normalization
-  return imo;
-}
-
-/**
  * Look up a vessel in sanctions lists by IMO number.
  * Queries local database for cached sanctions data.
  *
  * @param imo - Vessel IMO number (normalized)
  * @returns Sanction match if found, null otherwise
  */
-export function matchVesselSanctions(imo: string): Promise<SanctionMatch | null> {
-  // TODO: Implement sanctions lookup
-  return Promise.resolve(null);
+export async function matchVesselSanctions(
+  imo: string
+): Promise<SanctionMatch | null> {
+  const record = await getSanction(imo);
+  if (!record) return null;
+
+  return {
+    imo: record.imo,
+    authority: record.sanctioningAuthority as 'OFAC' | 'EU' | 'UN',
+    listDate: record.listDate,
+    reason: record.reason,
+    confidence: (record.confidence as 'HIGH' | 'MEDIUM' | 'LOW') || 'HIGH',
+    sourceUrl: null, // sourceUrl not stored in SanctionRecord
+  };
 }
