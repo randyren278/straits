@@ -37,8 +37,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Anomaly Detection
 
-- [ ] **ANOM-01**: System detects and flags vessels that disable AIS transponders (going dark)
-- [ ] **ANOM-02**: System detects route anomalies including loitering and unusual deviations
+- [x] **ANOM-01**: System detects and flags vessels that disable AIS transponders (going dark)
+- [x] **ANOM-02**: System detects route anomalies including loitering and unusual deviations
 
 ### Historical Analytics
 

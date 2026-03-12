@@ -64,7 +64,7 @@ Plans:
   1. User can see vessels flagged for going dark (AIS gap in a terrestrial coverage zone) with a confidence indicator distinguishing suspected from confirmed
   2. User can see vessels flagged for route anomalies including loitering and unusual deviations from expected paths
   3. User can add vessels to a personal watchlist and receive an alert when a watched vessel triggers an anomaly or enters a monitored chokepoint
-**Plans:** 4 plans
+**Plans:** 3/4 plans executed
 
 Plans:
 - [x] 03-01-PLAN.md — Schema extension, type definitions, geo utilities (haversine, coverage zones, anchorages)
@@ -91,7 +91,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation | 5/5 | Complete    | 2026-03-12 |
 | 2. Intelligence Layers | 4/4 | Complete    | 2026-03-12 |
-| 3. Anomaly Detection | 2/4 | In Progress | - |
+| 3. Anomaly Detection | 3/4 | In Progress|  |
 | 4. Historical Analytics | 0/TBD | Not started | - |
 
 ---
