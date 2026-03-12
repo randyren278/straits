@@ -1,9 +1,17 @@
 /**
  * Zustand store for vessel state management.
- * Manages selected vessel, filter state, and data freshness.
+ * Manages selected vessel, filter state, data freshness, and map navigation.
+ * Requirements: MAP-06, MAP-07
  */
 import { create } from 'zustand';
 import type { VesselWithPosition } from '@/types/vessel';
+
+/** Map center and zoom for flyTo navigation */
+export interface MapCenter {
+  lat: number;
+  lon: number;
+  zoom: number;
+}
 
 interface VesselStore {
   /** Currently selected vessel for detail panel */
@@ -14,6 +22,8 @@ interface VesselStore {
   showTrack: boolean;
   /** Timestamp of last data refresh */
   lastUpdate: Date | null;
+  /** Target map center for flyTo navigation (null = no navigation pending) */
+  mapCenter: MapCenter | null;
   /** Set the selected vessel (clears track state) */
   setSelectedVessel: (vessel: VesselWithPosition | null) => void;
   /** Toggle tanker-only filter */
@@ -22,6 +32,8 @@ interface VesselStore {
   setShowTrack: (value: boolean) => void;
   /** Update last refresh timestamp */
   setLastUpdate: (date: Date) => void;
+  /** Set map center for flyTo navigation */
+  setMapCenter: (center: MapCenter | null) => void;
 }
 
 export const useVesselStore = create<VesselStore>((set) => ({
@@ -29,8 +41,10 @@ export const useVesselStore = create<VesselStore>((set) => ({
   tankersOnly: true,
   showTrack: false,
   lastUpdate: null,
+  mapCenter: null,
   setSelectedVessel: (vessel) => set({ selectedVessel: vessel, showTrack: false }),
   setTankersOnly: (tankersOnly) => set({ tankersOnly }),
   setShowTrack: (showTrack) => set({ showTrack }),
   setLastUpdate: (lastUpdate) => set({ lastUpdate }),
+  setMapCenter: (mapCenter) => set({ mapCenter }),
 }));

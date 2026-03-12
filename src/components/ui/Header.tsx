@@ -1,17 +1,47 @@
 /**
  * Dashboard header component.
- * Shows title, data freshness, and filter controls.
+ * Shows title, search input, data freshness, filters, and chokepoint widgets.
+ * Requirements: MAP-06, MAP-07
  */
 import { DataFreshness } from './DataFreshness';
 import { TankerFilter } from './TankerFilter';
+import { SearchInput } from './SearchInput';
+import { ChokepointWidgets } from './ChokepointWidget';
 
-export function Header() {
+interface SearchResult {
+  imo: string;
+  mmsi: string;
+  name: string;
+  flag: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+interface ChokepointBounds {
+  minLat: number;
+  maxLat: number;
+  minLon: number;
+  maxLon: number;
+}
+
+interface HeaderProps {
+  onSearchSelect?: (result: SearchResult) => void;
+  onChokepointSelect?: (bounds: ChokepointBounds, name: string) => void;
+}
+
+export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
   return (
-    <header className="h-14 bg-[#16162a] border-b border-gray-800 flex items-center justify-between px-4">
-      <h1 className="text-lg font-bold text-white">Tanker Tracker</h1>
-      <div className="flex items-center gap-4">
-        <DataFreshness />
-        <TankerFilter />
+    <header className="bg-[#16162a] border-b border-gray-800">
+      <div className="h-14 flex items-center justify-between px-4">
+        <h1 className="text-lg font-bold text-white">Tanker Tracker</h1>
+        <div className="flex items-center gap-4">
+          <SearchInput onSelectVessel={onSearchSelect} />
+          <DataFreshness />
+          <TankerFilter />
+        </div>
+      </div>
+      <div className="h-10 flex items-center px-4 border-t border-gray-800/50">
+        <ChokepointWidgets onSelect={onChokepointSelect} />
       </div>
     </header>
   );
