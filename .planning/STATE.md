@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: executing
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-03-12T04:54:00.000Z"
+last_activity: 2026-03-12 — Plan 01-02 complete; database schema and CRUD functions implemented
+progress:
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 6
+  completed_plans: 1
+  percent: 17
+---
+
 # Project State
 
 ## Project Reference
@@ -10,27 +26,27 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 1 of 4 (Foundation)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-11 — Roadmap created; 20 v1 requirements mapped across 4 phases
+Plan: 2 of 6 in current phase
+Status: Executing
+Last activity: 2026-03-12 — Plan 01-02 complete; database schema and CRUD functions implemented
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [##░░░░░░░░] 17%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: —
+- Total plans completed: 1
+- Average duration: 7 min
+- Total execution time: 7 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-foundation | 1 | 7 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: —
+- Last 5 plans: 7 min
 - Trend: —
 
 *Updated after each plan completion*
@@ -48,6 +64,8 @@ Recent decisions affecting current work:
 - Identity key: IMO number as primary vessel key (not MMSI — MMSI is reused/spoofed)
 - Sanctions matching: IMO-primary matching against OpenSanctions CSV (not name strings — false positives)
 - Anomaly detection: restrict going-dark flags to terrestrial coverage zones only (open ocean gaps are normal)
+- Database: 1-day hypertable chunks, 7-day compression policy (01-02)
+- CRUD: COALESCE in upsert preserves existing values when null (01-02)
 
 ### Pending Todos
 
@@ -61,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11
-Stopped at: Roadmap created; ready to plan Phase 1
-Resume file: None
+Last session: 2026-03-12T04:54:00.000Z
+Stopped at: Completed 01-02-PLAN.md
+Resume file: .planning/phases/01-foundation/01-02-SUMMARY.md
