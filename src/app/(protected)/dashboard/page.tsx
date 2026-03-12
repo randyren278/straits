@@ -2,13 +2,14 @@
 
 /**
  * Dashboard page with interactive vessel map.
- * Requirements: MAP-01, MAP-02, MAP-03, MAP-04, MAP-05, MAP-06, MAP-07, MAP-08, INTL-02, INTL-03
+ * Requirements: MAP-01, MAP-02, MAP-03, MAP-04, MAP-05, MAP-06, MAP-07, MAP-08, INTL-02, INTL-03, ANOM-01, HIST-02
  */
 import { useCallback } from 'react';
 import { VesselMap } from '@/components/map/VesselMap';
 import { VesselPanel } from '@/components/panels/VesselPanel';
 import { OilPricePanel } from '@/components/panels/OilPricePanel';
 import { NewsPanel } from '@/components/panels/NewsPanel';
+import { WatchlistPanel } from '@/components/panels/WatchlistPanel';
 import { Header } from '@/components/ui/Header';
 import { useVesselStore } from '@/stores/vessel';
 
@@ -59,6 +60,7 @@ export default function DashboardPage() {
       <main className="flex-1 relative">
         <VesselMap />
         <VesselPanel />
+        <WatchlistPanel />
         <OilPricePanel />
         <NewsPanel />
       </main>
