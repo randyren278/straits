@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-03-12T05:52:00.000Z"
-last_activity: 2026-03-12 — Oil prices and news panels; Alpha Vantage/FRED fetchers, NewsAPI with keyword scoring
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-03-12T05:53:00.000Z"
+last_activity: 2026-03-12 — Vessel search autocomplete and chokepoint monitoring widgets
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State
@@ -26,28 +26,28 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 2 of 4 (Intelligence Layers)
-Plan: 3 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In Progress
-Last activity: 2026-03-12 — Oil prices and news panels; Alpha Vantage/FRED fetchers, NewsAPI with keyword scoring
+Last activity: 2026-03-12 — Vessel search autocomplete and chokepoint monitoring widgets
 
-Progress: [████████--] 80%
+Progress: [█████████-] 90%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 7 min
-- Total execution time: 56 min
+- Total execution time: 62 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 5 | 41 min | 8 min |
-| 02-intelligence-layers | 3 | 15 min | 5 min |
+| 02-intelligence-layers | 4 | 21 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 3, 15, 3, 6, 6 min
+- Last 5 plans: 15, 3, 6, 6, 6 min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -88,6 +88,9 @@ Recent decisions affecting current work:
 - Oil prices: Alpha Vantage primary with FRED fallback for redundancy (02-03)
 - News: Keyword-based relevance scoring for headline filtering (02-03)
 - UI refresh: 60s for prices, 300s for news (02-03)
+- Search: 300ms debounce for autocomplete, 2-char minimum query length (02-04)
+- Chokepoints: 1-hour freshness window for vessel counting (02-04)
+- Map navigation: Zustand mapCenter state for decoupled flyTo triggering (02-04)
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T05:52:00.000Z
-Stopped at: Completed 02-03-PLAN.md
-Resume file: .planning/phases/02-intelligence-layers/02-03-SUMMARY.md
+Last session: 2026-03-12T05:53:00.000Z
+Stopped at: Completed 02-04-PLAN.md
+Resume file: .planning/phases/02-intelligence-layers/02-04-SUMMARY.md

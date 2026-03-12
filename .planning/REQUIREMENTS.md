@@ -21,8 +21,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **MAP-03**: User can filter vessels by type (tankers only vs all)
 - [x] **MAP-04**: User can view vessel track history as polyline on map
 - [x] **MAP-05**: User can see data freshness indicator showing last update time
-- [ ] **MAP-06**: User can search vessels by name or IMO number
-- [ ] **MAP-07**: User can view chokepoint monitoring widgets for Hormuz, Bab el-Mandeb, and Suez
+- [x] **MAP-06**: User can search vessels by name or IMO number
+- [x] **MAP-07**: User can view chokepoint monitoring widgets for Hormuz, Bab el-Mandeb, and Suez
 - [x] **MAP-08**: User can use the dashboard on mobile devices via responsive layout
 
 ### Authentication
@@ -32,8 +32,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Intelligence Layers
 
 - [x] **INTL-01**: User can see sanctions flags on vessels linked to OFAC or EU sanctioned entities
-- [ ] **INTL-02**: User can view oil price panel showing WTI/Brent current prices and 30-day chart
-- [ ] **INTL-03**: User can view geopolitical news feed filtered for Middle East and oil keywords
+- [x] **INTL-02**: User can view oil price panel showing WTI/Brent current prices and 30-day chart
+- [x] **INTL-03**: User can view geopolitical news feed filtered for Middle East and oil keywords
 
 ### Anomaly Detection
 
@@ -83,13 +83,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MAP-03 | Phase 1 | Complete |
 | MAP-04 | Phase 1 | Complete |
 | MAP-05 | Phase 1 | Complete |
-| MAP-06 | Phase 2 | Pending |
-| MAP-07 | Phase 2 | Pending |
+| MAP-06 | Phase 2 | Complete |
+| MAP-07 | Phase 2 | Complete |
 | MAP-08 | Phase 1 | Complete |
 | AUTH-01 | Phase 1 | Complete |
 | INTL-01 | Phase 2 | Complete |
-| INTL-02 | Phase 2 | Pending |
-| INTL-03 | Phase 2 | Pending |
+| INTL-02 | Phase 2 | Complete |
+| INTL-03 | Phase 2 | Complete |
 | ANOM-01 | Phase 3 | Pending |
 | ANOM-02 | Phase 3 | Pending |
 | HIST-01 | Phase 4 | Pending |
@@ -102,4 +102,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-12 after 02-02-PLAN completion — INTL-01 sanctions matching complete with OpenSanctions integration*
+*Last updated: 2026-03-12 after 02-03-PLAN completion — INTL-02 oil prices and INTL-03 news feed complete*

@@ -53,7 +53,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — Wave 0: Install dependencies, extend schema, create test scaffolds
 - [x] 02-02-PLAN.md — Sanctions layer: OpenSanctions integration, IMO matching, vessel badges
-- [ ] 02-03-PLAN.md — Oil prices + News: Alpha Vantage/FRED fetchers, NewsAPI headlines, panels
+- [x] 02-03-PLAN.md — Oil prices + News: Alpha Vantage/FRED fetchers, NewsAPI headlines, panels
 - [ ] 02-04-PLAN.md — Search + Chokepoints: Vessel search autocomplete, chokepoint widgets
 
 ### Phase 3: Anomaly Detection
@@ -84,7 +84,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 5/5 | Complete    | 2026-03-12 |
-| 2. Intelligence Layers | 2/4 | In Progress | - |
+| 2. Intelligence Layers | 3/4 | In Progress | - |
 | 3. Anomaly Detection | 0/TBD | Not started | - |
 | 4. Historical Analytics | 0/TBD | Not started | - |
 
