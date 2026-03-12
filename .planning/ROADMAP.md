@@ -48,7 +48,13 @@ Plans:
   3. User can read a live news feed of geopolitical headlines filtered for Middle East and oil keywords
   4. User can search for a vessel by name or IMO number and have it highlighted on the map
   5. User can see chokepoint monitoring widgets showing current vessel counts for Hormuz, Bab el-Mandeb, and Suez
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Wave 0: Install dependencies, extend schema, create test scaffolds
+- [ ] 02-02-PLAN.md — Sanctions layer: OpenSanctions integration, IMO matching, vessel badges
+- [ ] 02-03-PLAN.md — Oil prices + News: Alpha Vantage/FRED fetchers, NewsAPI headlines, panels
+- [ ] 02-04-PLAN.md — Search + Chokepoints: Vessel search autocomplete, chokepoint widgets
 
 ### Phase 3: Anomaly Detection
 **Goal**: The system detects and surfaces suspicious vessel behavior — AIS gaps in coverage zones, loitering, and route deviations — and users can create a watchlist to receive alerts on specific vessels
@@ -78,10 +84,11 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 5/5 | Complete    | 2026-03-12 |
-| 2. Intelligence Layers | 0/TBD | Not started | - |
+| 2. Intelligence Layers | 0/4 | Not started | - |
 | 3. Anomaly Detection | 0/TBD | Not started | - |
 | 4. Historical Analytics | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-03-11*
 *Phase 1 planned: 2026-03-11*
+*Phase 2 planned: 2026-03-11*
