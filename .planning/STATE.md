@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-03-12T05:09:39.394Z"
-last_activity: 2026-03-12 — Plan 01-04 complete; AIS parser, GPS filter, and standalone ingestion service
+status: phase_complete
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-03-11T06:20:00.000Z"
+last_activity: 2026-03-11 — Phase 1 complete; interactive map dashboard with vessel panel, filtering, track history
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
-  percent: 80
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State
@@ -21,33 +21,33 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
-**Current focus:** Phase 1 — Foundation
+**Current focus:** Phase 1 — Foundation (COMPLETE)
 
 ## Current Position
 
-Phase: 1 of 4 (Foundation)
-Plan: 4 of 5 in current phase
-Status: Executing
-Last activity: 2026-03-12 — Plan 01-04 complete; AIS parser, GPS filter, and standalone ingestion service
+Phase: 1 of 4 (Foundation) - COMPLETE
+Plan: 5 of 5 in current phase
+Status: Phase Complete
+Last activity: 2026-03-11 — Phase 1 complete; interactive map dashboard with vessel panel, filtering, track history
 
-Progress: [████████░░] 80%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 7 min
-- Total execution time: 26 min
+- Total plans completed: 5
+- Average duration: 8 min
+- Total execution time: 41 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 4 | 26 min | 7 min |
+| 01-foundation | 5 | 41 min | 8 min |
 
 **Recent Trend:**
-- Last 5 plans: 10, 10, 3, 3 min
-- Trend: improving
+- Last 5 plans: 10, 10, 3, 3, 15 min
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -75,6 +75,10 @@ Recent decisions affecting current work:
 - AIS: Standalone ingester service on Railway/Render (Vercel can't maintain WebSocket) (01-04)
 - AIS: 50 knot speed threshold for GPS filtering (tankers max ~20 knots) (01-04)
 - AIS: Flag GPS jamming zones as low_confidence, don't discard (01-04)
+- Map: Mapbox dark-v11 style for Bloomberg-terminal aesthetic (01-05)
+- Map: 30-second polling interval for vessel position updates (01-05)
+- Map: Zustand for global state (selectedVessel, tankersOnly, showTrack) (01-05)
+- Map: Responsive bottom sheet panel on mobile (max-md breakpoint) (01-05)
 
 ### Pending Todos
 
@@ -88,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T05:09:39.388Z
-Stopped at: Completed 01-04-PLAN.md
-Resume file: .planning/phases/01-foundation/01-04-SUMMARY.md
+Last session: 2026-03-11T06:20:00.000Z
+Stopped at: Completed 01-05-PLAN.md
+Resume file: .planning/phases/01-foundation/01-05-SUMMARY.md
