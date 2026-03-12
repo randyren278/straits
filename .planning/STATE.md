@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-03-12T05:03:31.773Z"
-last_activity: 2026-03-12 — Plan 01-03 complete; Authentication with bcrypt, JWT sessions, and route protection
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-03-12T05:09:39.394Z"
+last_activity: 2026-03-12 — Plan 01-04 complete; AIS parser, GPS filter, and standalone ingestion service
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 80
 ---
 
 # Project State
@@ -26,27 +26,27 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 1 of 4 (Foundation)
-Plan: 3 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: Executing
-Last activity: 2026-03-12 — Plan 01-03 complete; Authentication with bcrypt, JWT sessions, and route protection
+Last activity: 2026-03-12 — Plan 01-04 complete; AIS parser, GPS filter, and standalone ingestion service
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 8 min
-- Total execution time: 23 min
+- Total plans completed: 4
+- Average duration: 7 min
+- Total execution time: 26 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 3 | 23 min | 8 min |
+| 01-foundation | 4 | 26 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 10, 10, 3 min
+- Last 5 plans: 10, 10, 3, 3 min
 - Trend: improving
 
 *Updated after each plan completion*
@@ -72,6 +72,9 @@ Recent decisions affecting current work:
 - Auth: jose library for JWT (ESM-native, Edge-compatible) (01-03)
 - Auth: 7-day session expiry with HTTP-only cookie (01-03)
 - Auth: proxy.ts pattern for Next.js 16 route protection (01-03)
+- AIS: Standalone ingester service on Railway/Render (Vercel can't maintain WebSocket) (01-04)
+- AIS: 50 knot speed threshold for GPS filtering (tankers max ~20 knots) (01-04)
+- AIS: Flag GPS jamming zones as low_confidence, don't discard (01-04)
 
 ### Pending Todos
 
@@ -85,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T05:03:31.773Z
-Stopped at: Completed 01-03-PLAN.md
-Resume file: .planning/phases/01-foundation/01-03-SUMMARY.md
+Last session: 2026-03-12T05:09:39.388Z
+Stopped at: Completed 01-04-PLAN.md
+Resume file: .planning/phases/01-foundation/01-04-SUMMARY.md

@@ -9,10 +9,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Data Pipeline
 
-- [ ] **DATA-01**: System ingests AIS vessel positions via WebSocket stream for Middle East + major export routes
+- [x] **DATA-01**: System ingests AIS vessel positions via WebSocket stream for Middle East + major export routes
 - [x] **DATA-02**: System stores all vessel positions in TimescaleDB from first run
 - [x] **DATA-03**: System uses IMO number as primary vessel identity key
-- [ ] **DATA-04**: System filters GPS jamming artifacts and impossible speed jumps from position data
+- [x] **DATA-04**: System filters GPS jamming artifacts and impossible speed jumps from position data
 
 ### Map & Visualization
 
@@ -74,10 +74,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 1 | Pending |
+| DATA-01 | Phase 1 | Complete |
 | DATA-02 | Phase 1 | Complete |
 | DATA-03 | Phase 1 | Complete |
-| DATA-04 | Phase 1 | Pending |
+| DATA-04 | Phase 1 | Complete |
 | MAP-01 | Phase 1 | Pending |
 | MAP-02 | Phase 1 | Pending |
 | MAP-03 | Phase 1 | Pending |
