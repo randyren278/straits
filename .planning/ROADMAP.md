@@ -29,7 +29,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can click any vessel to see its identity panel: name, flag, speed, heading, destination, and IMO number
   4. User can filter to show only tankers and can toggle vessel track history as a polyline on the map
   5. Dashboard is usable on a mobile device; a data freshness indicator shows the time of the last AIS update
-**Plans**: TBD
+**Plans:** 5 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Project setup, dependencies, TypeScript types, test scaffolds
+- [ ] 01-02-PLAN.md — TimescaleDB schema, database connection pool, CRUD functions
+- [ ] 01-03-PLAN.md — Password auth with bcrypt, JWT sessions, route protection
+- [ ] 01-04-PLAN.md — AIS message parser, GPS filter, standalone WebSocket ingester
+- [ ] 01-05-PLAN.md — Mapbox GL map, vessel panel, filters, freshness indicator, mobile layout
 
 ### Phase 2: Intelligence Layers
 **Goal**: The live map is enriched with sanctions flags, oil price context, geopolitical news, vessel search, and chokepoint vessel counts — completing the full situational awareness picture
@@ -70,10 +77,11 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 0/5 | Ready to execute | - |
 | 2. Intelligence Layers | 0/TBD | Not started | - |
 | 3. Anomaly Detection | 0/TBD | Not started | - |
 | 4. Historical Analytics | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-03-11*
+*Phase 1 planned: 2026-03-11*
