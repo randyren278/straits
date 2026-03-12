@@ -27,7 +27,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Authentication
 
-- [ ] **AUTH-01**: User must enter password to access the dashboard
+- [x] **AUTH-01**: User must enter password to access the dashboard
 
 ### Intelligence Layers
 
@@ -86,7 +86,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MAP-06 | Phase 2 | Pending |
 | MAP-07 | Phase 2 | Pending |
 | MAP-08 | Phase 1 | Pending |
-| AUTH-01 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
 | INTL-01 | Phase 2 | Pending |
 | INTL-02 | Phase 2 | Pending |
 | INTL-03 | Phase 2 | Pending |

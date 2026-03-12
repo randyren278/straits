@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-03-12T04:56:33.000Z"
-last_activity: 2026-03-12 — Plan 01-01 complete; Next.js 16 project initialized with types and test scaffolds
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-03-12T05:03:31.773Z"
+last_activity: 2026-03-12 — Plan 01-03 complete; Authentication with bcrypt, JWT sessions, and route protection
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 6
-  completed_plans: 1
-  percent: 17
+  total_plans: 5
+  completed_plans: 3
+  percent: 60
 ---
 
 # Project State
@@ -26,28 +26,28 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 1 of 4 (Foundation)
-Plan: 1 of 6 in current phase
+Plan: 3 of 5 in current phase
 Status: Executing
-Last activity: 2026-03-12 — Plan 01-01 complete; Next.js 16 project initialized with types and test scaffolds
+Last activity: 2026-03-12 — Plan 01-03 complete; Authentication with bcrypt, JWT sessions, and route protection
 
-Progress: [##░░░░░░░░] 17%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 10 min
-- Total execution time: 10 min
+- Total plans completed: 3
+- Average duration: 8 min
+- Total execution time: 23 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 1 | 10 min | 10 min |
+| 01-foundation | 3 | 23 min | 8 min |
 
 **Recent Trend:**
-- Last 5 plans: 10 min
-- Trend: --
+- Last 5 plans: 10, 10, 3 min
+- Trend: improving
 
 *Updated after each plan completion*
 
@@ -68,6 +68,10 @@ Recent decisions affecting current work:
 - CRUD: COALESCE in upsert preserves existing values when null (01-02)
 - Build: Turbopack (Next.js 16 default) over webpack (01-01)
 - Types: Discriminated unions for AIS messages enabling type narrowing (01-01)
+- Auth: async bcrypt.compare used (not sync) to avoid blocking event loop (01-03)
+- Auth: jose library for JWT (ESM-native, Edge-compatible) (01-03)
+- Auth: 7-day session expiry with HTTP-only cookie (01-03)
+- Auth: proxy.ts pattern for Next.js 16 route protection (01-03)
 
 ### Pending Todos
 
@@ -81,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T04:56:33.000Z
-Stopped at: Completed 01-01-PLAN.md
-Resume file: .planning/phases/01-foundation/01-01-SUMMARY.md
+Last session: 2026-03-12T05:03:31.773Z
+Stopped at: Completed 01-03-PLAN.md
+Resume file: .planning/phases/01-foundation/01-03-SUMMARY.md
