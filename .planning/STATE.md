@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-03-12T04:54:00.000Z"
-last_activity: 2026-03-12 — Plan 01-02 complete; database schema and CRUD functions implemented
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-03-12T04:56:33.000Z"
+last_activity: 2026-03-12 — Plan 01-01 complete; Next.js 16 project initialized with types and test scaffolds
 progress:
   total_phases: 4
   completed_phases: 0
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 1 of 4 (Foundation)
-Plan: 2 of 6 in current phase
+Plan: 1 of 6 in current phase
 Status: Executing
-Last activity: 2026-03-12 — Plan 01-02 complete; database schema and CRUD functions implemented
+Last activity: 2026-03-12 — Plan 01-01 complete; Next.js 16 project initialized with types and test scaffolds
 
 Progress: [##░░░░░░░░] 17%
 
@@ -36,18 +36,18 @@ Progress: [##░░░░░░░░] 17%
 
 **Velocity:**
 - Total plans completed: 1
-- Average duration: 7 min
-- Total execution time: 7 min
+- Average duration: 10 min
+- Total execution time: 10 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 1 | 7 min | 7 min |
+| 01-foundation | 1 | 10 min | 10 min |
 
 **Recent Trend:**
-- Last 5 plans: 7 min
-- Trend: —
+- Last 5 plans: 10 min
+- Trend: --
 
 *Updated after each plan completion*
 
@@ -66,6 +66,8 @@ Recent decisions affecting current work:
 - Anomaly detection: restrict going-dark flags to terrestrial coverage zones only (open ocean gaps are normal)
 - Database: 1-day hypertable chunks, 7-day compression policy (01-02)
 - CRUD: COALESCE in upsert preserves existing values when null (01-02)
+- Build: Turbopack (Next.js 16 default) over webpack (01-01)
+- Types: Discriminated unions for AIS messages enabling type narrowing (01-01)
 
 ### Pending Todos
 
@@ -79,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T04:54:00.000Z
-Stopped at: Completed 01-02-PLAN.md
-Resume file: .planning/phases/01-foundation/01-02-SUMMARY.md
+Last session: 2026-03-12T04:56:33.000Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: .planning/phases/01-foundation/01-01-SUMMARY.md

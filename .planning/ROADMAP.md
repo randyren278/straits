@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 5 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Project setup, dependencies, TypeScript types, test scaffolds
+- [x] 01-01-PLAN.md — Project setup, dependencies, TypeScript types, test scaffolds
 - [x] 01-02-PLAN.md — TimescaleDB schema, database connection pool, CRUD functions
 - [ ] 01-03-PLAN.md — Password auth with bcrypt, JWT sessions, route protection
 - [ ] 01-04-PLAN.md — AIS message parser, GPS filter, standalone WebSocket ingester
@@ -77,7 +77,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/5 | In progress | - |
+| 1. Foundation | 2/5 | In progress | - |
 | 2. Intelligence Layers | 0/TBD | Not started | - |
 | 3. Anomaly Detection | 0/TBD | Not started | - |
 | 4. Historical Analytics | 0/TBD | Not started | - |
