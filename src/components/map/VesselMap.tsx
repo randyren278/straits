@@ -3,7 +3,7 @@
 /**
  * Main map component using Mapbox GL JS.
  * Renders vessel positions as GeoJSON points on a dark-themed map.
- * Requirements: MAP-01, MAP-02, MAP-03, MAP-06, MAP-07, INTL-01
+ * Requirements: MAP-01, MAP-02, MAP-03, MAP-06, MAP-07, INTL-01, ANOM-01
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
@@ -22,7 +22,7 @@ export function VesselMap() {
   const [vessels, setVessels] = useState<VesselWithSanctions[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
 
-  const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack, mapCenter, setMapCenter } =
+  const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack, mapCenter, setMapCenter, anomalyFilter } =
     useVesselStore();
 
   // Initialize map
@@ -45,7 +45,7 @@ export function VesselMap() {
         data: { type: 'FeatureCollection', features: [] },
       });
 
-      // Vessel circle layer - red for sanctioned, amber for tankers, gray for others
+      // Vessel circle layer - anomaly colors take priority, then sanctions, then tankers
       map.current.addLayer({
         id: 'vessel-circles',
         type: 'circle',
@@ -54,10 +54,31 @@ export function VesselMap() {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 10, 8],
           'circle-color': [
             'case',
-            // Priority 1: Sanctioned vessels (red)
+            // Priority 1: Going dark confirmed (bright red)
+            ['all',
+              ['==', ['get', 'anomalyType'], 'going_dark'],
+              ['==', ['get', 'anomalyConfidence'], 'confirmed']
+            ],
+            '#ef4444',
+            // Priority 2: Going dark suspected (yellow)
+            ['all',
+              ['==', ['get', 'anomalyType'], 'going_dark'],
+              ['==', ['get', 'anomalyConfidence'], 'suspected']
+            ],
+            '#eab308',
+            // Priority 3: Loitering (orange)
+            ['==', ['get', 'anomalyType'], 'loitering'],
+            '#f97316',
+            // Priority 4: Speed anomaly (blue)
+            ['==', ['get', 'anomalyType'], 'speed'],
+            '#3b82f6',
+            // Priority 5: Deviation (purple)
+            ['==', ['get', 'anomalyType'], 'deviation'],
+            '#a855f7',
+            // Priority 6: Sanctioned vessels (red)
             ['==', ['get', 'isSanctioned'], true],
             '#ef4444',
-            // Priority 2: Tankers (amber)
+            // Priority 7: Tankers (amber)
             [
               'all',
               ['>=', ['get', 'shipType'], 80],
@@ -78,7 +99,7 @@ export function VesselMap() {
         const props = e.features[0].properties;
         const coords = (e.features[0].geometry as GeoJSON.Point).coordinates;
 
-        // Reconstruct VesselWithSanctions from feature properties
+        // Reconstruct VesselWithSanctions from feature properties (including anomaly)
         const vessel: VesselWithSanctions = {
           imo: props?.imo || '',
           mmsi: props?.mmsi || '',
@@ -90,6 +111,8 @@ export function VesselMap() {
           isSanctioned: props?.isSanctioned || false,
           sanctioningAuthority: props?.sanctioningAuthority || null,
           sanctionReason: null, // Not stored in GeoJSON properties
+          anomalyType: props?.anomalyType || null,
+          anomalyConfidence: props?.anomalyConfidence || null,
           position: {
             time: new Date(),
             mmsi: props?.mmsi || '',
@@ -146,18 +169,24 @@ export function VesselMap() {
     return () => clearInterval(interval);
   }, [tankersOnly, setLastUpdate]);
 
-  // Update map data when vessels change
+  // Update map data when vessels change (or anomaly filter changes)
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
 
-    const filtered = filterTankers(vessels, tankersOnly);
+    let filtered = filterTankers(vessels, tankersOnly);
+
+    // Apply anomaly filter if enabled
+    if (anomalyFilter) {
+      filtered = filtered.filter((v) => v.anomalyType !== null && v.anomalyType !== undefined);
+    }
+
     const geojson = vesselsToGeoJSON(filtered);
 
     const source = map.current.getSource('vessels') as mapboxgl.GeoJSONSource;
     if (source) {
       source.setData(geojson);
     }
-  }, [vessels, tankersOnly, mapLoaded]);
+  }, [vessels, tankersOnly, anomalyFilter, mapLoaded]);
 
   // Handle track layer for selected vessel
   const updateTrackLayer = useCallback(async () => {
