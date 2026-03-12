@@ -1,18 +1,16 @@
 /**
  * News Fetcher (INTL-03)
  *
- * Fetches oil and shipping related news from NewsAPI.
- * Filters headlines by relevant keywords and Middle East region.
- * Calculates relevance scores for prioritized display.
+ * Orchestrates news fetching from NewsAPI with keyword filtering.
+ * Re-exports types and functions from the external newsapi module.
  */
 
-export interface NewsItem {
-  title: string;
-  source: string;
-  url: string;
-  publishedAt: Date;
-  relevanceScore: number;
-}
+import { fetchNewsHeadlines, type NewsHeadline } from '../external/newsapi';
+
+export type { NewsHeadline };
+
+// Re-export for backwards compatibility
+export type NewsItem = NewsHeadline;
 
 /**
  * Fetch relevant news headlines from NewsAPI.
@@ -21,7 +19,11 @@ export interface NewsItem {
  *
  * @returns Array of news items with relevance scores
  */
-export function fetchNews(): Promise<NewsItem[]> {
-  // TODO: Implement news fetching with keyword filtering
-  return Promise.resolve([]);
+export async function fetchNews(): Promise<NewsHeadline[]> {
+  try {
+    return await fetchNewsHeadlines();
+  } catch (error) {
+    console.error('Failed to fetch news:', error);
+    return [];
+  }
 }
