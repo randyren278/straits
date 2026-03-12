@@ -72,3 +72,52 @@ ALTER TABLE vessel_positions SET (
 -- This significantly reduces storage while maintaining query performance
 -- Compressed data is still queryable, just stored more efficiently
 SELECT add_compression_policy('vessel_positions', INTERVAL '7 days', if_not_exists => TRUE);
+
+-- =============================================================================
+-- Phase 2: Intelligence Layers
+-- =============================================================================
+
+-- Vessel sanctions table (INTL-01)
+-- Stores matched vessels from OpenSanctions and other sanctions lists
+-- IMO as primary key allows direct joining with vessels table
+CREATE TABLE IF NOT EXISTS vessel_sanctions (
+  imo VARCHAR(10) PRIMARY KEY,                        -- Vessel IMO number (matches vessels.imo)
+  sanctioning_authority VARCHAR(10) NOT NULL,         -- Authority code: OFAC, EU, UN, etc.
+  list_date DATE,                                     -- Date vessel was added to sanctions list
+  reason TEXT,                                        -- Reason for sanctions (if provided)
+  confidence VARCHAR(10) DEFAULT 'HIGH',              -- Match confidence: HIGH, MEDIUM, LOW
+  source_url TEXT,                                    -- URL to source document/list
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),      -- Record creation time
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()       -- Last update time
+);
+
+-- Oil prices table (INTL-02)
+-- Stores historical oil prices for WTI and Brent crude
+-- Used for sparkline charts and price change indicators
+CREATE TABLE IF NOT EXISTS oil_prices (
+  id SERIAL PRIMARY KEY,
+  symbol VARCHAR(10) NOT NULL,                        -- Price symbol: WTI, BRENT
+  price DECIMAL(10, 2) NOT NULL,                      -- Price in USD
+  change DECIMAL(10, 2),                              -- Absolute change from previous
+  change_percent DECIMAL(5, 2),                       -- Percentage change from previous
+  fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW()       -- When price was fetched
+);
+
+-- Index for efficient price queries: get latest prices by symbol
+CREATE INDEX IF NOT EXISTS idx_oil_prices_symbol_time ON oil_prices(symbol, fetched_at DESC);
+
+-- News items table (INTL-03)
+-- Stores oil/shipping related headlines from NewsAPI
+-- Used for news sidebar in dashboard
+CREATE TABLE IF NOT EXISTS news_items (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,                                -- Headline text
+  source VARCHAR(100),                                -- News source name
+  url TEXT NOT NULL UNIQUE,                           -- Article URL (unique constraint prevents duplicates)
+  published_at TIMESTAMPTZ,                           -- When article was published
+  relevance_score INTEGER DEFAULT 0,                  -- Keyword-based relevance score
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()       -- Record creation time
+);
+
+-- Index for fetching recent news: sorted by publish time
+CREATE INDEX IF NOT EXISTS idx_news_items_time ON news_items(published_at DESC);
