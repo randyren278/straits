@@ -2,31 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-03-12T05:22:10.824Z"
-last_activity: 2026-03-11 — Phase 1 complete; interactive map dashboard with vessel panel, filtering, track history
+status: in_progress
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-12T05:44:00.000Z"
+last_activity: 2026-03-12 — Phase 2 started; dependencies, schema extension, test scaffolds complete
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: phase_complete
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-03-11T06:20:00.000Z"
-last_activity: 2026-03-11 — Phase 1 complete; interactive map dashboard with vessel panel, filtering, track history
-progress:
-  total_phases: 4
-  completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_plans: 10
+  completed_plans: 6
+  percent: 60
 ---
 
 # Project State
@@ -36,32 +21,33 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
-**Current focus:** Phase 1 — Foundation (COMPLETE)
+**Current focus:** Phase 2 — Intelligence Layers
 
 ## Current Position
 
-Phase: 1 of 4 (Foundation) - COMPLETE
-Plan: 5 of 5 in current phase
-Status: Phase Complete
-Last activity: 2026-03-11 — Phase 1 complete; interactive map dashboard with vessel panel, filtering, track history
+Phase: 2 of 4 (Intelligence Layers)
+Plan: 1 of 5 in current phase
+Status: In Progress
+Last activity: 2026-03-12 — Phase 2 started; dependencies, schema extension, test scaffolds complete
 
-Progress: [██████████] 100%
+Progress: [██████----] 60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 8 min
-- Total execution time: 41 min
+- Total plans completed: 6
+- Average duration: 7 min
+- Total execution time: 44 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 5 | 41 min | 8 min |
+| 02-intelligence-layers | 1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 10, 10, 3, 3, 15 min
+- Last 5 plans: 10, 3, 3, 15, 3 min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -94,6 +80,9 @@ Recent decisions affecting current work:
 - Map: 30-second polling interval for vessel position updates (01-05)
 - Map: Zustand for global state (selectedVessel, tankersOnly, showTrack) (01-05)
 - Map: Responsive bottom sheet panel on mobile (max-md breakpoint) (01-05)
+- Dependencies: node-cron 4.x has built-in types, no @types package needed (02-01)
+- Geo: Chokepoint bounds use inclusive checks (edge points are inside) (02-01)
+- Testing: it.todo() stubs for Nyquist compliance test scaffolds (02-01)
 
 ### Pending Todos
 
@@ -107,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T06:20:00.000Z
-Stopped at: Completed 01-05-PLAN.md
-Resume file: .planning/phases/01-foundation/01-05-SUMMARY.md
+Last session: 2026-03-12T05:44:00.000Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: .planning/phases/02-intelligence-layers/02-01-SUMMARY.md

@@ -102,4 +102,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after 01-05-PLAN completion — MAP-01 through MAP-05, MAP-08 complete; Phase 1 finished*
+*Last updated: 2026-03-12 after 02-01-PLAN completion — Test scaffolds created for INTL-01/02/03, MAP-06/07; Phase 2 Wave 0 complete*
