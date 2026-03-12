@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-03-12T06:20:00.000Z"
-last_activity: 2026-03-12 — Anomaly detection foundation (schema, types, geo utilities)
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-03-12T06:24:00.000Z"
+last_activity: 2026-03-12 — Watchlist and alerts system (CRUD, APIs, Zustand state)
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 13
-  completed_plans: 10
-  percent: 77
+  completed_plans: 11
+  percent: 85
 ---
 
 # Project State
@@ -26,18 +26,18 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 3 of 4 (Anomaly Detection)
-Plan: 1 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In Progress
-Last activity: 2026-03-12 — Anomaly detection foundation (schema, types, geo utilities)
+Last activity: 2026-03-12 — Watchlist and alerts system (CRUD, APIs, Zustand state)
 
-Progress: [███████---] 77%
+Progress: [████████--] 85%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
-- Average duration: 7 min
-- Total execution time: 69 min
+- Total plans completed: 11
+- Average duration: 6 min
+- Total execution time: 73 min
 
 **By Phase:**
 
@@ -45,10 +45,10 @@ Progress: [███████---] 77%
 |-------|-------|-------|----------|
 | 01-foundation | 5 | 41 min | 8 min |
 | 02-intelligence-layers | 4 | 21 min | 5 min |
-| 03-anomaly-detection | 1 | 7 min | 7 min |
+| 03-anomaly-detection | 2 | 11 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 3, 6, 6, 6, 7 min
+- Last 5 plans: 6, 6, 6, 7, 4 min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -96,6 +96,9 @@ Recent decisions affecting current work:
 - Anomaly storage: JSONB details column for flexible type-specific anomaly data (03-01)
 - Coverage zones: Simple bounding boxes (not PostGIS) for rectangular AIS coverage regions (03-01)
 - Anchorages: Generous bounds to prevent false loitering alerts at known waiting areas (03-01)
+- Watchlist API: X-User-Id header for session-based user identification (03-03)
+- Alerts API: LEFT JOIN with vessels for API responses to include vessel names (03-03)
+- Zustand store: Optimistic updates for responsive UI (03-03)
 
 ### Pending Todos
 
@@ -109,6 +112,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T06:20:00.000Z
-Stopped at: Completed 03-01-PLAN.md
-Resume file: .planning/phases/03-anomaly-detection/03-01-SUMMARY.md
+Last session: 2026-03-12T06:24:00.000Z
+Stopped at: Completed 03-03-PLAN.md
+Resume file: .planning/phases/03-anomaly-detection/03-03-SUMMARY.md

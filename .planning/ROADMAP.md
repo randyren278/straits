@@ -69,7 +69,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md — Schema extension, type definitions, geo utilities (haversine, coverage zones, anchorages)
 - [ ] 03-02-PLAN.md — Detection logic: going-dark, loitering, speed anomaly, cron jobs
-- [ ] 03-03-PLAN.md — Watchlist and alerts: CRUD, APIs, Zustand state
+- [x] 03-03-PLAN.md — Watchlist and alerts: CRUD, APIs, Zustand state
 - [ ] 03-04-PLAN.md — UI integration: anomaly badges, vessel panel, notification bell, watchlist sidebar
 
 ### Phase 4: Historical Analytics
@@ -91,7 +91,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation | 5/5 | Complete    | 2026-03-12 |
 | 2. Intelligence Layers | 4/4 | Complete    | 2026-03-12 |
-| 3. Anomaly Detection | 1/4 | In Progress | - |
+| 3. Anomaly Detection | 2/4 | In Progress | - |
 | 4. Historical Analytics | 0/TBD | Not started | - |
 
 ---
