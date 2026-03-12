@@ -200,3 +200,34 @@ export async function getAlertsWithVessels(userId: string, limit: number = 50): 
     flag: row.flag,
   }));
 }
+
+/**
+ * Generate alerts for all new anomalies of a specific type.
+ * Called by cron jobs after detection runs.
+ *
+ * Finds anomalies detected in the last detection window (35 min to cover both
+ * 15-min and 30-min schedules) that have watched vessels, and creates alerts
+ * for watchers who haven't been alerted recently (1-hour dedup window).
+ *
+ * @param anomalyType - Type of anomaly to generate alerts for
+ */
+export async function generateAlertsForNewAnomalies(anomalyType: string): Promise<void> {
+  // Find new anomalies for watched vessels and create alerts
+  // Deduplication: don't alert same user for same vessel+type within 1 hour
+  await pool.query(`
+    INSERT INTO alerts (user_id, imo, alert_type, details)
+    SELECT w.user_id, a.imo, a.anomaly_type, a.details
+    FROM vessel_anomalies a
+    JOIN watchlist w ON w.imo = a.imo
+    WHERE a.anomaly_type = $1
+      AND a.detected_at > NOW() - INTERVAL '35 minutes'
+      AND a.resolved_at IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM alerts al
+        WHERE al.user_id = w.user_id
+          AND al.imo = a.imo
+          AND al.alert_type = a.anomaly_type
+          AND al.triggered_at > NOW() - INTERVAL '1 hour'
+      )
+  `, [anomalyType]);
+}

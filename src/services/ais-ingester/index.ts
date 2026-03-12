@@ -18,6 +18,7 @@
 import WebSocket from 'ws';
 import { Pool } from 'pg';
 import 'dotenv/config';
+import { startDetectionJobs } from './detection-jobs';
 
 // ============================================================================
 // Types (standalone - doesn't import from main project to avoid bundling issues)
@@ -190,6 +191,9 @@ function connect(): void {
     console.log('Connected. Sending subscription...');
     ws.send(JSON.stringify(subscription));
     console.log('Subscription sent. Waiting for messages...');
+
+    // Start detection cron jobs after successful connection
+    startDetectionJobs();
   });
 
   ws.on('message', (data: WebSocket.Data) => {
