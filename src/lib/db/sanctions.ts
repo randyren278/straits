@@ -18,6 +18,10 @@ export interface VesselWithSanctions extends VesselWithPosition {
   isSanctioned: boolean;
   sanctioningAuthority: string | null;
   sanctionReason: string | null;
+  // Anomaly fields (from LEFT JOIN vessel_anomalies)
+  anomalyType?: string | null;
+  anomalyConfidence?: string | null;
+  anomalyDetectedAt?: Date | null;
 }
 
 /**
@@ -75,6 +79,10 @@ interface VesselSanctionsRow {
   isSanctioned: boolean;
   sanctioningAuthority: string | null;
   sanctionReason: string | null;
+  // Anomaly fields
+  anomalyType: string | null;
+  anomalyConfidence: string | null;
+  anomalyDetectedAt: Date | null;
 }
 
 /**
@@ -92,13 +100,17 @@ export async function getVesselsWithSanctions(
            p.nav_status as "navStatus", p.low_confidence as "lowConfidence", p.time,
            CASE WHEN s.imo IS NOT NULL THEN true ELSE false END as "isSanctioned",
            s.sanctioning_authority as "sanctioningAuthority",
-           s.reason as "sanctionReason"
+           s.reason as "sanctionReason",
+           a.anomaly_type as "anomalyType",
+           a.confidence as "anomalyConfidence",
+           a.detected_at as "anomalyDetectedAt"
     FROM vessels v
     LEFT JOIN LATERAL (
       SELECT * FROM vessel_positions WHERE mmsi = v.mmsi
       ORDER BY time DESC LIMIT 1
     ) p ON true
     LEFT JOIN vessel_sanctions s ON v.imo = s.imo
+    LEFT JOIN vessel_anomalies a ON v.imo = a.imo AND a.resolved_at IS NULL
     ${tankersOnly ? 'WHERE v.ship_type BETWEEN 80 AND 89' : ''}
     ORDER BY v.last_seen DESC
   `
@@ -116,6 +128,9 @@ export async function getVesselsWithSanctions(
     isSanctioned: row.isSanctioned,
     sanctioningAuthority: row.sanctioningAuthority,
     sanctionReason: row.sanctionReason,
+    anomalyType: row.anomalyType,
+    anomalyConfidence: row.anomalyConfidence,
+    anomalyDetectedAt: row.anomalyDetectedAt,
     position: row.latitude
       ? {
           time: row.time!,

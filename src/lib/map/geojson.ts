@@ -1,13 +1,17 @@
 /**
  * GeoJSON conversion utilities for vessel map rendering.
- * Requirements: MAP-01, INTL-01
+ * Requirements: MAP-01, INTL-01, ANOM-01
  */
 import type { VesselWithPosition } from '@/types/vessel';
 
-// Extended vessel type that may include sanctions data
+// Extended vessel type that may include sanctions and anomaly data
 interface VesselWithPossibleSanctions extends VesselWithPosition {
   isSanctioned?: boolean;
   sanctioningAuthority?: string | null;
+  // Anomaly fields
+  anomalyType?: string | null;
+  anomalyConfidence?: string | null;
+  anomalyDetectedAt?: Date | null;
 }
 
 /**
@@ -45,6 +49,10 @@ export function vesselsToGeoJSON(
           // Sanctions properties
           isSanctioned: v.isSanctioned || false,
           sanctioningAuthority: v.sanctioningAuthority || null,
+          // Anomaly properties
+          hasAnomaly: v.anomalyType !== undefined && v.anomalyType !== null,
+          anomalyType: v.anomalyType || null,
+          anomalyConfidence: v.anomalyConfidence || null,
         },
       })),
   };
