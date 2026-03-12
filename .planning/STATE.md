@@ -111,6 +111,9 @@ Recent decisions affecting current work:
 - WatchlistPanel: Absolute left-4 top-20 positioning for non-interfering sidebar (03-04)
 - [Phase 04]: Default chokepoints: all three (hormuz, babel_mandeb, suez) for immediate visibility
 - [Phase 04]: Correlation API: date-keyed Map for O(1) traffic-price merge
+- [Phase 04-01]: RouteRegion keyword matching is case-insensitive substring match (04-01)
+- [Phase 04-01]: time_bucket('1 day') for consistent daily grouping across TimescaleDB (04-01)
+- [Phase 04-01]: Tanker filter uses ship_type BETWEEN 80 AND 89 (04-01)
 
 ### Pending Todos
 
