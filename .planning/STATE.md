@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-12T05:44:00.000Z"
-last_activity: 2026-03-12 — Phase 2 started; dependencies, schema extension, test scaffolds complete
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-03-12T05:52:00.000Z"
+last_activity: 2026-03-12 — Oil prices and news panels; Alpha Vantage/FRED fetchers, NewsAPI with keyword scoring
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 10
-  completed_plans: 6
-  percent: 60
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -26,28 +26,28 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 2 of 4 (Intelligence Layers)
-Plan: 1 of 5 in current phase
+Plan: 3 of 5 in current phase
 Status: In Progress
-Last activity: 2026-03-12 — Phase 2 started; dependencies, schema extension, test scaffolds complete
+Last activity: 2026-03-12 — Oil prices and news panels; Alpha Vantage/FRED fetchers, NewsAPI with keyword scoring
 
-Progress: [██████----] 60%
+Progress: [████████--] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 8
 - Average duration: 7 min
-- Total execution time: 44 min
+- Total execution time: 56 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 5 | 41 min | 8 min |
-| 02-intelligence-layers | 1 | 3 min | 3 min |
+| 02-intelligence-layers | 3 | 15 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 10, 3, 3, 15, 3 min
+- Last 5 plans: 3, 15, 3, 6, 6 min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -83,6 +83,11 @@ Recent decisions affecting current work:
 - Dependencies: node-cron 4.x has built-in types, no @types package needed (02-01)
 - Geo: Chokepoint bounds use inclusive checks (edge points are inside) (02-01)
 - Testing: it.todo() stubs for Nyquist compliance test scaffolds (02-01)
+- IMO normalization: Remove "IMO" prefix and pad to 7 digits for cross-system matching (02-02)
+- Sanctions priority: Red markers for sanctioned vessels override tanker amber color (02-02)
+- Oil prices: Alpha Vantage primary with FRED fallback for redundancy (02-03)
+- News: Keyword-based relevance scoring for headline filtering (02-03)
+- UI refresh: 60s for prices, 300s for news (02-03)
 
 ### Pending Todos
 
@@ -96,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T05:44:00.000Z
-Stopped at: Completed 02-01-PLAN.md
-Resume file: .planning/phases/02-intelligence-layers/02-01-SUMMARY.md
+Last session: 2026-03-12T05:52:00.000Z
+Stopped at: Completed 02-03-PLAN.md
+Resume file: .planning/phases/02-intelligence-layers/02-03-SUMMARY.md

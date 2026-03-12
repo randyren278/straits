@@ -31,7 +31,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Intelligence Layers
 
-- [ ] **INTL-01**: User can see sanctions flags on vessels linked to OFAC or EU sanctioned entities
+- [x] **INTL-01**: User can see sanctions flags on vessels linked to OFAC or EU sanctioned entities
 - [ ] **INTL-02**: User can view oil price panel showing WTI/Brent current prices and 30-day chart
 - [ ] **INTL-03**: User can view geopolitical news feed filtered for Middle East and oil keywords
 
@@ -87,7 +87,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MAP-07 | Phase 2 | Pending |
 | MAP-08 | Phase 1 | Complete |
 | AUTH-01 | Phase 1 | Complete |
-| INTL-01 | Phase 2 | Pending |
+| INTL-01 | Phase 2 | Complete |
 | INTL-02 | Phase 2 | Pending |
 | INTL-03 | Phase 2 | Pending |
 | ANOM-01 | Phase 3 | Pending |
@@ -102,4 +102,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-12 after 02-01-PLAN completion — Test scaffolds created for INTL-01/02/03, MAP-06/07; Phase 2 Wave 0 complete*
+*Last updated: 2026-03-12 after 02-02-PLAN completion — INTL-01 sanctions matching complete with OpenSanctions integration*
