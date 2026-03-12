@@ -97,3 +97,53 @@ export async function getWatchersForVessel(imo: string): Promise<string[]> {
   );
   return result.rows.map(row => row.user_id);
 }
+
+/**
+ * Extended watchlist entry with vessel info for API responses.
+ */
+export interface WatchlistWithVessel {
+  userId: string;
+  imo: string;
+  addedAt: Date;
+  notes: string | null;
+  vesselName: string | null;
+  flag: string | null;
+  shipType: number | null;
+}
+
+/**
+ * Get user's watchlist with vessel information.
+ * Joins with vessels table for display names.
+ *
+ * @param userId - User session ID
+ * @returns Array of watchlist entries with vessel details
+ */
+export async function getWatchlistWithVessels(userId: string): Promise<WatchlistWithVessel[]> {
+  const result = await pool.query<{
+    user_id: string;
+    imo: string;
+    added_at: Date;
+    notes: string | null;
+    name: string | null;
+    flag: string | null;
+    ship_type: number | null;
+  }>(
+    `SELECT w.user_id, w.imo, w.added_at, w.notes,
+            v.name, v.flag, v.ship_type
+     FROM watchlist w
+     LEFT JOIN vessels v ON v.imo = w.imo
+     WHERE w.user_id = $1
+     ORDER BY w.added_at DESC`,
+    [userId]
+  );
+
+  return result.rows.map(row => ({
+    userId: row.user_id,
+    imo: row.imo,
+    addedAt: row.added_at,
+    notes: row.notes,
+    vesselName: row.name,
+    flag: row.flag,
+    shipType: row.ship_type,
+  }));
+}
