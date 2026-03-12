@@ -1,0 +1,60 @@
+{
+  "name": "tanker-tracker",
+  "version": "1.0.0",
+  "description": "Real-time tanker tracking application",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/randyren278/tanker-tracker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/randyren278/tanker-tracker/issues"
+  },
+  "homepage": "https://github.com/randyren278/tanker-tracker#readme",
+  "dependencies": {
+    "@types/node": "^25.4.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.27",
+    "bcrypt": "^6.0.0",
+    "date-fns": "^4.1.0",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.1.6",
+    "jose": "^6.2.1",
+    "lucide-react": "^0.577.0",
+    "mapbox-gl": "^3.19.1",
+    "next": "^16.1.6",
+    "node-cron": "^4.2.1",
+    "papaparse": "^5.5.3",
+    "pg": "^8.20.0",
+    "postcss": "^8.5.8",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "recharts": "^3.8.0",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3",
+    "uuid": "^13.0.0",
+    "ws": "^8.19.0",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/bcrypt": "^6.0.0",
+    "@types/papaparse": "^5.5.2",
+    "@types/pg": "^8.18.0",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^5.1.4",
+    "happy-dom": "^20.8.3",
+    "vitest": "^4.0.18"
+  }
+}

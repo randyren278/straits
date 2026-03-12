@@ -9,41 +9,41 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Data Pipeline
 
-- [ ] **DATA-01**: System ingests AIS vessel positions via WebSocket stream for Middle East + major export routes
-- [ ] **DATA-02**: System stores all vessel positions in TimescaleDB from first run
-- [ ] **DATA-03**: System uses IMO number as primary vessel identity key
-- [ ] **DATA-04**: System filters GPS jamming artifacts and impossible speed jumps from position data
+- [x] **DATA-01**: System ingests AIS vessel positions via WebSocket stream for Middle East + major export routes
+- [x] **DATA-02**: System stores all vessel positions in TimescaleDB from first run
+- [x] **DATA-03**: System uses IMO number as primary vessel identity key
+- [x] **DATA-04**: System filters GPS jamming artifacts and impossible speed jumps from position data
 
 ### Map & Visualization
 
-- [ ] **MAP-01**: User can view interactive map showing live tanker positions with WebGL rendering
-- [ ] **MAP-02**: User can click a vessel to see identity panel (name, flag, speed, heading, destination, IMO)
-- [ ] **MAP-03**: User can filter vessels by type (tankers only vs all)
-- [ ] **MAP-04**: User can view vessel track history as polyline on map
-- [ ] **MAP-05**: User can see data freshness indicator showing last update time
-- [ ] **MAP-06**: User can search vessels by name or IMO number
-- [ ] **MAP-07**: User can view chokepoint monitoring widgets for Hormuz, Bab el-Mandeb, and Suez
-- [ ] **MAP-08**: User can use the dashboard on mobile devices via responsive layout
+- [x] **MAP-01**: User can view interactive map showing live tanker positions with WebGL rendering
+- [x] **MAP-02**: User can click a vessel to see identity panel (name, flag, speed, heading, destination, IMO)
+- [x] **MAP-03**: User can filter vessels by type (tankers only vs all)
+- [x] **MAP-04**: User can view vessel track history as polyline on map
+- [x] **MAP-05**: User can see data freshness indicator showing last update time
+- [x] **MAP-06**: User can search vessels by name or IMO number
+- [x] **MAP-07**: User can view chokepoint monitoring widgets for Hormuz, Bab el-Mandeb, and Suez
+- [x] **MAP-08**: User can use the dashboard on mobile devices via responsive layout
 
 ### Authentication
 
-- [ ] **AUTH-01**: User must enter password to access the dashboard
+- [x] **AUTH-01**: User must enter password to access the dashboard
 
 ### Intelligence Layers
 
-- [ ] **INTL-01**: User can see sanctions flags on vessels linked to OFAC or EU sanctioned entities
-- [ ] **INTL-02**: User can view oil price panel showing WTI/Brent current prices and 30-day chart
-- [ ] **INTL-03**: User can view geopolitical news feed filtered for Middle East and oil keywords
+- [x] **INTL-01**: User can see sanctions flags on vessels linked to OFAC or EU sanctioned entities
+- [x] **INTL-02**: User can view oil price panel showing WTI/Brent current prices and 30-day chart
+- [x] **INTL-03**: User can view geopolitical news feed filtered for Middle East and oil keywords
 
 ### Anomaly Detection
 
-- [ ] **ANOM-01**: System detects and flags vessels that disable AIS transponders (going dark)
-- [ ] **ANOM-02**: System detects route anomalies including loitering and unusual deviations
+- [x] **ANOM-01**: System detects and flags vessels that disable AIS transponders (going dark)
+- [x] **ANOM-02**: System detects route anomalies including loitering and unusual deviations
 
 ### Historical Analytics
 
-- [ ] **HIST-01**: User can view historical analytics with charts, trends, and correlations over time
-- [ ] **HIST-02**: User can create vessel watchlist and receive alerts on watched vessels
+- [x] **HIST-01**: User can view historical analytics with charts, trends, and correlations over time
+- [x] **HIST-02**: User can create vessel watchlist and receive alerts on watched vessels
 
 ## v2 Requirements
 
@@ -74,26 +74,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 1 | Pending |
-| DATA-02 | Phase 1 | Pending |
-| DATA-03 | Phase 1 | Pending |
-| DATA-04 | Phase 1 | Pending |
-| MAP-01 | Phase 1 | Pending |
-| MAP-02 | Phase 1 | Pending |
-| MAP-03 | Phase 1 | Pending |
-| MAP-04 | Phase 1 | Pending |
-| MAP-05 | Phase 1 | Pending |
-| MAP-06 | Phase 2 | Pending |
-| MAP-07 | Phase 2 | Pending |
-| MAP-08 | Phase 1 | Pending |
-| AUTH-01 | Phase 1 | Pending |
-| INTL-01 | Phase 2 | Pending |
-| INTL-02 | Phase 2 | Pending |
-| INTL-03 | Phase 2 | Pending |
-| ANOM-01 | Phase 3 | Pending |
-| ANOM-02 | Phase 3 | Pending |
-| HIST-01 | Phase 4 | Pending |
-| HIST-02 | Phase 3 | Pending |
+| DATA-01 | Phase 1 | Complete |
+| DATA-02 | Phase 1 | Complete |
+| DATA-03 | Phase 1 | Complete |
+| DATA-04 | Phase 1 | Complete |
+| MAP-01 | Phase 1 | Complete |
+| MAP-02 | Phase 1 | Complete |
+| MAP-03 | Phase 1 | Complete |
+| MAP-04 | Phase 1 | Complete |
+| MAP-05 | Phase 1 | Complete |
+| MAP-06 | Phase 2 | Complete |
+| MAP-07 | Phase 2 | Complete |
+| MAP-08 | Phase 1 | Complete |
+| AUTH-01 | Phase 1 | Complete |
+| INTL-01 | Phase 2 | Complete |
+| INTL-02 | Phase 2 | Complete |
+| INTL-03 | Phase 2 | Complete |
+| ANOM-01 | Phase 3 | Complete |
+| ANOM-02 | Phase 3 | Complete |
+| HIST-01 | Phase 4 | Complete |
+| HIST-02 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 20 total
@@ -102,4 +102,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after roadmap creation — traceability complete*
+*Last updated: 2026-03-12 after 04-03-PLAN completion — HIST-01 (historical analytics UI) complete, Phase 4 done, PROJECT COMPLETE*

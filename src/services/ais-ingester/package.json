@@ -1,0 +1,23 @@
+{
+  "name": "ais-ingester",
+  "version": "1.0.0",
+  "description": "Standalone AIS data ingestion service for tanker-tracker",
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-specifier-resolution=node index.js",
+    "dev": "tsx watch index.ts"
+  },
+  "dependencies": {
+    "ws": "^8.16.0",
+    "pg": "^8.11.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "@types/ws": "^8.5.0",
+    "@types/pg": "^8.11.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
