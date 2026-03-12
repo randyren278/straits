@@ -13,7 +13,7 @@ The project builds in four phases ordered by dependency: first the data pipeline
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - AIS data pipeline, interactive map, and password-protected access
-- [ ] **Phase 2: Intelligence Layers** - Sanctions flags, oil prices, news feed, vessel search, and chokepoint widgets
+- [x] **Phase 2: Intelligence Layers** - Sanctions flags, oil prices, news feed, vessel search, and chokepoint widgets (completed 2026-03-12)
 - [ ] **Phase 3: Anomaly Detection** - Going-dark detection, route anomaly flags, and vessel watchlist with alerts
 - [ ] **Phase 4: Historical Analytics** - Charts, trends, and oil price correlation over accumulated position history
 
@@ -48,7 +48,7 @@ Plans:
   3. User can read a live news feed of geopolitical headlines filtered for Middle East and oil keywords
   4. User can search for a vessel by name or IMO number and have it highlighted on the map
   5. User can see chokepoint monitoring widgets showing current vessel counts for Hormuz, Bab el-Mandeb, and Suez
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 02-01-PLAN.md — Wave 0: Install dependencies, extend schema, create test scaffolds
@@ -84,7 +84,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 5/5 | Complete    | 2026-03-12 |
-| 2. Intelligence Layers | 3/4 | In Progress | - |
+| 2. Intelligence Layers | 3/4 | Complete    | 2026-03-12 |
 | 3. Anomaly Detection | 0/TBD | Not started | - |
 | 4. Historical Analytics | 0/TBD | Not started | - |
 
