@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - AIS data pipeline, interactive map, and password-protected access
 - [x] **Phase 2: Intelligence Layers** - Sanctions flags, oil prices, news feed, vessel search, and chokepoint widgets (completed 2026-03-12)
 - [x] **Phase 3: Anomaly Detection** - Going-dark detection, route anomaly flags, and vessel watchlist with alerts (completed 2026-03-12)
-- [ ] **Phase 4: Historical Analytics** - Charts, trends, and oil price correlation over accumulated position history
+- [x] **Phase 4: Historical Analytics** - Charts, trends, and oil price correlation over accumulated position history (completed 2026-03-12)
 
 ## Phase Details
 
@@ -80,12 +80,12 @@ Plans:
   1. User can view historical tanker traffic charts by route or chokepoint over a selectable time range
   2. User can see oil price overlaid against vessel traffic volume to identify correlation patterns
   3. Charts render from data accumulated since Phase 1 without blocking the live data write path
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 04-01-PLAN.md — Types, route classification, analytics DB queries (TimescaleDB time_bucket)
-- [ ] 04-02-PLAN.md — Zustand store, traffic API, correlation API endpoints
-- [ ] 04-03-PLAN.md — TrafficChart, selectors, analytics page, header navigation
+- [x] 04-02-PLAN.md — Zustand store, traffic API, correlation API endpoints
+- [x] 04-03-PLAN.md — TrafficChart, selectors, analytics page, header navigation
 
 ## Progress
 
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Foundation | 5/5 | Complete    | 2026-03-12 |
 | 2. Intelligence Layers | 4/4 | Complete    | 2026-03-12 |
 | 3. Anomaly Detection | 4/4 | Complete    | 2026-03-12 |
-| 4. Historical Analytics | 1/3 | In Progress | - |
+| 4. Historical Analytics | 3/3 | Complete    | 2026-03-12 |
 
 ---
 *Roadmap created: 2026-03-11*
