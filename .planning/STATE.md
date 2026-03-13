@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 Phase: 4 of 4 (Historical Analytics)
 Plan: 3 of 3 in current phase
 Status: Complete
-Last activity: 2026-03-12 — Analytics UI (TrafficChart, selectors, analytics page, navigation)
+Last activity: 2026-03-13 - Completed quick task 1: tell me what api keys i need to set up to get this thing working
 
 Progress: [██████████] 100%
 
@@ -123,6 +123,12 @@ Recent decisions affecting current work:
 ### Pending Todos
 
 None yet.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | tell me what api keys i need to set up to get this thing working | 2026-03-13 | 24d2edc | [1-tell-me-what-api-keys-i-need-to-set-up-t](./quick/1-tell-me-what-api-keys-i-need-to-set-up-t/) |
 
 ### Blockers/Concerns
 
