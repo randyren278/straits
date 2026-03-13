@@ -30,10 +30,10 @@ export function ChokepointSelector({ selected, onChange }: ChokepointSelectorPro
         <button
           key={cp.id}
           onClick={() => toggle(cp.id)}
-          className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+          className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider border transition-colors ${
             selected.includes(cp.id)
-              ? 'bg-amber-600 text-white'
-              : 'bg-[#1a1a2e] text-gray-400 hover:text-white hover:bg-gray-700'
+              ? 'bg-amber-500 text-black border-amber-500'
+              : 'bg-black border-gray-700 text-gray-400 hover:text-white hover:border-gray-600'
           }`}
         >
           {cp.name}

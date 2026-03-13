@@ -90,7 +90,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setIsOpen(true)}
           placeholder="Search vessel..."
-          className="w-48 pl-9 pr-8 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+          className="w-48 pl-9 pr-8 py-1.5 bg-black border border-gray-700 text-sm font-mono text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
         />
         {query && (
           <button
@@ -105,13 +105,13 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
       {isOpen && results.length > 0 && (
         <div
           ref={dropdownRef}
-          className="absolute top-full left-0 mt-1 w-72 bg-[#16162a] border border-gray-700 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto"
+          className="absolute top-full left-0 mt-1 w-72 bg-black border border-amber-500/20 shadow-lg z-50 max-h-64 overflow-y-auto"
         >
           {results.map((result) => (
             <button
               key={result.imo}
               onClick={() => handleSelect(result)}
-              className="w-full px-3 py-2 text-left hover:bg-gray-800 transition-colors border-b border-gray-800 last:border-b-0"
+              className="w-full px-3 py-2 text-left hover:bg-gray-900 transition-colors border-b border-gray-800 last:border-b-0"
             >
               <p className="text-sm text-white font-medium">{result.name}</p>
               <p className="text-xs text-gray-400">
@@ -123,7 +123,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
       )}
 
       {isOpen && query.length >= 2 && results.length === 0 && !loading && (
-        <div className="absolute top-full left-0 mt-1 w-48 bg-[#16162a] border border-gray-700 rounded-lg shadow-lg z-50 p-3">
+        <div className="absolute top-full left-0 mt-1 w-48 bg-black border border-amber-500/20 shadow-lg z-50 p-3">
           <p className="text-sm text-gray-400">No vessels found</p>
         </div>
       )}

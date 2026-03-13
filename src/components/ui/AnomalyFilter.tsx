@@ -14,15 +14,15 @@ export function AnomalyFilter() {
   return (
     <button
       onClick={() => setAnomalyFilter(!anomalyFilter)}
-      className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
+      className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono uppercase tracking-wider border transition-colors ${
         anomalyFilter
-          ? 'bg-orange-500 text-white'
-          : 'bg-gray-700 text-gray-300 hover:text-white'
+          ? 'border-amber-500 text-amber-500 bg-amber-500/10'
+          : 'border-gray-700 text-gray-400 hover:text-gray-300 hover:border-gray-600'
       }`}
       title={anomalyFilter ? 'Show all vessels' : 'Show only vessels with anomalies'}
     >
       <AlertTriangle className="w-4 h-4" />
-      <span className="text-sm">Anomalies</span>
+      <span>Anomalies</span>
     </button>
   );
 }

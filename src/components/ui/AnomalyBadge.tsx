@@ -24,13 +24,13 @@ const BADGE_CONFIG = {
     unknown: { bg: 'bg-gray-500', icon: Navigation, label: 'SLOW' },
   },
   deviation: {
-    confirmed: { bg: 'bg-purple-500', icon: AlertTriangle, label: 'ROUTE' },
-    suspected: { bg: 'bg-purple-400', icon: AlertTriangle, label: 'ROUTE?' },
+    confirmed: { bg: 'bg-amber-600', icon: AlertTriangle, label: 'ROUTE' },
+    suspected: { bg: 'bg-amber-500', icon: AlertTriangle, label: 'ROUTE?' },
     unknown: { bg: 'bg-gray-500', icon: AlertTriangle, label: 'DEV' },
   },
   speed: {
-    confirmed: { bg: 'bg-blue-500', icon: Gauge, label: 'DRIFT' },
-    suspected: { bg: 'bg-blue-400', icon: Gauge, label: 'DRIFT?' },
+    confirmed: { bg: 'bg-amber-600', icon: Gauge, label: 'DRIFT' },
+    suspected: { bg: 'bg-amber-500', icon: Gauge, label: 'DRIFT?' },
     unknown: { bg: 'bg-gray-500', icon: Gauge, label: 'SLOW' },
   },
 };

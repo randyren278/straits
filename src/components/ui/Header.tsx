@@ -40,23 +40,27 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
   const isAnalytics = pathname === '/analytics';
 
   return (
-    <header className="bg-[#16162a] border-b border-gray-800">
+    <header className="bg-black border-b border-amber-500/20">
       <div className="h-14 flex items-center justify-between px-4">
         <div className="flex items-center">
-          <h1 className="text-lg font-bold text-white">Tanker Tracker</h1>
+          <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">Tanker Tracker</h1>
           <nav className="flex gap-1 ml-6">
             <Link
               href="/dashboard"
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                !isAnalytics ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
+                !isAnalytics
+                  ? 'border-amber-500 text-amber-500 bg-amber-500/10'
+                  : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
               }`}
             >
               Live Map
             </Link>
             <Link
               href="/analytics"
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                isAnalytics ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
+                isAnalytics
+                  ? 'border-amber-500 text-amber-500 bg-amber-500/10'
+                  : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
               }`}
             >
               Analytics
@@ -72,7 +76,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
         </div>
       </div>
       {!isAnalytics && (
-        <div className="h-10 flex items-center px-4 border-t border-gray-800/50">
+        <div className="h-10 flex items-center px-4 border-t border-amber-500/10">
           <ChokepointWidgets onSelect={onChokepointSelect} />
         </div>
       )}

@@ -56,7 +56,7 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
         <button
           key={cp.id}
           onClick={() => onSelect?.(cp.bounds, cp.name)}
-          className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 rounded-lg transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 bg-black hover:bg-gray-900 border border-amber-500/20 transition-colors"
         >
           <Anchor className="w-3.5 h-3.5 text-amber-500" />
           <div className="text-left">

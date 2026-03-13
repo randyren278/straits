@@ -105,7 +105,7 @@ export function NotificationBell() {
           />
 
           {/* Dropdown */}
-          <div className="absolute right-0 top-full mt-2 w-80 bg-[#1e1e3f] border border-gray-700 rounded-lg shadow-xl z-50 max-h-96 overflow-hidden">
+          <div className="absolute right-0 top-full mt-2 w-80 bg-black border border-amber-500/20 shadow-xl z-50 max-h-96 overflow-hidden">
             <div className="p-3 border-b border-gray-700 flex justify-between items-center">
               <span className="font-semibold text-white">Alerts</span>
               <span className="text-xs text-gray-500">{unreadCount} unread</span>
@@ -119,8 +119,8 @@ export function NotificationBell() {
                   <div
                     key={alert.id}
                     onClick={() => handleAlertClick(alert)}
-                    className={`p-3 border-b border-gray-800 cursor-pointer hover:bg-[#252550] transition-colors ${
-                      !alert.readAt ? 'bg-[#1a1a40]' : ''
+                    className={`p-3 border-b border-gray-800 cursor-pointer hover:bg-gray-900 transition-colors ${
+                      !alert.readAt ? 'bg-gray-950' : ''
                     }`}
                   >
                     <div className="flex justify-between items-start">

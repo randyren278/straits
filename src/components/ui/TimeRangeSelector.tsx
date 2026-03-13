@@ -20,15 +20,15 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
 
 export function TimeRangeSelector({ value, onChange }: TimeRangeSelectorProps) {
   return (
-    <div className="flex gap-1 bg-[#1a1a2e] rounded-lg p-1">
+    <div className="flex gap-1 bg-black border border-gray-800 p-1">
       {TIME_RANGES.map(({ value: rangeValue, label }) => (
         <button
           key={rangeValue}
           onClick={() => onChange(rangeValue)}
-          className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+          className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider border transition-colors ${
             value === rangeValue
-              ? 'bg-blue-600 text-white'
-              : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              ? 'bg-amber-500 text-black border-amber-500'
+              : 'border-transparent text-gray-400 hover:text-white hover:border-gray-700'
           }`}
         >
           {label}

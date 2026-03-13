@@ -13,12 +13,11 @@ export function TankerFilter() {
   return (
     <button
       onClick={() => setTankersOnly(!tankersOnly)}
-      className={`px-3 py-1 rounded text-sm font-medium transition-colors
-        ${
-          tankersOnly
-            ? 'bg-amber-600 text-white'
-            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-        }`}
+      className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
+        tankersOnly
+          ? 'border-amber-500 text-amber-500 bg-amber-500/10'
+          : 'border-gray-700 text-gray-400 hover:text-gray-300 hover:border-gray-600'
+      }`}
     >
       {tankersOnly ? 'Tankers Only' : 'All Vessels'}
     </button>
