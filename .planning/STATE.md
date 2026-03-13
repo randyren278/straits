@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: planning
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-03-13T06:30:33.752Z"
-last_activity: 2026-03-13 — v1.1 roadmap created (phases 5–7 added)
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-03-13T17:31:40.757Z"
+last_activity: 2026-03-13 — Phase 5 (UI Redesign) complete — 3/3 plans
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 19
-  completed_plans: 19
-  percent: 0
+  total_plans: 22
+  completed_plans: 20
+  percent: 100
 ---
 
 # Project State
@@ -56,6 +56,7 @@ Progress: [████████████████████] 19/19 p
 | Phase 05-ui-redesign P01 | 2 | 2 tasks | 2 files |
 | Phase 05-ui-redesign P02 | 3 | 2 tasks | 5 files |
 | Phase 05-ui-redesign P03 | 4 | 2 tasks | 11 files |
+| Phase 06-data-wiring P02 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -128,6 +129,9 @@ Recent decisions affecting current work:
 - [Phase 05-02]: Terminal panel headers use px-3 py-1.5 border-b border-amber-500/20 with amber-500 font-mono uppercase label pattern
 - [Phase 05-03]: Two amber active patterns: border-amber-500/bg-amber-500/10 for nav/filter toggles; bg-amber-500/text-black for TimeRange and ChokepointSelector buttons
 - [Phase 05-03]: AnomalyBadge deviation+speed variants changed from purple/blue to amber-600/amber-500 for palette consistency
+- [Phase 06-data-wiring]: Status derived from DB freshness timestamps — no external API pings (avoids rate limit cost)
+- [Phase 06-data-wiring]: classify() exported from route.ts to allow direct unit testing without HTTP overhead (06-02)
+- [Phase 06-data-wiring]: StatusBar: 60s setInterval with useEffect cleanup, dot colors amber/yellow/red/gray (06-02)
 
 ### Pending Todos
 
@@ -146,6 +150,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13
-Stopped at: Phase 5 complete, advancing to plan Phase 6
+Last session: 2026-03-13T17:31:40.754Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None

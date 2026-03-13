@@ -120,7 +120,7 @@ Plans:
   4. Sanctioned vessels ingested via AIS show a sanctions flag on the map matched by IMO number
   5. System status bar shows live/degraded/offline state per source (AIS, prices, news) reflecting actual API connectivity
   6. Anomaly detection crons execute on schedule and produce real alerts visible in the notification bell for watched vessels
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 06-01-PLAN.md — Refresh jobs (prices/news/sanctions) + ingester npm scripts (Wave 1)
@@ -150,7 +150,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Anomaly Detection | 4/4 | Complete    | 2026-03-12 |
 | 4. Historical Analytics | 3/3 | Complete    | 2026-03-12 |
 | 5. UI Redesign | 3/3 | Complete    | 2026-03-13 |
-| 6. Data Wiring | 0/3 | Planned | - |
+| 6. Data Wiring | 1/3 | In Progress|  |
 | 7. Documentation | 0/? | Not started | - |
 
 ---
