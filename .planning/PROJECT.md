@@ -27,10 +27,10 @@ Real-time visibility into Middle Eastern oil tanker movements with enough contex
 - ✓ Intelligence layers (sanctions, oil prices, news, search, chokepoints) — v1.0 Phase 2
 - ✓ Anomaly detection (going dark, loitering, watchlist, alerts) — v1.0 Phase 3
 - ✓ Historical analytics (traffic charts, oil price correlation) — v1.0 Phase 4
+- ✓ Dashboard uses Bloomberg terminal aesthetic (true black, amber, monospace, grid layout) — v1.1 Phase 5
 
 ### Active
 
-- [ ] Dashboard uses Bloomberg terminal aesthetic (true black, amber, monospace, grid layout)
 - [ ] AIS ingester launchable with single command, logs connection status
 - [ ] All data sources (prices, news, sanctions, anomalies) verified working end-to-end
 - [ ] System status indicator shows live/dead state per data source
@@ -66,10 +66,13 @@ Real-time visibility into Middle Eastern oil tanker movements with enough contex
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| AIS-first, no satellite ML | Achievable now, real data, satellite adds massive complexity | — Pending |
-| Web app over desktop | Easier to share with friends, no install needed | — Pending |
-| Data-dense UI over minimal | User wants Bloomberg-style information density | — Pending |
-| Middle East + routes, not global | Focused scope matches geopolitical interest | — Pending |
+| AIS-first, no satellite ML | Achievable now, real data, satellite adds massive complexity | Shipped in v1.0 |
+| Web app over desktop | Easier to share with friends, no install needed | Shipped in v1.0 |
+| Data-dense UI over minimal | User wants Bloomberg-style information density | Shipped in v1.1 Phase 5 |
+| Middle East + routes, not global | Focused scope matches geopolitical interest | Maintained throughout |
+| @theme radius reset via --radius-*: initial | Zeroes all rounded-* utilities globally in one line (Tailwind v4) | Phase 5 |
+| CSS Grid grid-cols-[1fr_320px] for dashboard layout | Panels beside map (not floating overlays) | Phase 5 |
+| JetBrains Mono via next/font/google | --font-mono CSS variable; all data values upgrade automatically | Phase 5 |
 
 ---
-*Last updated: 2026-03-13 after v1.1 milestone start*
+*Last updated: 2026-03-13 after Phase 5 (UI Redesign)*

@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
-**Current focus:** v1.1 Polish & Ship — Phase 5: UI Redesign (not yet started)
+**Current focus:** v1.1 Polish & Ship — Phase 6: Data Wiring (ready to plan)
 
 ## Current Position
 
-Phase: Phase 5 — UI Redesign (not started)
+Phase: Phase 6 — Data Wiring (ready to plan)
 Plan: —
-Status: Roadmap defined, awaiting phase planning
-Last activity: 2026-03-13 — v1.1 roadmap created (phases 5–7 added)
+Status: Ready to plan
+Last activity: 2026-03-13 — Phase 5 (UI Redesign) complete — 3/3 plans
 
-Progress: [░░░░░░░░░░] 0% (v1.1 milestone)
+Progress: [████████████████████] 19/19 plans (100%)
 
 ## Performance Metrics
 
@@ -142,12 +142,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- AISHub viability: requires sharing own AIS feed (RTL-SDR). If impractical, VesselFinder is paid fallback. Resolve before Phase 1 planning.
-- Phase 3 needs research during planning: coverage zone definitions for Middle East, gap detection thresholds, chokepoint geofence coordinates.
-- CrudePriceAPI free tier (100 req/month) — plan FRED fallback if rate limits hit during Phase 2.
+- Phase 6 will need to verify actual API key availability (aisstream.io, Alpha Vantage/FRED, NewsAPI) — env vars may not be set in dev
 
 ## Session Continuity
 
-Last session: 2026-03-13T06:27:20.579Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-03-13
+Stopped at: Phase 5 complete, advancing to plan Phase 6
 Resume file: None
