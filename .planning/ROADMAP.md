@@ -123,9 +123,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Design tokens: globals.css @theme (radius reset, JetBrains Mono) + layout.tsx font registration
-- [ ] 05-02-PLAN.md — Dashboard CSS Grid restructure + panel terminal styling (Wave 2)
-- [ ] 05-03-PLAN.md — Color sweep: Header, analytics page, UI widgets, TrafficChart (Wave 2)
+- [ ] 06-01-PLAN.md — Refresh jobs (prices/news/sanctions) + ingester npm scripts (Wave 1)
+- [ ] 06-02-PLAN.md — /api/status endpoint + StatusBar component (Wave 1)
+- [ ] 06-03-PLAN.md — Human verification checkpoint: end-to-end wiring confirmed (Wave 2)
 
 ### Phase 7: Documentation
 **Goal**: A person who has never seen the codebase can clone the repo, follow the README, and have the app running locally — and know how to deploy it to production without asking for help
@@ -136,12 +136,7 @@ Plans:
   2. Every required environment variable is listed in the README with a description and instructions for where to obtain it
   3. README includes a production deployment section covering hosting options, environment configuration, and ingester deployment
   4. .gitignore excludes .env files, build artifacts, TimescaleDB data volumes, and local logs — no secrets or large files would be committed on a fresh clone
-**Plans:** 3 plans
-
-Plans:
-- [ ] 05-01-PLAN.md — Design tokens: globals.css @theme (radius reset, JetBrains Mono) + layout.tsx font registration
-- [ ] 05-02-PLAN.md — Dashboard CSS Grid restructure + panel terminal styling (Wave 2)
-- [ ] 05-03-PLAN.md — Color sweep: Header, analytics page, UI widgets, TrafficChart (Wave 2)
+**Plans:** [To be planned]
 
 ## Progress
 
@@ -155,7 +150,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Anomaly Detection | 4/4 | Complete    | 2026-03-12 |
 | 4. Historical Analytics | 3/3 | Complete    | 2026-03-12 |
 | 5. UI Redesign | 3/3 | Complete    | 2026-03-13 |
-| 6. Data Wiring | 0/? | Not started | - |
+| 6. Data Wiring | 0/3 | Planned | - |
 | 7. Documentation | 0/? | Not started | - |
 
 ---
