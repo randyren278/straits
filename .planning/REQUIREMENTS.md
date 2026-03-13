@@ -52,10 +52,10 @@ All 20 requirements shipped and validated.
 
 ### Data Wiring
 
-- [ ] **WIRE-01**: AIS ingester can be started with a single npm script command and logs startup status (connected / failed) to console
-- [ ] **WIRE-02**: Oil price panel displays real WTI and Brent data fetched from Alpha Vantage with FRED as fallback
-- [ ] **WIRE-03**: News panel displays real geopolitical headlines fetched from NewsAPI
-- [ ] **WIRE-04**: Sanctions matching runs on ingested vessels and flags appear on sanctioned ships in the map
+- [x] **WIRE-01**: AIS ingester can be started with a single npm script command and logs startup status (connected / failed) to console
+- [x] **WIRE-02**: Oil price panel displays real WTI and Brent data fetched from Alpha Vantage with FRED as fallback
+- [x] **WIRE-03**: News panel displays real geopolitical headlines fetched from NewsAPI
+- [x] **WIRE-04**: Sanctions matching runs on ingested vessels and flags appear on sanctioned ships in the map
 - [x] **WIRE-05**: Dashboard shows a system status bar indicating live/degraded/offline state for each data source (AIS, prices, news)
 - [ ] **WIRE-06**: Anomaly detection cron jobs run on schedule and produce real alerts for watched vessels
 
@@ -101,10 +101,10 @@ All 20 requirements shipped and validated.
 | UI-03 | Phase 5 | Complete |
 | UI-04 | Phase 5 | Complete |
 | UI-05 | Phase 5 | Complete |
-| WIRE-01 | Phase 6 | Pending |
-| WIRE-02 | Phase 6 | Pending |
-| WIRE-03 | Phase 6 | Pending |
-| WIRE-04 | Phase 6 | Pending |
+| WIRE-01 | Phase 6 | Complete |
+| WIRE-02 | Phase 6 | Complete |
+| WIRE-03 | Phase 6 | Complete |
+| WIRE-04 | Phase 6 | Complete |
 | WIRE-05 | Phase 6 | Complete |
 | WIRE-06 | Phase 6 | Pending |
 | DOCS-01 | Phase 7 | Pending |

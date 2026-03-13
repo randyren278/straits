@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: planning
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-03-13T17:31:40.757Z"
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-03-13T17:32:45.616Z"
 last_activity: 2026-03-13 — Phase 5 (UI Redesign) complete — 3/3 plans
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 22
-  completed_plans: 20
+  completed_plans: 21
   percent: 100
 ---
 
@@ -57,6 +57,7 @@ Progress: [████████████████████] 19/19 p
 | Phase 05-ui-redesign P02 | 3 | 2 tasks | 5 files |
 | Phase 05-ui-redesign P03 | 4 | 2 tasks | 11 files |
 | Phase 06-data-wiring P02 | 2 | 2 tasks | 4 files |
+| Phase 06-data-wiring P01 | 2 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -132,6 +133,9 @@ Recent decisions affecting current work:
 - [Phase 06-data-wiring]: Status derived from DB freshness timestamps — no external API pings (avoids rate limit cost)
 - [Phase 06-data-wiring]: classify() exported from route.ts to allow direct unit testing without HTTP overhead (06-02)
 - [Phase 06-data-wiring]: StatusBar: 60s setInterval with useEffect cleanup, dot colors amber/yellow/red/gray (06-02)
+- [Phase 06-01]: Eager startup fetch in startRefreshJobs() prevents cold-start empty UI panels
+- [Phase 06-01]: Relative imports only in ingester (../../lib/...) — @/ alias won't resolve outside Next.js
+- [Phase 06-01]: Prices cron 6h, news 30m, sanctions daily — API rate limits respected
 
 ### Pending Todos
 
@@ -150,6 +154,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T17:31:40.754Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-03-13T17:32:45.613Z
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
