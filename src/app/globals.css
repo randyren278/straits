@@ -1,2 +1,13 @@
 @import 'mapbox-gl/dist/mapbox-gl.css';
 @import "tailwindcss";
+
+@theme {
+  /* Zero out all border-radius utilities to enforce terminal aesthetic.
+     After this, rounded-* classes produce no output anywhere in the app. */
+  --radius-*: initial;
+
+  /* Register JetBrains Mono as the mono font stack.
+     layout.tsx loads the font as --font-jetbrains; this @theme entry
+     maps the Tailwind font-mono utility to it. */
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
+}
