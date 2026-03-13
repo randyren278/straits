@@ -13,6 +13,7 @@ import { SearchInput } from './SearchInput';
 import { ChokepointWidgets } from './ChokepointWidget';
 import { NotificationBell } from './NotificationBell';
 import { AnomalyFilter } from './AnomalyFilter';
+import { StatusBar } from './StatusBar';
 
 interface SearchResult {
   imo: string;
@@ -73,6 +74,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
           <TankerFilter />
           <AnomalyFilter />
           <NotificationBell />
+          <StatusBar />
         </div>
       </div>
       {!isAnalytics && (
