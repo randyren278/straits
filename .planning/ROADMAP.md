@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Historical Analytics** - Charts, trends, and oil price correlation over accumulated position history (completed 2026-03-12)
 - [x] **Phase 5: UI Redesign** - Bloomberg terminal aesthetic: true black, amber accents, monospace data, hard-bordered grid layout (completed 2026-03-13)
 - [x] **Phase 6: Data Wiring** - All data sources live end-to-end: real AIS, oil prices, news, sanctions flags, anomaly crons, and system status bar (completed 2026-03-13)
-- [ ] **Phase 7: Documentation** - README covers full local setup and production deployment; .gitignore properly excludes secrets and build artifacts
+- [x] **Phase 7: Documentation** - README covers full local setup and production deployment; .gitignore properly excludes secrets and build artifacts (completed 2026-03-13)
 
 ## Phase Details
 
@@ -136,7 +136,7 @@ Plans:
   2. Every required environment variable is listed in the README with a description and instructions for where to obtain it
   3. README includes a production deployment section covering hosting options, environment configuration, and ingester deployment
   4. .gitignore excludes .env files, build artifacts, TimescaleDB data volumes, and local logs — no secrets or large files would be committed on a fresh clone
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 07-01-PLAN.md — Fix .gitignore (complete exclusion rules) + update .env.example (all 8 vars)
@@ -156,7 +156,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Historical Analytics | 3/3 | Complete    | 2026-03-12 |
 | 5. UI Redesign | 3/3 | Complete    | 2026-03-13 |
 | 6. Data Wiring | 3/3 | Complete    | 2026-03-13 |
-| 7. Documentation | 2/3 | In Progress|  |
+| 7. Documentation | 3/3 | Complete   | 2026-03-13 |
 
 ---
 *Roadmap created: 2026-03-11*
