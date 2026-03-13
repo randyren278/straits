@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest"
+    "test": "vitest",
+    "ingester": "tsx src/services/ais-ingester/index.ts",
+    "ingester:dev": "tsx watch src/services/ais-ingester/index.ts"
   },
   "repository": {
     "type": "git",
@@ -49,6 +51,7 @@
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
+    "tsx": "^4.7.0",
     "@types/bcrypt": "^6.0.0",
     "@types/papaparse": "^5.5.2",
     "@types/pg": "^8.18.0",
