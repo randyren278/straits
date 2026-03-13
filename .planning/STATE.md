@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: planning
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-03-13T06:26:09.964Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-03-13T06:27:20.582Z"
 last_activity: 2026-03-13 — v1.1 roadmap created (phases 5–7 added)
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 19
-  completed_plans: 18
+  completed_plans: 19
   percent: 0
 ---
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone)
 *Updated after each plan completion*
 | Phase 05-ui-redesign P01 | 2 | 2 tasks | 2 files |
 | Phase 05-ui-redesign P02 | 3 | 2 tasks | 5 files |
+| Phase 05-ui-redesign P03 | 4 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,8 @@ Recent decisions affecting current work:
 - [Phase 05-01]: --radius-*: initial zeroes all rounded-* utilities globally, enforcing sharp terminal aesthetic (05-01)
 - [Phase 05-02]: CSS Grid grid-cols-[1fr_320px] replaces absolute overlay pattern for panel layout
 - [Phase 05-02]: Terminal panel headers use px-3 py-1.5 border-b border-amber-500/20 with amber-500 font-mono uppercase label pattern
+- [Phase 05-03]: Two amber active patterns: border-amber-500/bg-amber-500/10 for nav/filter toggles; bg-amber-500/text-black for TimeRange and ChokepointSelector buttons
+- [Phase 05-03]: AnomalyBadge deviation+speed variants changed from purple/blue to amber-600/amber-500 for palette consistency
 
 ### Pending Todos
 
@@ -145,6 +148,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T06:26:09.962Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-03-13T06:27:20.579Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None

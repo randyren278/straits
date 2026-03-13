@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Intelligence Layers** - Sanctions flags, oil prices, news feed, vessel search, and chokepoint widgets (completed 2026-03-12)
 - [x] **Phase 3: Anomaly Detection** - Going-dark detection, route anomaly flags, and vessel watchlist with alerts (completed 2026-03-12)
 - [x] **Phase 4: Historical Analytics** - Charts, trends, and oil price correlation over accumulated position history (completed 2026-03-12)
-- [ ] **Phase 5: UI Redesign** - Bloomberg terminal aesthetic: true black, amber accents, monospace data, hard-bordered grid layout
+- [x] **Phase 5: UI Redesign** - Bloomberg terminal aesthetic: true black, amber accents, monospace data, hard-bordered grid layout (completed 2026-03-13)
 - [ ] **Phase 6: Data Wiring** - All data sources live end-to-end: real AIS, oil prices, news, sanctions flags, anomaly crons, and system status bar
 - [ ] **Phase 7: Documentation** - README covers full local setup and production deployment; .gitignore properly excludes secrets and build artifacts
 
@@ -102,7 +102,7 @@ Plans:
   3. Dashboard uses a fixed grid layout with hard 1px borders; data panels sit alongside the map rather than floating over it as overlays
   4. Data panels have no rounded corners and present information at tight line spacing matching terminal density
   5. Active navigation state uses amber accent; no blue highlights appear in the header or nav
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 05-01-PLAN.md — Design tokens: globals.css @theme (radius reset, JetBrains Mono) + layout.tsx font registration
@@ -154,7 +154,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Intelligence Layers | 4/4 | Complete    | 2026-03-12 |
 | 3. Anomaly Detection | 4/4 | Complete    | 2026-03-12 |
 | 4. Historical Analytics | 3/3 | Complete    | 2026-03-12 |
-| 5. UI Redesign | 2/3 | In Progress|  |
+| 5. UI Redesign | 3/3 | Complete   | 2026-03-13 |
 | 6. Data Wiring | 0/? | Not started | - |
 | 7. Documentation | 0/? | Not started | - |
 
