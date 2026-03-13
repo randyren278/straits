@@ -9,8 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
-    "ingester": "tsx src/services/ais-ingester/index.ts",
-    "ingester:dev": "tsx watch src/services/ais-ingester/index.ts"
+    "ingester": "tsx --env-file=.env.local src/services/ais-ingester/index.ts",
+    "ingester:dev": "tsx watch --env-file=.env.local src/services/ais-ingester/index.ts"
   },
   "repository": {
     "type": "git",
