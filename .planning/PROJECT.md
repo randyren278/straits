@@ -28,12 +28,12 @@ Real-time visibility into Middle Eastern oil tanker movements with enough contex
 - ✓ Anomaly detection (going dark, loitering, watchlist, alerts) — v1.0 Phase 3
 - ✓ Historical analytics (traffic charts, oil price correlation) — v1.0 Phase 4
 - ✓ Dashboard uses Bloomberg terminal aesthetic (true black, amber, monospace, grid layout) — v1.1 Phase 5
+- ✓ AIS ingester launchable with single command, logs connection status — v1.1 Phase 6
+- ✓ All data sources (prices, news, sanctions, anomalies) verified working end-to-end — v1.1 Phase 6
+- ✓ System status indicator shows live/dead state per data source — v1.1 Phase 6
 
 ### Active
 
-- [ ] AIS ingester launchable with single command, logs connection status
-- [ ] All data sources (prices, news, sanctions, anomalies) verified working end-to-end
-- [ ] System status indicator shows live/dead state per data source
 - [ ] Comprehensive README covering installation, env setup, running locally, production deployment
 - [ ] .gitignore properly excludes secrets, build artifacts, local data
 
@@ -73,6 +73,9 @@ Real-time visibility into Middle Eastern oil tanker movements with enough contex
 | @theme radius reset via --radius-*: initial | Zeroes all rounded-* utilities globally in one line (Tailwind v4) | Phase 5 |
 | CSS Grid grid-cols-[1fr_320px] for dashboard layout | Panels beside map (not floating overlays) | Phase 5 |
 | JetBrains Mono via next/font/google | --font-mono CSS variable; all data values upgrade automatically | Phase 5 |
+| Status from DB freshness (not API pings) | Avoids rate limit cost; classify() exported for direct unit testing | Phase 6 |
+| Refresh jobs inside ingester process | Single process to manage; follows existing detection-jobs.ts pattern | Phase 6 |
+| Prices cron 6h, news 30m, sanctions daily | Respects Alpha Vantage 25 req/day free tier limit | Phase 6 |
 
 ---
-*Last updated: 2026-03-13 after Phase 5 (UI Redesign)*
+*Last updated: 2026-03-13 after Phase 6 (Data Wiring)*

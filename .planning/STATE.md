@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
-**Current focus:** v1.1 Polish & Ship — Phase 6: Data Wiring (ready to plan)
+**Current focus:** v1.1 Polish & Ship — Phase 7: Documentation (ready to plan)
 
 ## Current Position
 
-Phase: Phase 6 — Data Wiring (ready to plan)
+Phase: Phase 7 — Documentation (ready to plan)
 Plan: —
 Status: Ready to plan
-Last activity: 2026-03-13 — Phase 5 (UI Redesign) complete — 3/3 plans
+Last activity: 2026-03-13 — Phase 6 (Data Wiring) complete — 3/3 plans
 
-Progress: [████████████████████] 19/19 plans (100%)
+Progress: [████████████████████] 22/22 plans (100%)
 
 ## Performance Metrics
 
@@ -152,10 +152,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 6 will need to verify actual API key availability (aisstream.io, Alpha Vantage/FRED, NewsAPI) — env vars may not be set in dev
+None — Phase 6 wiring complete. Phase 7 is documentation only (no API dependencies).
 
 ## Session Continuity
 
-Last session: 2026-03-13T17:34:40.278Z
+Last session: 2026-03-13
 Stopped at: Completed 06-03-PLAN.md
 Resume file: None
