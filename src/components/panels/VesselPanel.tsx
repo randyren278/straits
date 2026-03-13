@@ -58,18 +58,15 @@ export function VesselPanel() {
   };
 
   return (
-    <div
-      className="absolute right-0 top-0 bottom-0 w-80 bg-[#16162a] border-l border-gray-800 p-4 overflow-y-auto
-                    max-md:w-full max-md:h-1/2 max-md:top-auto max-md:border-l-0 max-md:border-t max-md:rounded-t-2xl
-                    z-10"
-    >
-      <div className="flex justify-between items-start mb-4">
-        <h2 className="text-xl font-bold text-white">{selectedVessel.name}</h2>
+    <div className="bg-black">
+      {/* Terminal panel header */}
+      <div className="px-3 py-1.5 border-b border-amber-500/20 flex items-center justify-between">
+        <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">VESSEL DETAIL</span>
         <div className="flex items-center gap-2">
           <button
             onClick={handleWatchlist}
-            className={`p-2 rounded ${
-              isWatched ? 'bg-amber-500 text-white' : 'bg-gray-700 text-gray-400 hover:text-white'
+            className={`p-1 ${
+              isWatched ? 'text-amber-500' : 'text-gray-500 hover:text-white'
             }`}
             title={isWatched ? 'Remove from watchlist' : 'Add to watchlist'}
           >
@@ -77,13 +74,13 @@ export function VesselPanel() {
           </button>
           <button
             onClick={() => setSelectedVessel(null)}
-            className="text-gray-400 hover:text-white p-1"
+            className="text-gray-500 hover:text-white p-1"
             aria-label="Close panel"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -96,75 +93,79 @@ export function VesselPanel() {
         </div>
       </div>
 
-      <div className="space-y-3 text-sm">
+      {/* Vessel name */}
+      <div className="px-3 py-2 border-b border-amber-500/10">
+        <span className="font-mono text-white text-xs">{selectedVessel.name}</span>
+      </div>
+
+      {/* Data rows */}
+      <div className="px-3 py-2 space-y-1.5 text-xs">
         <div className="flex justify-between">
-          <span className="text-gray-400">IMO</span>
-          <span className="text-white font-mono">
-            {selectedVessel.imo || 'N/A'}
-          </span>
+          <span className="text-gray-500">IMO</span>
+          <span className="font-mono text-white">{selectedVessel.imo || 'N/A'}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-400">MMSI</span>
-          <span className="text-white font-mono">{selectedVessel.mmsi}</span>
+          <span className="text-gray-500">MMSI</span>
+          <span className="font-mono text-white">{selectedVessel.mmsi}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-400">Flag</span>
-          <span className="text-white">{selectedVessel.flag || 'Unknown'}</span>
+          <span className="text-gray-500">Flag</span>
+          <span className="font-mono text-white">{selectedVessel.flag || 'Unknown'}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-400">Ship Type</span>
-          <span className="text-white">
+          <span className="text-gray-500">Type</span>
+          <span className="font-mono text-white">
             {selectedVessel.shipType >= 80 && selectedVessel.shipType <= 89
               ? `Tanker (${selectedVessel.shipType})`
               : selectedVessel.shipType}
           </span>
         </div>
-        <hr className="border-gray-700" />
-        <div className="flex justify-between">
-          <span className="text-gray-400">Speed</span>
-          <span className="text-white">
-            {selectedVessel.position?.speed?.toFixed(1) ?? 'N/A'} kn
-          </span>
+        <div className="border-t border-amber-500/10 pt-1.5">
+          <div className="flex justify-between mb-1.5">
+            <span className="text-gray-500">Speed</span>
+            <span className="font-mono text-white">
+              {selectedVessel.position?.speed?.toFixed(1) ?? 'N/A'} kn
+            </span>
+          </div>
+          <div className="flex justify-between mb-1.5">
+            <span className="text-gray-500">Heading</span>
+            <span className="font-mono text-white">
+              {selectedVessel.position?.heading ?? 'N/A'}
+              {selectedVessel.position?.heading != null && '\u00B0'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Course</span>
+            <span className="font-mono text-white">
+              {selectedVessel.position?.course ?? 'N/A'}
+              {selectedVessel.position?.course != null && '\u00B0'}
+            </span>
+          </div>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-400">Heading</span>
-          <span className="text-white">
-            {selectedVessel.position?.heading ?? 'N/A'}
-            {selectedVessel.position?.heading != null && '\u00B0'}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-400">Course</span>
-          <span className="text-white">
-            {selectedVessel.position?.course ?? 'N/A'}
-            {selectedVessel.position?.course != null && '\u00B0'}
-          </span>
-        </div>
-        <hr className="border-gray-700" />
-        <div className="flex justify-between">
-          <span className="text-gray-400">Destination</span>
-          <span className="text-white">
-            {selectedVessel.destination || 'Not reported'}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-400">Position</span>
-          <span className="text-white font-mono text-xs">
-            {selectedVessel.position?.latitude.toFixed(4)},{' '}
-            {selectedVessel.position?.longitude.toFixed(4)}
-          </span>
+        <div className="border-t border-amber-500/10 pt-1.5">
+          <div className="flex justify-between mb-1.5">
+            <span className="text-gray-500">Destination</span>
+            <span className="font-mono text-white">{selectedVessel.destination || 'Not reported'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Position</span>
+            <span className="font-mono text-white text-xs">
+              {selectedVessel.position?.latitude.toFixed(4)},{' '}
+              {selectedVessel.position?.longitude.toFixed(4)}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Sanctions Alert Section */}
       {'isSanctioned' in selectedVessel &&
         (selectedVessel as Record<string, unknown>).isSanctioned === true && (
-        <div className="mt-4 p-3 bg-red-900/30 border border-red-700 rounded-lg">
+        <div className="mx-3 mb-2 px-3 py-2 bg-red-900/30 border border-red-700">
           <div className="flex items-center gap-2 text-red-400">
             <AlertTriangle className="w-4 h-4" />
-            <span className="font-semibold">SANCTIONED</span>
+            <span className="font-mono text-xs uppercase tracking-widest">SANCTIONED</span>
           </div>
-          <p className="text-sm text-red-300 mt-1">
+          <p className="text-xs text-red-300 mt-1">
             {('sanctioningAuthority' in selectedVessel &&
               (selectedVessel as Record<string, unknown>).sanctioningAuthority) as React.ReactNode}{' '}
             {'\u2022'}{' '}
@@ -178,16 +179,16 @@ export function VesselPanel() {
 
       {/* Anomaly Detection Section */}
       {vesselWithAnomaly.anomalyType && (
-        <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+        <div className="mx-3 mb-2 px-3 py-2 bg-orange-500/10 border border-orange-500/30">
           <div className="flex items-center gap-2">
             <AnomalyBadge
               type={vesselWithAnomaly.anomalyType as AnomalyType}
               confidence={(vesselWithAnomaly.anomalyConfidence as Confidence) || 'unknown'}
               size="md"
             />
-            <span className="text-orange-400 text-sm">Anomaly Detected</span>
+            <span className="text-orange-400 text-xs font-mono uppercase tracking-widest">Anomaly Detected</span>
           </div>
-          <div className="mt-2 text-sm text-gray-400">
+          <div className="mt-2 text-xs text-gray-400">
             {vesselWithAnomaly.anomalyType === 'going_dark' && 'AIS signal lost in coverage zone'}
             {vesselWithAnomaly.anomalyType === 'loitering' && 'Vessel loitering in open water'}
             {vesselWithAnomaly.anomalyType === 'speed' && 'Unusual speed detected (possible drift)'}
@@ -201,17 +202,20 @@ export function VesselPanel() {
         </div>
       )}
 
-      <button
-        onClick={() => setShowTrack(!showTrack)}
-        className={`w-full mt-6 py-2 rounded font-medium transition-colors
-          ${
-            showTrack
-              ? 'bg-amber-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-      >
-        {showTrack ? 'Hide Track' : 'Show Track History'}
-      </button>
+      {/* Track toggle */}
+      <div className="px-3 py-2">
+        <button
+          onClick={() => setShowTrack(!showTrack)}
+          className={`w-full py-1.5 font-mono text-xs uppercase tracking-widest transition-colors border
+            ${
+              showTrack
+                ? 'bg-amber-500/20 text-amber-500 border-amber-500/40'
+                : 'bg-transparent text-gray-500 border-gray-700 hover:border-gray-500 hover:text-gray-300'
+            }`}
+        >
+          {showTrack ? 'Hide Track' : 'Show Track History'}
+        </button>
+      </div>
     </div>
   );
 }

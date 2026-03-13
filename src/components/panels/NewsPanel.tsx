@@ -1,6 +1,6 @@
 /**
  * News Panel Component
- * Collapsible sidebar showing filtered geopolitical news headlines.
+ * Terminal panel showing filtered geopolitical news headlines.
  * Refreshes every 5 minutes via polling.
  */
 'use client';
@@ -17,7 +17,7 @@ interface NewsItem {
 }
 
 /**
- * Collapsible news feed panel positioned below the oil price panel.
+ * Terminal-style news feed panel in the right column.
  * Features:
  * - Scrollable list of 15 headlines
  * - Source name and relative timestamp
@@ -51,19 +51,20 @@ export function NewsPanel() {
   if (loading) return null;
 
   return (
-    <div className="absolute top-32 right-4 w-80 bg-[#16162a] border border-gray-800 rounded-lg shadow-lg z-10">
+    <div className="bg-black">
+      {/* Terminal panel header */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="w-full px-3 py-2 flex items-center justify-between text-gray-300 hover:text-white border-b border-gray-800"
+        className="w-full px-3 py-1.5 border-b border-amber-500/20 flex items-center justify-between hover:bg-white/5 transition-colors"
       >
-        <span className="font-medium">News Feed</span>
-        {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+        <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">INTEL FEED</span>
+        {collapsed ? <ChevronDown className="w-3 h-3 text-amber-500/60" /> : <ChevronUp className="w-3 h-3 text-amber-500/60" />}
       </button>
 
       {!collapsed && (
-        <div className="max-h-96 overflow-y-auto">
+        <div className="overflow-y-auto">
           {headlines.length === 0 ? (
-            <p className="p-3 text-gray-500 text-sm">No headlines available</p>
+            <p className="px-3 py-2 text-gray-500 text-xs font-mono">No headlines available</p>
           ) : (
             headlines.map((item, i) => (
               <a
@@ -71,10 +72,10 @@ export function NewsPanel() {
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block p-3 border-b border-gray-800 hover:bg-gray-800/50 transition-colors"
+                className="block px-3 py-2 border-b border-amber-500/10 hover:bg-white/5 transition-colors"
               >
-                <p className="text-sm text-gray-200 line-clamp-2">{item.title}</p>
-                <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                <p className="text-xs text-gray-200 leading-tight line-clamp-2">{item.title}</p>
+                <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 font-mono">
                   <span>{item.source}</span>
                   <span>-</span>
                   <span>{formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</span>

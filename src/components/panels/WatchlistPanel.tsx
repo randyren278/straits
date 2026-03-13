@@ -78,35 +78,38 @@ export function WatchlistPanel() {
   const watchlistWithVessel = watchlist as WatchlistEntryWithVessel[];
 
   return (
-    <div className="absolute left-4 top-20 w-72 bg-[#1e1e3f]/95 backdrop-blur border border-gray-700 rounded-lg shadow-xl z-40">
+    <div className="bg-black">
+      {/* Terminal panel header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-3 flex justify-between items-center text-white hover:bg-[#252550] rounded-t-lg transition-colors"
+        className="w-full px-3 py-1.5 border-b border-amber-500/20 flex items-center justify-between hover:bg-white/5 transition-colors"
       >
         <span className="flex items-center gap-2">
-          <Eye className="w-4 h-4" />
-          Watchlist ({watchlist.length})
+          <Eye className="w-3 h-3 text-amber-500" />
+          <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">
+            WATCHLIST ({watchlist.length})
+          </span>
         </span>
         {isExpanded ? (
-          <ChevronUp className="w-4 h-4" />
+          <ChevronUp className="w-3 h-3 text-amber-500/60" />
         ) : (
-          <ChevronDown className="w-4 h-4" />
+          <ChevronDown className="w-3 h-3 text-amber-500/60" />
         )}
       </button>
 
       {isExpanded && (
-        <div className="border-t border-gray-700 max-h-64 overflow-y-auto">
+        <div className="overflow-y-auto">
           {watchlistWithVessel.map((entry) => (
             <div
               key={entry.imo}
-              className="p-3 border-b border-gray-800 hover:bg-[#252550] transition-colors"
+              className="px-3 py-2 border-b border-amber-500/10 hover:bg-white/5 transition-colors"
             >
               <div className="flex justify-between items-start">
                 <div
                   className="flex-1 cursor-pointer"
                   onClick={() => handleVesselClick(entry)}
                 >
-                  <span className="text-white font-medium">
+                  <span className="font-mono text-white text-xs">
                     {entry.vesselName || entry.imo}
                   </span>
                   {entry.anomalyType && (
@@ -124,10 +127,10 @@ export function WatchlistPanel() {
                     e.stopPropagation();
                     handleRemove(entry.imo);
                   }}
-                  className="text-gray-500 hover:text-red-400 transition-colors p-1"
+                  className="text-gray-600 hover:text-red-400 transition-colors p-1"
                   title="Remove from watchlist"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3 h-3" />
                 </button>
               </div>
             </div>

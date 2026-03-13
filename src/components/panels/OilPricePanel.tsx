@@ -1,6 +1,6 @@
 /**
  * Oil Price Panel Component
- * Floating panel displaying WTI and Brent crude oil prices with sparklines.
+ * Terminal panel displaying WTI and Brent crude oil prices with sparklines.
  * Refreshes every minute via polling.
  */
 'use client';
@@ -17,7 +17,7 @@ interface PriceData {
 }
 
 /**
- * Compact floating panel showing oil prices in top-right corner.
+ * Terminal-style panel showing oil prices in the right column.
  * Features:
  * - WTI and Brent prices with dollar amounts
  * - Daily change percentage (color-coded green/red)
@@ -50,22 +50,30 @@ export function OilPricePanel() {
   if (!prices.length) return null;
 
   return (
-    <div className="absolute top-16 right-4 bg-[#16162a] border border-gray-800 rounded-lg p-3 z-20 shadow-lg">
-      <div className="flex gap-6">
+    <div className="bg-black">
+      {/* Terminal panel header */}
+      <div className="px-3 py-1.5 border-b border-amber-500/20 flex items-center justify-between">
+        <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">OIL PRICES</span>
+      </div>
+
+      {/* Price data */}
+      <div className="px-3 py-2 space-y-1.5 text-xs">
         {prices.map((p) => (
-          <div key={p.symbol} className="flex flex-col min-w-[100px]">
-            <span className="text-xs text-gray-400 font-medium">{p.symbol}</span>
-            <span className="text-xl font-mono text-white">${p.price.toFixed(2)}</span>
-            <span className={`text-xs font-medium ${p.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {p.change >= 0 ? '+' : ''}{p.changePercent.toFixed(2)}%
-            </span>
-            <div className="mt-1">
-              <Sparkline
-                data={p.history}
-                color={p.change >= 0 ? '#4ade80' : '#f87171'}
-                height={32}
-              />
+          <div key={p.symbol} className="flex flex-col">
+            <div className="flex justify-between items-baseline mb-1">
+              <span className="text-gray-500">{p.symbol}</span>
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-white">${p.price.toFixed(2)}</span>
+                <span className={`font-mono text-xs ${p.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {p.change >= 0 ? '+' : ''}{p.changePercent.toFixed(2)}%
+                </span>
+              </div>
             </div>
+            <Sparkline
+              data={p.history}
+              color={p.change >= 0 ? '#4ade80' : '#f87171'}
+              height={32}
+            />
           </div>
         ))}
       </div>
