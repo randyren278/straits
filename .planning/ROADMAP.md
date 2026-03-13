@@ -102,7 +102,12 @@ Plans:
   3. Dashboard uses a fixed grid layout with hard 1px borders; data panels sit alongside the map rather than floating over it as overlays
   4. Data panels have no rounded corners and present information at tight line spacing matching terminal density
   5. Active navigation state uses amber accent; no blue highlights appear in the header or nav
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Design tokens: globals.css @theme (radius reset, JetBrains Mono) + layout.tsx font registration
+- [ ] 05-02-PLAN.md — Dashboard CSS Grid restructure + panel terminal styling (Wave 2)
+- [ ] 05-03-PLAN.md — Color sweep: Header, analytics page, UI widgets, TrafficChart (Wave 2)
 
 ### Phase 6: Data Wiring
 **Goal**: Every data source is connected and delivering real data end-to-end — AIS ingester runs with a single command, prices and news come from live APIs, sanctions flags appear on ingested vessels, anomaly crons fire on schedule, and a system status bar shows the health of each source
@@ -115,7 +120,12 @@ Plans:
   4. Sanctioned vessels ingested via AIS show a sanctions flag on the map matched by IMO number
   5. System status bar shows live/degraded/offline state per source (AIS, prices, news) reflecting actual API connectivity
   6. Anomaly detection crons execute on schedule and produce real alerts visible in the notification bell for watched vessels
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Design tokens: globals.css @theme (radius reset, JetBrains Mono) + layout.tsx font registration
+- [ ] 05-02-PLAN.md — Dashboard CSS Grid restructure + panel terminal styling (Wave 2)
+- [ ] 05-03-PLAN.md — Color sweep: Header, analytics page, UI widgets, TrafficChart (Wave 2)
 
 ### Phase 7: Documentation
 **Goal**: A person who has never seen the codebase can clone the repo, follow the README, and have the app running locally — and know how to deploy it to production without asking for help
@@ -126,7 +136,12 @@ Plans:
   2. Every required environment variable is listed in the README with a description and instructions for where to obtain it
   3. README includes a production deployment section covering hosting options, environment configuration, and ingester deployment
   4. .gitignore excludes .env files, build artifacts, TimescaleDB data volumes, and local logs — no secrets or large files would be committed on a fresh clone
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Design tokens: globals.css @theme (radius reset, JetBrains Mono) + layout.tsx font registration
+- [ ] 05-02-PLAN.md — Dashboard CSS Grid restructure + panel terminal styling (Wave 2)
+- [ ] 05-03-PLAN.md — Color sweep: Header, analytics page, UI widgets, TrafficChart (Wave 2)
 
 ## Progress
 
