@@ -1,21 +1,20 @@
 # Requirements: Tanker Tracker
 
 **Defined:** 2026-03-11
+**Updated:** 2026-03-13 (v1.1 requirements added)
 **Core Value:** Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
 
-## v1 Requirements
+## v1.0 Requirements (Complete)
 
-Requirements for initial release. Each maps to roadmap phases.
+All 20 requirements shipped and validated.
 
 ### Data Pipeline
-
 - [x] **DATA-01**: System ingests AIS vessel positions via WebSocket stream for Middle East + major export routes
 - [x] **DATA-02**: System stores all vessel positions in TimescaleDB from first run
 - [x] **DATA-03**: System uses IMO number as primary vessel identity key
 - [x] **DATA-04**: System filters GPS jamming artifacts and impossible speed jumps from position data
 
 ### Map & Visualization
-
 - [x] **MAP-01**: User can view interactive map showing live tanker positions with WebGL rendering
 - [x] **MAP-02**: User can click a vessel to see identity panel (name, flag, speed, heading, destination, IMO)
 - [x] **MAP-03**: User can filter vessels by type (tankers only vs all)
@@ -26,28 +25,48 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **MAP-08**: User can use the dashboard on mobile devices via responsive layout
 
 ### Authentication
-
 - [x] **AUTH-01**: User must enter password to access the dashboard
 
 ### Intelligence Layers
-
 - [x] **INTL-01**: User can see sanctions flags on vessels linked to OFAC or EU sanctioned entities
 - [x] **INTL-02**: User can view oil price panel showing WTI/Brent current prices and 30-day chart
 - [x] **INTL-03**: User can view geopolitical news feed filtered for Middle East and oil keywords
 
 ### Anomaly Detection
-
 - [x] **ANOM-01**: System detects and flags vessels that disable AIS transponders (going dark)
 - [x] **ANOM-02**: System detects route anomalies including loitering and unusual deviations
 
 ### Historical Analytics
-
 - [x] **HIST-01**: User can view historical analytics with charts, trends, and correlations over time
 - [x] **HIST-02**: User can create vessel watchlist and receive alerts on watched vessels
 
-## v2 Requirements
+## v1.1 Requirements
 
-Deferred to future release. Tracked but not in current roadmap.
+### UI Redesign
+
+- [ ] **UI-01**: Dashboard background is true black with amber (#f59e0b) as the primary accent color — no navy or purple
+- [ ] **UI-02**: All data values (prices, coordinates, IMO numbers, speed, headings) render in JetBrains Mono or similar monospace font
+- [ ] **UI-03**: Dashboard uses a grid layout with fixed panel regions and hard 1px borders — no floating overlays on top of map
+- [ ] **UI-04**: Data panels use no rounded corners and tight information density matching terminal aesthetics
+- [ ] **UI-05**: Header uses amber accent for active navigation state, not blue
+
+### Data Wiring
+
+- [ ] **WIRE-01**: AIS ingester can be started with a single npm script command and logs startup status (connected / failed) to console
+- [ ] **WIRE-02**: Oil price panel displays real WTI and Brent data fetched from Alpha Vantage with FRED as fallback
+- [ ] **WIRE-03**: News panel displays real geopolitical headlines fetched from NewsAPI
+- [ ] **WIRE-04**: Sanctions matching runs on ingested vessels and flags appear on sanctioned ships in the map
+- [ ] **WIRE-05**: Dashboard shows a system status bar indicating live/degraded/offline state for each data source (AIS, prices, news)
+- [ ] **WIRE-06**: Anomaly detection cron jobs run on schedule and produce real alerts for watched vessels
+
+### Documentation
+
+- [ ] **DOCS-01**: README covers prerequisites, step-by-step local setup (env vars, Docker, schema, ingester)
+- [ ] **DOCS-02**: README documents every required environment variable with description and where to get it
+- [ ] **DOCS-03**: README includes production deployment section (hosting options, env config, ingester deployment)
+- [ ] **DOCS-04**: .gitignore excludes .env files, build artifacts, TimescaleDB data volumes, and local logs
+
+## v2 Requirements
 
 ### Advanced Intelligence
 
@@ -59,47 +78,33 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Feature | Reason |
 |---------|--------|
-| Satellite imagery / ML ship detection | Enterprise cost, massive complexity — AIS is sufficient for v1 |
+| Satellite imagery / ML ship detection | Enterprise cost, massive complexity — AIS is sufficient |
 | Cargo volume / oil quantity estimates | AIS doesn't carry cargo data; inference requires proprietary methods |
 | Predictive ETA / route forecasting | Requires route modeling and ML — significant work beyond scope |
 | Global coverage (all 300K+ vessels) | Storage, API cost, and rendering collapse at global scale |
-| Full user management (accounts, roles) | 3-5x auth complexity for ~5 friends; shared password is sufficient |
+| Full user management (accounts, roles) | 3-5x auth complexity for ~5 friends; shared password sufficient |
 | Trading automation / signals | Regulatory risk; project is for awareness, not algo trading |
 | Mobile native app | Responsive web is sufficient; no app store overhead |
-| Bulk AIS data export | API costs scale with volume; personal project budget |
 
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 1 | Complete |
-| DATA-02 | Phase 1 | Complete |
-| DATA-03 | Phase 1 | Complete |
-| DATA-04 | Phase 1 | Complete |
-| MAP-01 | Phase 1 | Complete |
-| MAP-02 | Phase 1 | Complete |
-| MAP-03 | Phase 1 | Complete |
-| MAP-04 | Phase 1 | Complete |
-| MAP-05 | Phase 1 | Complete |
-| MAP-06 | Phase 2 | Complete |
-| MAP-07 | Phase 2 | Complete |
-| MAP-08 | Phase 1 | Complete |
+| DATA-01–04 | Phase 1 | Complete |
+| MAP-01–08 | Phase 1–2 | Complete |
 | AUTH-01 | Phase 1 | Complete |
-| INTL-01 | Phase 2 | Complete |
-| INTL-02 | Phase 2 | Complete |
-| INTL-03 | Phase 2 | Complete |
-| ANOM-01 | Phase 3 | Complete |
-| ANOM-02 | Phase 3 | Complete |
-| HIST-01 | Phase 4 | Complete |
-| HIST-02 | Phase 3 | Complete |
+| INTL-01–03 | Phase 2 | Complete |
+| ANOM-01–02 | Phase 3 | Complete |
+| HIST-01–02 | Phase 3–4 | Complete |
+| UI-01–05 | Phase 5 | Pending |
+| WIRE-01–06 | Phase 6 | Pending |
+| DOCS-01–04 | Phase 7 | Pending |
 
 **Coverage:**
-- v1 requirements: 20 total
-- Mapped to phases: 20
-- Unmapped: 0
+- v1.1 requirements: 15 total
+- Mapped to phases: 15
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-12 after 04-03-PLAN completion — HIST-01 (historical analytics UI) complete, Phase 4 done, PROJECT COMPLETE*
+*Last updated: 2026-03-13 after v1.1 milestone start*
