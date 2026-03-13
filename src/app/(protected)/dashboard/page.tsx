@@ -52,17 +52,23 @@ export default function DashboardPage() {
   }, [setMapCenter]);
 
   return (
-    <div className="h-screen flex flex-col bg-[#1a1a2e]">
+    <div className="h-screen flex flex-col bg-black">
       <Header
         onSearchSelect={handleSearchSelect}
         onChokepointSelect={handleChokepointSelect}
       />
-      <main className="flex-1 relative">
-        <VesselMap />
-        <VesselPanel />
-        <WatchlistPanel />
-        <OilPricePanel />
-        <NewsPanel />
+      <main className="flex-1 grid grid-cols-[1fr_320px] overflow-hidden max-md:flex max-md:flex-col">
+        {/* Left column: full-height map */}
+        <div className="relative overflow-hidden">
+          <VesselMap />
+        </div>
+        {/* Right column: stacked panels */}
+        <div className="flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10">
+          <VesselPanel />
+          <WatchlistPanel />
+          <OilPricePanel />
+          <NewsPanel />
+        </div>
       </main>
     </div>
   );
