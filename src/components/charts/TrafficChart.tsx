@@ -34,7 +34,7 @@ interface TrafficChartProps {
 
 // Chart color palette (consistent with dashboard dark theme)
 const COLORS = {
-  vesselCount: '#3b82f6',    // Blue for all vessels
+  vesselCount: '#6b7280',    // Gray for all vessels
   tankerCount: '#f59e0b',    // Amber for tankers
   oilPrice: '#22c55e',       // Green for oil price
   grid: '#374151',           // Gray grid lines
@@ -59,7 +59,7 @@ export function TrafficChart({
   if (!data.length) {
     return (
       <div
-        className="flex items-center justify-center bg-[#16162a] rounded-lg"
+        className="flex items-center justify-center bg-black"
         style={{ height }}
       >
         <p className="text-gray-400">No data available for selected range</p>
@@ -68,7 +68,7 @@ export function TrafficChart({
   }
 
   return (
-    <div className="bg-[#16162a] rounded-lg p-4">
+    <div className="bg-black p-4">
       {title && (
         <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
       )}
@@ -110,9 +110,9 @@ export function TrafficChart({
           )}
           <Tooltip
             contentStyle={{
-              backgroundColor: '#1a1a2e',
+              backgroundColor: '#000000',
               border: '1px solid #374151',
-              borderRadius: '8px',
+              borderRadius: '0',
             }}
             labelFormatter={(label) => formatDate(String(label))}
           />

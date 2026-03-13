@@ -73,26 +73,26 @@ export default function AnalyticsPage() {
   }, [fetchData]);
 
   return (
-    <div className="min-h-screen bg-[#1a1a2e] text-white">
+    <div className="min-h-screen bg-black text-white">
       <Header />
 
       <main className="p-6 max-w-7xl mx-auto">
         {/* Page title and description */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Historical Analytics</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">Historical Analytics</h1>
+          <p className="text-xs text-gray-600 mt-0.5">
             Vessel traffic trends and oil price correlation over time
           </p>
         </div>
 
         {/* Controls */}
-        <div className="flex flex-wrap gap-4 items-center mb-6 p-4 bg-[#16162a] rounded-lg">
+        <div className="flex flex-wrap gap-4 items-center mb-6 p-3 bg-gray-900 border border-amber-500/20">
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Time Range</label>
+            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Time Range</label>
             <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Chokepoints</label>
+            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Chokepoints</label>
             <ChokepointSelector
               selected={selectedChokepoints}
               onChange={setSelectedChokepoints}
@@ -102,7 +102,7 @@ export default function AnalyticsPage() {
 
         {/* Error state */}
         {error && (
-          <div className="mb-6 p-4 bg-red-900/20 border border-red-500 rounded-lg text-red-400">
+          <div className="mb-6 p-4 bg-red-900/20 border border-red-500 text-red-400">
             {error}
           </div>
         )}
@@ -137,7 +137,7 @@ export default function AnalyticsPage() {
 
         {/* Empty state */}
         {!isLoading && !error && selectedChokepoints.length === 0 && (
-          <div className="flex items-center justify-center h-64 bg-[#16162a] rounded-lg">
+          <div className="flex items-center justify-center h-64 bg-gray-900 border border-amber-500/10">
             <p className="text-gray-400">Select at least one chokepoint to view analytics</p>
           </div>
         )}
