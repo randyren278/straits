@@ -8,24 +8,34 @@ A personal geopolitical intelligence dashboard that tracks oil tankers across th
 
 Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
 
+## Current Milestone: v1.1 — Polish & Ship
+
+**Goal:** Make the app actually usable — replace the placeholder UI with a real Bloomberg-terminal aesthetic, wire all data sources end to end, and document setup for sharing with friends.
+
+**Target features:**
+- Bloomberg terminal UI (true black, amber accents, monospace data, grid layout)
+- Full data pipeline wiring (AIS ingester, oil prices, news, sanctions, anomaly crons)
+- System status visibility (live/dead indicators per data source)
+- Comprehensive README + .gitignore + production deployment guide
+
 ## Requirements
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ AIS data pipeline (ingestion, storage, GPS filtering) — v1.0 Phase 1
+- ✓ Interactive WebGL map (vessel positions, click details, track history, mobile) — v1.0 Phase 1
+- ✓ Intelligence layers (sanctions, oil prices, news, search, chokepoints) — v1.0 Phase 2
+- ✓ Anomaly detection (going dark, loitering, watchlist, alerts) — v1.0 Phase 3
+- ✓ Historical analytics (traffic charts, oil price correlation) — v1.0 Phase 4
 
 ### Active
 
-- [ ] Near real-time oil tanker position tracking via AIS data
-- [ ] Interactive map showing vessel positions across Middle East + major export routes
-- [ ] Data-dense dashboard with multiple information panels
-- [ ] Oil price overlay correlated with tanker movements
-- [ ] Sanctions tracking — flag vessels linked to sanctioned entities (Iran, Russia)
-- [ ] Route anomaly detection — ships going dark, unusual routes, loitering
-- [ ] News integration — relevant geopolitical headlines alongside map data
-- [ ] Live situational view (map + panels)
-- [ ] Historical analytics view (charts, trends, correlations over time)
-- [ ] Simple auth for sharing with a small group of friends
+- [ ] Dashboard uses Bloomberg terminal aesthetic (true black, amber, monospace, grid layout)
+- [ ] AIS ingester launchable with single command, logs connection status
+- [ ] All data sources (prices, news, sanctions, anomalies) verified working end-to-end
+- [ ] System status indicator shows live/dead state per data source
+- [ ] Comprehensive README covering installation, env setup, running locally, production deployment
+- [ ] .gitignore properly excludes secrets, build artifacts, local data
 
 ### Out of Scope
 
@@ -62,4 +72,4 @@ Real-time visibility into Middle Eastern oil tanker movements with enough contex
 | Middle East + routes, not global | Focused scope matches geopolitical interest | — Pending |
 
 ---
-*Last updated: 2026-03-11 after initialization*
+*Last updated: 2026-03-13 after v1.1 milestone start*
