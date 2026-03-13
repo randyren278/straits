@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Anomaly Detection** - Going-dark detection, route anomaly flags, and vessel watchlist with alerts (completed 2026-03-12)
 - [x] **Phase 4: Historical Analytics** - Charts, trends, and oil price correlation over accumulated position history (completed 2026-03-12)
 - [x] **Phase 5: UI Redesign** - Bloomberg terminal aesthetic: true black, amber accents, monospace data, hard-bordered grid layout (completed 2026-03-13)
-- [ ] **Phase 6: Data Wiring** - All data sources live end-to-end: real AIS, oil prices, news, sanctions flags, anomaly crons, and system status bar
+- [x] **Phase 6: Data Wiring** - All data sources live end-to-end: real AIS, oil prices, news, sanctions flags, anomaly crons, and system status bar (completed 2026-03-13)
 - [ ] **Phase 7: Documentation** - README covers full local setup and production deployment; .gitignore properly excludes secrets and build artifacts
 
 ## Phase Details
@@ -120,7 +120,7 @@ Plans:
   4. Sanctioned vessels ingested via AIS show a sanctions flag on the map matched by IMO number
   5. System status bar shows live/degraded/offline state per source (AIS, prices, news) reflecting actual API connectivity
   6. Anomaly detection crons execute on schedule and produce real alerts visible in the notification bell for watched vessels
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 06-01-PLAN.md — Refresh jobs (prices/news/sanctions) + ingester npm scripts (Wave 1)
@@ -150,7 +150,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Anomaly Detection | 4/4 | Complete    | 2026-03-12 |
 | 4. Historical Analytics | 3/3 | Complete    | 2026-03-12 |
 | 5. UI Redesign | 3/3 | Complete    | 2026-03-13 |
-| 6. Data Wiring | 2/3 | In Progress|  |
+| 6. Data Wiring | 3/3 | Complete   | 2026-03-13 |
 | 7. Documentation | 0/? | Not started | - |
 
 ---
