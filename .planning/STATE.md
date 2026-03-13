@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
-milestone_name: Polish & Ship
-status: in_progress
-stopped_at: Roadmap created for v1.1 (phases 5–7 defined)
-last_updated: "2026-03-13T00:00:00.000Z"
-last_activity: 2026-03-13 — v1.1 roadmap created (UI Redesign, Data Wiring, Documentation)
+milestone_name: milestone
+status: planning
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-03-13T06:22:11.332Z"
+last_activity: 2026-03-13 — v1.1 roadmap created (phases 5–7 added)
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 19
+  completed_plans: 17
   percent: 0
 ---
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone)
 - Trend: stable
 
 *Updated after each plan completion*
+| Phase 05-ui-redesign P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,8 @@ Recent decisions affecting current work:
 - [Phase 04-03]: ChokepointSelector requires at least one selection (prevents empty state) (04-03)
 - [Phase 04-03]: Header hides chokepoint widgets on analytics page (04-03)
 - [Phase 04-03]: Extracted chokepoints constants to separate file for client-side safety (04-03)
+- [Phase 05-01]: No color token overrides in @theme — Tailwind v4 defaults for amber-500 and black are correct as-is (05-01)
+- [Phase 05-01]: --radius-*: initial zeroes all rounded-* utilities globally, enforcing sharp terminal aesthetic (05-01)
 
 ### Pending Todos
 
@@ -139,6 +142,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T00:00:00Z
-Stopped at: v1.1 roadmap created — phases 5–7 defined
-Resume file: .planning/ROADMAP.md
+Last session: 2026-03-13T06:22:11.329Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None
