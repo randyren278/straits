@@ -57,6 +57,9 @@ export async function getLatestPrices(): Promise<{
 
   return latest.rows.map(row => ({
     ...row,
+    price: Number(row.price),
+    change: Number(row.change),
+    changePercent: Number(row.changePercent),
     history: history.rows
       .filter(h => h.symbol === row.symbol)
       .map(h => ({ value: Number(h.value) })),
