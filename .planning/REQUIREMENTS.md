@@ -46,8 +46,8 @@ All 20 requirements shipped and validated.
 
 - [x] **UI-01**: Dashboard background is true black with amber (#f59e0b) as the primary accent color — no navy or purple
 - [x] **UI-02**: All data values (prices, coordinates, IMO numbers, speed, headings) render in JetBrains Mono or similar monospace font
-- [ ] **UI-03**: Dashboard uses a grid layout with fixed panel regions and hard 1px borders — no floating overlays on top of map
-- [ ] **UI-04**: Data panels use no rounded corners and tight information density matching terminal aesthetics
+- [x] **UI-03**: Dashboard uses a grid layout with fixed panel regions and hard 1px borders — no floating overlays on top of map
+- [x] **UI-04**: Data panels use no rounded corners and tight information density matching terminal aesthetics
 - [ ] **UI-05**: Header uses amber accent for active navigation state, not blue
 
 ### Data Wiring
@@ -98,8 +98,8 @@ All 20 requirements shipped and validated.
 | HIST-01–02 | Phase 3–4 | Complete |
 | UI-01 | Phase 5 | Complete |
 | UI-02 | Phase 5 | Complete |
-| UI-03 | Phase 5 | Pending |
-| UI-04 | Phase 5 | Pending |
+| UI-03 | Phase 5 | Complete |
+| UI-04 | Phase 5 | Complete |
 | UI-05 | Phase 5 | Pending |
 | WIRE-01 | Phase 6 | Pending |
 | WIRE-02 | Phase 6 | Pending |

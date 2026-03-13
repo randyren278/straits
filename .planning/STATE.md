@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: planning
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-03-13T06:22:11.332Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-03-13T06:26:09.964Z"
 last_activity: 2026-03-13 — v1.1 roadmap created (phases 5–7 added)
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 0
 ---
 
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0% (v1.1 milestone)
 
 *Updated after each plan completion*
 | Phase 05-ui-redesign P01 | 2 | 2 tasks | 2 files |
+| Phase 05-ui-redesign P02 | 3 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,8 @@ Recent decisions affecting current work:
 - [Phase 04-03]: Extracted chokepoints constants to separate file for client-side safety (04-03)
 - [Phase 05-01]: No color token overrides in @theme — Tailwind v4 defaults for amber-500 and black are correct as-is (05-01)
 - [Phase 05-01]: --radius-*: initial zeroes all rounded-* utilities globally, enforcing sharp terminal aesthetic (05-01)
+- [Phase 05-02]: CSS Grid grid-cols-[1fr_320px] replaces absolute overlay pattern for panel layout
+- [Phase 05-02]: Terminal panel headers use px-3 py-1.5 border-b border-amber-500/20 with amber-500 font-mono uppercase label pattern
 
 ### Pending Todos
 
@@ -142,6 +145,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T06:22:11.329Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-03-13T06:26:09.962Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None
