@@ -96,9 +96,21 @@ All 20 requirements shipped and validated.
 | INTL-01–03 | Phase 2 | Complete |
 | ANOM-01–02 | Phase 3 | Complete |
 | HIST-01–02 | Phase 3–4 | Complete |
-| UI-01–05 | Phase 5 | Pending |
-| WIRE-01–06 | Phase 6 | Pending |
-| DOCS-01–04 | Phase 7 | Pending |
+| UI-01 | Phase 5 | Pending |
+| UI-02 | Phase 5 | Pending |
+| UI-03 | Phase 5 | Pending |
+| UI-04 | Phase 5 | Pending |
+| UI-05 | Phase 5 | Pending |
+| WIRE-01 | Phase 6 | Pending |
+| WIRE-02 | Phase 6 | Pending |
+| WIRE-03 | Phase 6 | Pending |
+| WIRE-04 | Phase 6 | Pending |
+| WIRE-05 | Phase 6 | Pending |
+| WIRE-06 | Phase 6 | Pending |
+| DOCS-01 | Phase 7 | Pending |
+| DOCS-02 | Phase 7 | Pending |
+| DOCS-03 | Phase 7 | Pending |
+| DOCS-04 | Phase 7 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 15 total
@@ -107,4 +119,4 @@ All 20 requirements shipped and validated.
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-13 after v1.1 milestone start*
+*Last updated: 2026-03-13 after v1.1 roadmap creation*

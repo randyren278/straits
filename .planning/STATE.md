@@ -1,45 +1,45 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: completed
-stopped_at: Completed 04-03-PLAN.md (PROJECT COMPLETE)
-last_updated: "2026-03-12T18:42:10.915Z"
-last_activity: 2026-03-12 — Analytics UI (TrafficChart, selectors, analytics page, navigation)
+milestone: v1.1
+milestone_name: Polish & Ship
+status: in_progress
+stopped_at: Roadmap created for v1.1 (phases 5–7 defined)
+last_updated: "2026-03-13T00:00:00.000Z"
+last_activity: 2026-03-13 — v1.1 roadmap created (UI Redesign, Data Wiring, Documentation)
 progress:
-  total_phases: 4
+  total_phases: 7
   completed_phases: 4
   total_plans: 16
   completed_plans: 16
-  percent: 100
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-11)
+See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
-**Current focus:** PROJECT COMPLETE - All phases delivered
+**Current focus:** v1.1 Polish & Ship — Phase 5: UI Redesign (not yet started)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Phase 5 — UI Redesign (not started)
 Plan: —
-Status: Defining requirements for v1.1
-Last activity: 2026-03-13 — Milestone v1.1 started (Polish & Ship)
+Status: Roadmap defined, awaiting phase planning
+Last activity: 2026-03-13 — v1.1 roadmap created (phases 5–7 added)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [░░░░░░░░░░] 0% (v1.1 milestone)
 
 ## Performance Metrics
 
-**Velocity:**
+**Velocity (v1.0):**
 - Total plans completed: 16
 - Average duration: 7 min
 - Total execution time: ~110 min
 
-**By Phase:**
+**By Phase (v1.0):**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
@@ -139,6 +139,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T18:36:58Z
-Stopped at: Completed 04-03-PLAN.md (PROJECT COMPLETE)
-Resume file: .planning/phases/04-historical-analytics/04-03-SUMMARY.md
+Last session: 2026-03-13T00:00:00Z
+Stopped at: v1.1 roadmap created — phases 5–7 defined
+Resume file: .planning/ROADMAP.md
