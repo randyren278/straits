@@ -61,9 +61,9 @@ All 20 requirements shipped and validated.
 
 ### Documentation
 
-- [ ] **DOCS-01**: README covers prerequisites, step-by-step local setup (env vars, Docker, schema, ingester)
+- [x] **DOCS-01**: README covers prerequisites, step-by-step local setup (env vars, Docker, schema, ingester)
 - [x] **DOCS-02**: README documents every required environment variable with description and where to get it
-- [ ] **DOCS-03**: README includes production deployment section (hosting options, env config, ingester deployment)
+- [x] **DOCS-03**: README includes production deployment section (hosting options, env config, ingester deployment)
 - [x] **DOCS-04**: .gitignore excludes .env files, build artifacts, TimescaleDB data volumes, and local logs
 
 ## v2 Requirements
@@ -107,9 +107,9 @@ All 20 requirements shipped and validated.
 | WIRE-04 | Phase 6 | Complete |
 | WIRE-05 | Phase 6 | Complete |
 | WIRE-06 | Phase 6 | Complete |
-| DOCS-01 | Phase 7 | Pending |
+| DOCS-01 | Phase 7 | Complete |
 | DOCS-02 | Phase 7 | Complete |
-| DOCS-03 | Phase 7 | Pending |
+| DOCS-03 | Phase 7 | Complete |
 | DOCS-04 | Phase 7 | Complete |
 
 **Coverage:**
