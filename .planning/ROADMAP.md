@@ -136,7 +136,12 @@ Plans:
   2. Every required environment variable is listed in the README with a description and instructions for where to obtain it
   3. README includes a production deployment section covering hosting options, environment configuration, and ingester deployment
   4. .gitignore excludes .env files, build artifacts, TimescaleDB data volumes, and local logs — no secrets or large files would be committed on a fresh clone
-**Plans:** [To be planned]
+**Plans:** 3 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Fix .gitignore (complete exclusion rules) + update .env.example (all 8 vars)
+- [ ] 07-02-PLAN.md — Write README.md (local setup + env var table + production deployment)
+- [ ] 07-03-PLAN.md — Human verification checkpoint: README walkthrough + .gitignore checks (Wave 2)
 
 ## Progress
 
@@ -151,7 +156,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Historical Analytics | 3/3 | Complete    | 2026-03-12 |
 | 5. UI Redesign | 3/3 | Complete    | 2026-03-13 |
 | 6. Data Wiring | 3/3 | Complete    | 2026-03-13 |
-| 7. Documentation | 0/? | Not started | - |
+| 7. Documentation | 0/3 | Not started | - |
 
 ---
 *Roadmap created: 2026-03-11*
@@ -160,3 +165,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 *Phase 3 planned: 2026-03-11*
 *Phase 4 planned: 2026-03-12*
 *v1.1 phases 5–7 added: 2026-03-13*
+*Phase 7 planned: 2026-03-13*
