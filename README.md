@@ -1,6 +1,6 @@
 # Tanker Tracker
 
-Personal geopolitical intelligence dashboard tracking oil tankers across the Middle East and major export routes (Hormuz, Bab el-Mandeb, Suez). Built for real-time visibility into oil flow with sanctions flags, price correlation, anomaly detection, and route analytics.
+Personal geopolitical intelligence dashboard tracking oil tankers across the Middle East and major export routes, from Persian Gulf loading terminals through the Strait of Hormuz, Arabian Sea, Red Sea, and Suez Canal. Built for real-time visibility into oil flow with sanctions flags, price correlation, anomaly detection, and route analytics.
 
 ## Features
 
@@ -120,6 +120,21 @@ AISStream API Key: (configured)
 Connected. Sending subscription...
 Subscription sent. Waiting for messages...
 ```
+
+#### Coverage Areas
+
+The ingester subscribes to 6 regional bounding boxes via AISStream.io:
+
+| Region | Lat | Lon | Purpose |
+|--------|-----|-----|---------|
+| Full Persian Gulf | 23–30°N | 47–57.5°E | Loading terminals: Ras Tanura, Kharg Island, Kuwait, UAE |
+| Gulf of Oman + Arabian Sea (west) | 22–26°N | 55–66°E | Tankers exiting Strait of Hormuz |
+| Arabian Sea (transit) | 8–25°N | 60–78°E | East-bound routes to India and Asia |
+| Full Red Sea | 12–30°N | 32–45°E | Entire Red Sea corridor |
+| Gulf of Aden | 11–14°N | 42–52°E | Exits from Bab-el-Mandeb strait |
+| Suez + Eastern Mediterranean | 29.5–37°N | 28–37°E | Suez Canal northbound exits |
+
+Vessels outside all 6 boxes are not received from AISStream.io. To adjust coverage, edit the `BOUNDING_BOXES` array in `src/services/ais-ingester/index.ts`.
 
 Vessel positions will start appearing on the map within seconds of a successful connection.
 
