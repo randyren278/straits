@@ -80,70 +80,82 @@ describe('Type definitions', () => {
   describe('AIS message types', () => {
     it('AISMetaData has correct structure', () => {
       const metadata: AISMetaData = {
-        MMSI: '123456789',
+        MMSI: 123456789,
         time_utc: '2025-01-01T00:00:00Z',
         ShipName: 'Test Vessel',
       };
 
-      expect(metadata.MMSI).toBe('123456789');
+      expect(metadata.MMSI).toBe(123456789);
       expect(metadata.time_utc).toBe('2025-01-01T00:00:00Z');
     });
 
-    it('PositionReport type matches AISStream.io format', () => {
+    it('PositionReport type matches AISStream.io wire format', () => {
       const positionReport: PositionReport = {
         MessageType: 'PositionReport',
         Message: {
-          Latitude: 26.0,
-          Longitude: 56.0,
-          Sog: 12.5,
-          Cog: 180,
-          TrueHeading: 175,
-          NavigationalStatus: 0,
+          PositionReport: {
+            Latitude: 26.0,
+            Longitude: 56.0,
+            Sog: 12.5,
+            Cog: 180,
+            TrueHeading: 175,
+            NavigationalStatus: 0,
+            UserID: 123456789,
+            Valid: true,
+          },
         },
         MetaData: {
-          MMSI: '123456789',
+          MMSI: 123456789,
           time_utc: '2025-01-01T00:00:00Z',
         },
       };
 
       expect(positionReport.MessageType).toBe('PositionReport');
-      expect(positionReport.Message.Latitude).toBe(26.0);
-      expect(positionReport.Message.Sog).toBe(12.5);
+      expect(positionReport.Message.PositionReport.Latitude).toBe(26.0);
+      expect(positionReport.Message.PositionReport.Sog).toBe(12.5);
     });
 
-    it('ShipStaticData type matches AISStream.io format', () => {
+    it('ShipStaticData type matches AISStream.io wire format', () => {
       const staticData: ShipStaticData = {
         MessageType: 'ShipStaticData',
         Message: {
-          ImoNumber: 1234567,
-          ShipName: 'TEST VESSEL',
-          ShipType: 80,
-          Destination: 'FUJAIRAH',
+          ShipStaticData: {
+            ImoNumber: 1234567,
+            Name: 'TEST VESSEL',
+            Type: 80,
+            Destination: 'FUJAIRAH',
+            UserID: 123456789,
+            Valid: true,
+          },
         },
         MetaData: {
-          MMSI: '123456789',
+          MMSI: 123456789,
           time_utc: '2025-01-01T00:00:00Z',
         },
       };
 
       expect(staticData.MessageType).toBe('ShipStaticData');
-      expect(staticData.Message.ImoNumber).toBe(1234567);
-      expect(staticData.Message.ShipType).toBe(80);
+      expect(staticData.Message.ShipStaticData.ImoNumber).toBe(1234567);
+      expect(staticData.Message.ShipStaticData.Type).toBe(80);
     });
 
     it('AISMessage discriminated union distinguishes message types', () => {
       const positionReport: AISMessage = {
         MessageType: 'PositionReport',
         Message: {
-          Latitude: 26.0,
-          Longitude: 56.0,
-          Sog: 12.5,
-          Cog: 180,
-          TrueHeading: 175,
-          NavigationalStatus: 0,
+          PositionReport: {
+            Latitude: 26.0,
+            Longitude: 56.0,
+            Sog: 12.5,
+            Cog: 180,
+            TrueHeading: 175,
+            NavigationalStatus: 0,
+            UserID: 123456789,
+            Valid: true,
+          },
         },
         MetaData: {
-          MMSI: '123456789',
+          MMSI: 123456789,
           time_utc: '2025-01-01T00:00:00Z',
         },
       };
@@ -151,23 +163,27 @@ describe('Type definitions', () => {
       const staticData: AISMessage = {
         MessageType: 'ShipStaticData',
         Message: {
-          ImoNumber: 1234567,
-          ShipName: 'TEST VESSEL',
-          ShipType: 80,
-          Destination: 'FUJAIRAH',
+          ShipStaticData: {
+            ImoNumber: 1234567,
+            Name: 'TEST VESSEL',
+            Type: 80,
+            Destination: 'FUJAIRAH',
+            UserID: 123456789,
+            Valid: true,
+          },
         },
         MetaData: {
-          MMSI: '123456789',
+          MMSI: 123456789,
           time_utc: '2025-01-01T00:00:00Z',
         },
       };
 
       // Type narrowing should work with discriminated union
       if (positionReport.MessageType === 'PositionReport') {
-        expect(positionReport.Message.Latitude).toBe(26.0);
+        expect(positionReport.Message.PositionReport.Latitude).toBe(26.0);
       }
       if (staticData.MessageType === 'ShipStaticData') {
-        expect(staticData.Message.ImoNumber).toBe(1234567);
+        expect(staticData.Message.ShipStaticData.ImoNumber).toBe(1234567);
       }
     });
   });
