@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 Phase: Phase 7 — Documentation (ready to plan)
 Plan: —
 Status: Ready to plan
-Last activity: 2026-03-14 - Completed quick task 4: persist last known oil price on dual API failure
+Last activity: 2026-03-14 - Completed quick task 5: fix AISStream bounding boxes for Hormuz, Bab-el-Mandeb, Suez coverage
 
 Progress: [████████████████████] 22/22 plans (100%)
 
@@ -160,6 +160,7 @@ None yet.
 | 2 | remove auth so the page just loads no password | 2026-03-13 | 9a51013 | [2-remove-auth-so-the-page-just-loads-no-pa](./quick/2-remove-auth-so-the-page-just-loads-no-pa/) |
 | 3 | fix aisstream.io api integration for correct wire format | 2026-03-14 | 7bfc70a | [3-fix-aisstream-io-api-integration-for-mar](./quick/3-fix-aisstream-io-api-integration-for-mar/) |
 | 4 | persist last known oil price instead of showing nothing on API failure | 2026-03-14 | 0675c75 | [4-persist-last-known-oil-price-instead-of-](./quick/4-persist-last-known-oil-price-instead-of-/) |
+| 5 | fix aisstream bounding boxes for strait coverage (Hormuz, Bab-el-Mandeb, Suez) | 2026-03-14 | 3fdbbaa | [5-fix-aisstream-bounding-boxes-for-strait-](./quick/5-fix-aisstream-bounding-boxes-for-strait-/) |
 
 ### Blockers/Concerns
 
