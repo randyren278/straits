@@ -10,6 +10,7 @@ import mapboxgl from 'mapbox-gl';
 import { useVesselStore } from '@/stores/vessel';
 import { vesselsToGeoJSON } from '@/lib/map/geojson';
 import { filterTankers } from '@/lib/map/filter';
+import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
 import type { VesselWithPosition } from '@/types/vessel';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
 
@@ -101,6 +102,55 @@ export function VesselMap() {
           'circle-stroke-width': 1,
           'circle-stroke-color': '#ffffff',
         },
+      });
+
+      // Chokepoint bounding box overlays
+      const chokepointFeatures: GeoJSON.Feature<GeoJSON.Polygon>[] = Object.values(CHOKEPOINTS).map((cp) => ({
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [cp.bounds.minLon, cp.bounds.minLat],
+            [cp.bounds.maxLon, cp.bounds.minLat],
+            [cp.bounds.maxLon, cp.bounds.maxLat],
+            [cp.bounds.minLon, cp.bounds.maxLat],
+            [cp.bounds.minLon, cp.bounds.minLat],
+          ]],
+        },
+        properties: { name: cp.name },
+      }));
+
+      map.current.addSource('chokepoints', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: chokepointFeatures },
+      });
+
+      map.current.addLayer({
+        id: 'chokepoint-fill',
+        type: 'fill',
+        source: 'chokepoints',
+        paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.04 },
+      }, 'vessel-circles');
+
+      map.current.addLayer({
+        id: 'chokepoint-outline',
+        type: 'line',
+        source: 'chokepoints',
+        paint: { 'line-color': '#f59e0b', 'line-width': 1, 'line-opacity': 0.4, 'line-dasharray': [4, 3] },
+      }, 'vessel-circles');
+
+      map.current.addLayer({
+        id: 'chokepoint-labels',
+        type: 'symbol',
+        source: 'chokepoints',
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+          'text-size': 11,
+          'text-anchor': 'top-left',
+          'text-offset': [0.3, 0.3],
+        },
+        paint: { 'text-color': '#f59e0b', 'text-opacity': 0.6 },
       });
 
       // Click handler for vessel selection
