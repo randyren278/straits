@@ -7,6 +7,7 @@
 
 import { fetchAlphaVantagePrices, type OilPriceData } from '../external/alphavantage';
 import { fetchFREDPrices } from '../external/fred';
+import { getLatestPrices } from '../db/prices';
 
 export type { OilPriceData };
 export type { OilPricePoint } from '../external/alphavantage';
@@ -27,7 +28,16 @@ export async function fetchOilPrices(): Promise<OilPriceData[]> {
       return await fetchFREDPrices();
     } catch (fredError) {
       console.error('FRED fallback also failed:', fredError);
-      return [];
+      console.warn('Both APIs failed, using last known DB prices');
+      const dbRows = await getLatestPrices();
+      if (dbRows.length === 0) return [];
+      return dbRows.map(row => ({
+        symbol: row.symbol as 'WTI' | 'BRENT',
+        current: row.price,
+        change: row.change,
+        changePercent: row.changePercent,
+        history: row.history.map(h => ({ date: new Date(), price: h.value })),
+      }));
     }
   }
 }

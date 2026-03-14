@@ -14,8 +14,13 @@ vi.mock('../external/fred', () => ({
   fetchFREDPrices: vi.fn(),
 }));
 
+vi.mock('../db/prices', () => ({
+  getLatestPrices: vi.fn(),
+}));
+
 import { fetchAlphaVantagePrices } from '../external/alphavantage';
 import { fetchFREDPrices } from '../external/fred';
+import { getLatestPrices } from '../db/prices';
 
 describe('Oil Price Fetcher', () => {
   const mockAlphaVantagePrices: OilPriceData[] = [
@@ -90,13 +95,32 @@ describe('Oil Price Fetcher', () => {
       expect(prices[0].current).toBe(80.00); // FRED price
     });
 
-    it('returns empty array on complete API failure', async () => {
+    it('returns empty array on complete API failure with empty DB', async () => {
       vi.mocked(fetchAlphaVantagePrices).mockRejectedValue(new Error('Alpha Vantage down'));
       vi.mocked(fetchFREDPrices).mockRejectedValue(new Error('FRED down'));
+      vi.mocked(getLatestPrices).mockResolvedValue([]);
 
       const prices = await fetchOilPrices();
 
       expect(prices).toEqual([]);
+    });
+
+    it('returns last known DB prices when both APIs fail and DB has data', async () => {
+      vi.mocked(fetchAlphaVantagePrices).mockRejectedValue(new Error('Alpha Vantage down'));
+      vi.mocked(fetchFREDPrices).mockRejectedValue(new Error('FRED down'));
+      vi.mocked(getLatestPrices).mockResolvedValue([
+        { symbol: 'WTI', price: 75.5, change: -0.5, changePercent: -0.66, history: [{ value: 75.5 }] },
+      ]);
+
+      const prices = await fetchOilPrices();
+
+      expect(prices).toHaveLength(1);
+      expect(prices[0].symbol).toBe('WTI');
+      expect(prices[0].current).toBe(75.5);
+      expect(prices[0].change).toBe(-0.5);
+      expect(prices[0].changePercent).toBe(-0.66);
+      expect(prices[0].history).toHaveLength(1);
+      expect(prices[0].history[0].price).toBe(75.5);
     });
   });
 });
