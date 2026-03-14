@@ -1,6 +1,13 @@
 /**
  * AIS message parser for AISStream.io format.
  * Parses PositionReport and ShipStaticData messages into typed objects.
+ *
+ * IMPORTANT: AISStream.io wraps the payload one level deeper than the top-level MessageType
+ * suggests. Field paths are:
+ *   msg.Message.PositionReport.Latitude  (not msg.Message.Latitude)
+ *   msg.Message.ShipStaticData.Name      (not msg.Message.ShipName)
+ *   msg.MetaData.MMSI is a number        — coerce via String(...)
+ *
  * Requirements: DATA-01, DATA-03
  */
 import type { VesselPosition, Vessel } from '@/types/vessel';
@@ -11,16 +18,17 @@ import type { PositionReport, ShipStaticData, AISMessage } from '@/types/ais';
  * Handles missing/null fields gracefully (AIS data is often incomplete).
  */
 export function parsePositionReport(msg: PositionReport): VesselPosition {
+  const m = msg.Message.PositionReport;
   return {
     time: new Date(msg.MetaData.time_utc),
-    mmsi: msg.MetaData.MMSI,
+    mmsi: String(msg.MetaData.MMSI),
     imo: null, // IMO comes from ShipStaticData, not PositionReport
-    latitude: msg.Message.Latitude,
-    longitude: msg.Message.Longitude,
-    speed: msg.Message.Sog ?? null,
-    course: msg.Message.Cog ?? null,
-    heading: msg.Message.TrueHeading ?? null,
-    navStatus: msg.Message.NavigationalStatus ?? null,
+    latitude: m.Latitude,
+    longitude: m.Longitude,
+    speed: m.Sog ?? null,
+    course: m.Cog ?? null,
+    heading: m.TrueHeading ?? null,
+    navStatus: m.NavigationalStatus ?? null,
     lowConfidence: false,
   };
 }
@@ -28,17 +36,20 @@ export function parsePositionReport(msg: PositionReport): VesselPosition {
 /**
  * Parse a ShipStaticData message into vessel metadata.
  * Extracts IMO number, name, type, and destination.
+ * Note: inside ShipStaticData body, the field is "Name" (not "ShipName")
+ * and "Type" (not "ShipType").
  */
 export function parseShipStaticData(msg: ShipStaticData): Omit<Vessel, 'lastSeen'> {
-  const name = msg.Message.ShipName?.trim();
-  const destination = msg.Message.Destination?.trim();
+  const m = msg.Message.ShipStaticData;
+  const name = m.Name?.trim();
+  const destination = m.Destination?.trim();
 
   return {
-    imo: String(msg.Message.ImoNumber),
-    mmsi: msg.MetaData.MMSI,
+    imo: String(m.ImoNumber),
+    mmsi: String(msg.MetaData.MMSI),
     name: name || 'UNKNOWN',
     flag: '', // Flag not in ShipStaticData, derive from MMSI MID if needed
-    shipType: msg.Message.ShipType,
+    shipType: m.Type,
     destination: destination || null,
   };
 }
