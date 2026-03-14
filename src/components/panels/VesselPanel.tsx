@@ -118,9 +118,11 @@ export function VesselPanel() {
         <div className="flex justify-between">
           <span className="text-gray-500">Type</span>
           <span className="font-mono text-white">
-            {selectedVessel.shipType != null && selectedVessel.shipType >= 80 && selectedVessel.shipType <= 89
-              ? `Tanker (${selectedVessel.shipType})`
-              : (selectedVessel.shipType ?? 'Unknown')}
+            {selectedVessel.shipType == null
+              ? 'Unknown'
+              : selectedVessel.shipType >= 80 && selectedVessel.shipType <= 89
+                ? `Tanker (${selectedVessel.shipType})`
+                : `Type ${selectedVessel.shipType}`}
           </span>
         </div>
         <div className="border-t border-amber-500/10 pt-1.5">
