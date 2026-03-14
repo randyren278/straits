@@ -162,6 +162,7 @@ None yet.
 | 4 | persist last known oil price instead of showing nothing on API failure | 2026-03-14 | 0675c75 | [4-persist-last-known-oil-price-instead-of-](./quick/4-persist-last-known-oil-price-instead-of-/) |
 | 5 | fix aisstream bounding boxes for strait coverage (Hormuz, Bab-el-Mandeb, Suez) | 2026-03-14 | 3fdbbaa | [5-fix-aisstream-bounding-boxes-for-strait-](./quick/5-fix-aisstream-bounding-boxes-for-strait-/) |
 | 6 | fix vessel display: query position-first so IMO-less ships appear on map | 2026-03-14 | f3c63c6 | [6-fix-vessel-display-query-position-first-](./quick/6-fix-vessel-display-query-position-first-/) |
+| 7 | expand AIS coverage bounding boxes to include full Persian Gulf, Gulf of Oman, full Red Sea, Arabian Sea transit routes, and Gulf of Aden — revert sanctions.ts 24h window | 2026-03-14 | 1896072 | [7-expand-ais-coverage-bounding-boxes-to-in](./quick/7-expand-ais-coverage-bounding-boxes-to-in/) |
 | 7 | expand AIS coverage bounding boxes to full regional routes (Persian Gulf, Arabian Sea, Red Sea) | 2026-03-14 | 9b98183 | [7-expand-ais-coverage-bounding-boxes-to-in](./quick/7-expand-ais-coverage-bounding-boxes-to-in/) |
 
 ### Blockers/Concerns
