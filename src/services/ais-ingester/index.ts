@@ -78,11 +78,18 @@ function isInJammingZone(lat: number, lon: number): boolean {
 // AISStream.io Subscription
 // ============================================================================
 
-// Middle East + major export routes bounding box
+// Explicit per-region bounding boxes covering the three critical chokepoints
 const subscription = {
   APIKey: process.env.AISSTREAM_API_KEY,
   BoundingBoxes: [
-    [[10, 30], [35, 80]], // Middle East + Indian Ocean routes
+    // Strait of Hormuz + Persian Gulf entrance
+    [[23.5, 55.5], [27.0, 57.5]],
+    // Bab-el-Mandeb (Red Sea / Gulf of Aden)
+    [[11.0, 42.5], [13.5, 45.0]],
+    // Suez Canal (Red Sea to Mediterranean)
+    [[29.5, 31.5], [32.5, 33.0]],
+    // Eastern Mediterranean / Cyprus area
+    [[33.0, 28.0], [37.0, 37.0]],
   ],
   FilterMessageTypes: ['PositionReport', 'ShipStaticData'],
 };
@@ -134,6 +141,22 @@ let lastLogTime = Date.now();
 
 function processPositionReport(msg: any): void {
   const m = msg.Message.PositionReport;
+
+  // Guard: skip messages where position coordinates are missing or not finite.
+  // AIS spec uses 91.0/181.0 as "not available" sentinels; some API implementations
+  // omit the field entirely. Either way the insert would fail the NOT NULL constraint.
+  if (
+    m == null ||
+    typeof m.Latitude !== 'number' ||
+    typeof m.Longitude !== 'number' ||
+    !isFinite(m.Latitude) ||
+    !isFinite(m.Longitude) ||
+    Math.abs(m.Latitude) > 90 ||
+    Math.abs(m.Longitude) > 180
+  ) {
+    return;
+  }
+
   const speed = m.Sog ?? null;
 
   // Filter invalid speeds (DATA-04)
