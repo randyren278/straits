@@ -164,6 +164,7 @@ None yet.
 | 6 | fix vessel display: query position-first so IMO-less ships appear on map | 2026-03-14 | f3c63c6 | [6-fix-vessel-display-query-position-first-](./quick/6-fix-vessel-display-query-position-first-/) |
 | 7 | expand AIS coverage bounding boxes to include full Persian Gulf, Gulf of Oman, full Red Sea, Arabian Sea transit routes, and Gulf of Aden — revert sanctions.ts 24h window | 2026-03-14 | 1896072 | [7-expand-ais-coverage-bounding-boxes-to-in](./quick/7-expand-ais-coverage-bounding-boxes-to-in/) |
 | 8 | update documentation to reflect expanded AIS coverage (6 bounding boxes) | 2026-03-14 | ee8ba4d | [8-update-documentation-to-reflect-expanded](./quick/8-update-documentation-to-reflect-expanded/) |
+| 9 | fix tanker filter to include unclassified vessels (NULL ship_type) | 2026-03-14 | e76bc44 | [9-fix-tanker-filter-to-include-unclassifie](./quick/9-fix-tanker-filter-to-include-unclassifie/) |
 
 ### Blockers/Concerns
 
@@ -171,6 +172,6 @@ None — Phase 6 wiring complete. Phase 7 is documentation only (no API dependen
 
 ## Session Continuity
 
-Last session: 2026-03-14T05:57:00Z
-Stopped at: Completed quick task 8: update documentation to reflect expanded AIS coverage
+Last session: 2026-03-14T06:01:00Z
+Stopped at: Completed quick task 9: fix tanker filter to include unclassified vessels
 Resume file: None
