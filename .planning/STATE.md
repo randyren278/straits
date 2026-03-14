@@ -161,6 +161,7 @@ None yet.
 | 3 | fix aisstream.io api integration for correct wire format | 2026-03-14 | 7bfc70a | [3-fix-aisstream-io-api-integration-for-mar](./quick/3-fix-aisstream-io-api-integration-for-mar/) |
 | 4 | persist last known oil price instead of showing nothing on API failure | 2026-03-14 | 0675c75 | [4-persist-last-known-oil-price-instead-of-](./quick/4-persist-last-known-oil-price-instead-of-/) |
 | 5 | fix aisstream bounding boxes for strait coverage (Hormuz, Bab-el-Mandeb, Suez) | 2026-03-14 | 3fdbbaa | [5-fix-aisstream-bounding-boxes-for-strait-](./quick/5-fix-aisstream-bounding-boxes-for-strait-/) |
+| 6 | fix vessel display: query position-first so IMO-less ships appear on map | 2026-03-14 | f3c63c6 | [6-fix-vessel-display-query-position-first-](./quick/6-fix-vessel-display-query-position-first-/) |
 
 ### Blockers/Concerns
 
@@ -168,6 +169,6 @@ None — Phase 6 wiring complete. Phase 7 is documentation only (no API dependen
 
 ## Session Continuity
 
-Last session: 2026-03-13T17:54:52.984Z
-Stopped at: Completed 07-03-PLAN.md
+Last session: 2026-03-14T05:55:08Z
+Stopped at: Completed quick task 6: fix vessel display query position-first
 Resume file: None
