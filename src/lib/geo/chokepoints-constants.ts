@@ -26,17 +26,17 @@ export const CHOKEPOINTS: Record<string, Chokepoint> = {
   hormuz: {
     id: 'hormuz',
     name: 'Strait of Hormuz',
-    bounds: { minLat: 26.0, maxLat: 27.0, minLon: 55.5, maxLon: 57.0 },
+    bounds: { minLat: 23.5, maxLat: 27.0, minLon: 55.5, maxLon: 57.5 },
   },
   babel_mandeb: {
     id: 'babel_mandeb',
     name: 'Bab el-Mandeb',
-    bounds: { minLat: 12.4, maxLat: 13.0, minLon: 43.0, maxLon: 43.7 },
+    bounds: { minLat: 11.0, maxLat: 13.5, minLon: 42.5, maxLon: 45.0 },
   },
   suez: {
     id: 'suez',
     name: 'Suez Canal',
-    bounds: { minLat: 29.8, maxLat: 31.3, minLon: 32.2, maxLon: 32.6 },
+    bounds: { minLat: 29.5, maxLat: 32.5, minLon: 31.5, maxLon: 33.0 },
   },
 };
 

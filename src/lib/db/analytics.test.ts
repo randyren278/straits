@@ -64,10 +64,10 @@ describe('getTrafficByChokepoint', () => {
 
     await getTrafficByChokepoint('hormuz', '7d');
 
-    // Hormuz bounds: minLat: 26.0, maxLat: 27.0, minLon: 55.5, maxLon: 57.0
+    // Hormuz bounds: minLat: 23.5, maxLat: 27.0, minLon: 55.5, maxLon: 57.5
     expect(pool.query).toHaveBeenCalledWith(
       expect.any(String),
-      expect.arrayContaining([26.0, 27.0, 55.5, 57.0])
+      expect.arrayContaining([23.5, 27.0, 55.5, 57.5])
     );
   });
 });

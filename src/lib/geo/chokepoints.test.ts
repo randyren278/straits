@@ -15,7 +15,25 @@ describe('Chokepoints', () => {
     });
 
     it('returns false for point outside Hormuz bounds', () => {
-      expect(isInChokepoint(25.0, 56.0, CHOKEPOINTS.hormuz.bounds)).toBe(false);
+      // 22.0 lat is south of minLat=23.5 in the new wider bounds
+      expect(isInChokepoint(22.0, 56.0, CHOKEPOINTS.hormuz.bounds)).toBe(false);
+    });
+
+    it('returns true for point in expanded Hormuz southern area', () => {
+      // 25.0 lat is inside the new bounds (minLat=23.5), was outside old bounds (minLat=26.0)
+      expect(isInChokepoint(25.0, 56.5, CHOKEPOINTS.hormuz.bounds)).toBe(true);
+    });
+
+    it('returns true for point in expanded Bab-el-Mandeb bounds', () => {
+      expect(isInChokepoint(11.5, 43.5, CHOKEPOINTS.babel_mandeb.bounds)).toBe(true);
+    });
+
+    it('returns true for point in expanded Bab-el-Mandeb wider longitude', () => {
+      expect(isInChokepoint(12.5, 44.5, CHOKEPOINTS.babel_mandeb.bounds)).toBe(true);
+    });
+
+    it('returns true for point in expanded Suez Canal bounds', () => {
+      expect(isInChokepoint(30.0, 32.8, CHOKEPOINTS.suez.bounds)).toBe(true);
     });
 
     it('returns true for point inside Bab el-Mandeb bounds', () => {
