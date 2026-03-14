@@ -2,16 +2,31 @@
  * GeoJSON conversion utilities for vessel map rendering.
  * Requirements: MAP-01, INTL-01, ANOM-01
  */
-import type { VesselWithPosition } from '@/types/vessel';
 
-// Extended vessel type that may include sanctions and anomaly data
-interface VesselWithPossibleSanctions extends VesselWithPosition {
+// Minimal vessel shape needed for GeoJSON conversion.
+// Intentionally loose to work with both VesselWithPosition (non-null fields)
+// and VesselWithSanctions (nullable vessel metadata, always-present position).
+interface VesselForGeoJSON {
+  imo: string | null;
+  mmsi: string;
+  name: string | null;
+  flag: string | null;
+  shipType: number | null;
+  destination: string | null;
   isSanctioned?: boolean;
   sanctioningAuthority?: string | null;
   // Anomaly fields
   anomalyType?: string | null;
   anomalyConfidence?: string | null;
   anomalyDetectedAt?: Date | null;
+  position: {
+    latitude: number;
+    longitude: number;
+    speed: number | null;
+    course: number | null;
+    heading: number | null;
+    lowConfidence: boolean;
+  } | null;
 }
 
 /**
@@ -22,7 +37,7 @@ interface VesselWithPossibleSanctions extends VesselWithPosition {
  * @returns GeoJSON FeatureCollection for map rendering
  */
 export function vesselsToGeoJSON(
-  vessels: VesselWithPossibleSanctions[]
+  vessels: VesselForGeoJSON[]
 ): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: 'FeatureCollection',
@@ -30,7 +45,7 @@ export function vesselsToGeoJSON(
       .filter((v) => v.position !== null)
       .map((v) => ({
         type: 'Feature' as const,
-        id: v.imo,
+        id: v.imo ?? v.mmsi,
         geometry: {
           type: 'Point' as const,
           coordinates: [v.position!.longitude, v.position!.latitude],

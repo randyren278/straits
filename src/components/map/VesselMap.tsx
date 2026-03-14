@@ -111,11 +111,11 @@ export function VesselMap() {
 
         // Reconstruct VesselWithSanctions from feature properties (including anomaly)
         const vessel: VesselWithSanctions = {
-          imo: props?.imo || '',
+          imo: props?.imo || null,
           mmsi: props?.mmsi || '',
-          name: props?.name || '',
-          flag: props?.flag || '',
-          shipType: props?.shipType || 0,
+          name: props?.name || null,
+          flag: props?.flag || null,
+          shipType: props?.shipType ?? null,
           destination: props?.destination || null,
           lastSeen: new Date(),
           isSanctioned: props?.isSanctioned || false,

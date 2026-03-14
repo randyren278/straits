@@ -11,6 +11,7 @@ import { AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { AnomalyBadge } from '../ui/AnomalyBadge';
 import type { AnomalyType, Confidence } from '@/types/anomaly';
+import type { VesselWithSanctions } from '@/lib/db/sanctions';
 
 export function VesselPanel() {
   const { selectedVessel, showTrack, setShowTrack, setSelectedVessel, watchlist, addToWatchlist, removeFromWatchlist } =
@@ -29,23 +30,25 @@ export function VesselPanel() {
 
   if (!selectedVessel) return null;
 
-  const isWatched = watchlist.some(w => w.imo === selectedVessel.imo);
+  // imo may be null for IMO-less vessels (position-only reports from vessel_positions)
+  const vesselImo = (selectedVessel as VesselWithSanctions).imo ?? null;
+  const isWatched = vesselImo ? watchlist.some(w => w.imo === vesselImo) : false;
 
   const handleWatchlist = async () => {
-    if (!userId) return;
+    if (!userId || !vesselImo) return;
 
     if (isWatched) {
-      removeFromWatchlist(selectedVessel.imo);
-      await fetch(`/api/watchlist?imo=${selectedVessel.imo}`, {
+      removeFromWatchlist(vesselImo);
+      await fetch(`/api/watchlist?imo=${vesselImo}`, {
         method: 'DELETE',
         headers: { 'X-User-Id': userId },
       });
     } else {
-      addToWatchlist({ userId, imo: selectedVessel.imo, addedAt: new Date(), notes: null });
+      addToWatchlist({ userId, imo: vesselImo, addedAt: new Date(), notes: null });
       await fetch('/api/watchlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
-        body: JSON.stringify({ imo: selectedVessel.imo }),
+        body: JSON.stringify({ imo: vesselImo }),
       });
     }
   };
@@ -115,9 +118,9 @@ export function VesselPanel() {
         <div className="flex justify-between">
           <span className="text-gray-500">Type</span>
           <span className="font-mono text-white">
-            {selectedVessel.shipType >= 80 && selectedVessel.shipType <= 89
+            {selectedVessel.shipType != null && selectedVessel.shipType >= 80 && selectedVessel.shipType <= 89
               ? `Tanker (${selectedVessel.shipType})`
-              : selectedVessel.shipType}
+              : (selectedVessel.shipType ?? 'Unknown')}
           </span>
         </div>
         <div className="border-t border-amber-500/10 pt-1.5">
@@ -159,20 +162,16 @@ export function VesselPanel() {
 
       {/* Sanctions Alert Section */}
       {'isSanctioned' in selectedVessel &&
-        (selectedVessel as Record<string, unknown>).isSanctioned === true && (
+        (selectedVessel as VesselWithSanctions).isSanctioned === true && (
         <div className="mx-3 mb-2 px-3 py-2 bg-red-900/30 border border-red-700">
           <div className="flex items-center gap-2 text-red-400">
             <AlertTriangle className="w-4 h-4" />
             <span className="font-mono text-xs uppercase tracking-widest">SANCTIONED</span>
           </div>
           <p className="text-xs text-red-300 mt-1">
-            {('sanctioningAuthority' in selectedVessel &&
-              (selectedVessel as Record<string, unknown>).sanctioningAuthority) as React.ReactNode}{' '}
+            {(selectedVessel as VesselWithSanctions).sanctioningAuthority}{' '}
             {'\u2022'}{' '}
-            {'sanctionReason' in selectedVessel &&
-              (selectedVessel as Record<string, unknown>).sanctionReason
-              ? String((selectedVessel as Record<string, unknown>).sanctionReason)
-              : 'Sanctioned entity'}
+            {(selectedVessel as VesselWithSanctions).sanctionReason || 'Sanctioned entity'}
           </p>
         </div>
       )}

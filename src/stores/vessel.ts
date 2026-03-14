@@ -6,7 +6,11 @@
  */
 import { create } from 'zustand';
 import type { VesselWithPosition } from '@/types/vessel';
+import type { VesselWithSanctions } from '@/lib/db/sanctions';
 import type { WatchlistEntry, Alert } from '@/types/anomaly';
+
+/** Union of vessel types that can be selected on the map */
+type SelectableVessel = VesselWithPosition | VesselWithSanctions;
 
 /** Map center and zoom for flyTo navigation */
 export interface MapCenter {
@@ -17,7 +21,7 @@ export interface MapCenter {
 
 interface VesselStore {
   /** Currently selected vessel for detail panel */
-  selectedVessel: VesselWithPosition | null;
+  selectedVessel: SelectableVessel | null;
   /** Filter to show only tankers (ship types 80-89) */
   tankersOnly: boolean;
   /** Whether to show track history for selected vessel */
@@ -35,7 +39,7 @@ interface VesselStore {
   /** Filter to show only vessels with anomalies */
   anomalyFilter: boolean;
   /** Set the selected vessel (clears track state) */
-  setSelectedVessel: (vessel: VesselWithPosition | null) => void;
+  setSelectedVessel: (vessel: SelectableVessel | null) => void;
   /** Toggle tanker-only filter */
   setTankersOnly: (value: boolean) => void;
   /** Toggle track history display */
