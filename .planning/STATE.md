@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 Phase: Phase 7 — Documentation (ready to plan)
 Plan: —
 Status: Ready to plan
-Last activity: 2026-03-14 - Completed quick task 5: fix AISStream bounding boxes for Hormuz, Bab-el-Mandeb, Suez coverage
+Last activity: 2026-03-14 - Completed quick task 7: expand AIS coverage bounding boxes to full regional routes
 
 Progress: [████████████████████] 22/22 plans (100%)
 
@@ -162,6 +162,7 @@ None yet.
 | 4 | persist last known oil price instead of showing nothing on API failure | 2026-03-14 | 0675c75 | [4-persist-last-known-oil-price-instead-of-](./quick/4-persist-last-known-oil-price-instead-of-/) |
 | 5 | fix aisstream bounding boxes for strait coverage (Hormuz, Bab-el-Mandeb, Suez) | 2026-03-14 | 3fdbbaa | [5-fix-aisstream-bounding-boxes-for-strait-](./quick/5-fix-aisstream-bounding-boxes-for-strait-/) |
 | 6 | fix vessel display: query position-first so IMO-less ships appear on map | 2026-03-14 | f3c63c6 | [6-fix-vessel-display-query-position-first-](./quick/6-fix-vessel-display-query-position-first-/) |
+| 7 | expand AIS coverage bounding boxes to full regional routes (Persian Gulf, Arabian Sea, Red Sea) | 2026-03-14 | 9b98183 | [7-expand-ais-coverage-bounding-boxes-to-in](./quick/7-expand-ais-coverage-bounding-boxes-to-in/) |
 
 ### Blockers/Concerns
 
@@ -169,6 +170,6 @@ None — Phase 6 wiring complete. Phase 7 is documentation only (no API dependen
 
 ## Session Continuity
 
-Last session: 2026-03-14T05:55:08Z
-Stopped at: Completed quick task 6: fix vessel display query position-first
+Last session: 2026-03-14T05:57:00Z
+Stopped at: Completed quick task 7: expand AIS coverage bounding boxes to full regional routes
 Resume file: None
