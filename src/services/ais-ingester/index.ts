@@ -133,7 +133,7 @@ let messageCount = 0;
 let lastLogTime = Date.now();
 
 function processPositionReport(msg: any): void {
-  const m = msg.Message;
+  const m = msg.Message.PositionReport;
   const speed = m.Sog ?? null;
 
   // Filter invalid speeds (DATA-04)
@@ -143,7 +143,7 @@ function processPositionReport(msg: any): void {
 
   const position: VesselPosition = {
     time: new Date(msg.MetaData.time_utc),
-    mmsi: msg.MetaData.MMSI,
+    mmsi: String(msg.MetaData.MMSI),
     imo: null,
     latitude: m.Latitude,
     longitude: m.Longitude,
@@ -160,7 +160,7 @@ function processPositionReport(msg: any): void {
 }
 
 function processShipStaticData(msg: any): void {
-  const m = msg.Message;
+  const m = msg.Message.ShipStaticData;
 
   // Only upsert if we have an IMO number (DATA-03)
   if (!m.ImoNumber) {
@@ -169,9 +169,9 @@ function processShipStaticData(msg: any): void {
 
   const vessel: VesselMetadata = {
     imo: String(m.ImoNumber),
-    mmsi: msg.MetaData.MMSI,
-    name: m.ShipName?.trim() || 'UNKNOWN',
-    shipType: m.ShipType,
+    mmsi: String(msg.MetaData.MMSI),
+    name: m.Name?.trim() || 'UNKNOWN',
+    shipType: m.Type,
     destination: m.Destination?.trim() || null,
   };
 
