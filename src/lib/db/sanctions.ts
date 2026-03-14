@@ -4,7 +4,6 @@
  */
 import { pool } from './index';
 import type { SanctionEntry } from '../external/opensanctions';
-import type { VesselWithPosition, VesselPosition } from '@/types/vessel';
 
 export interface SanctionRecord {
   imo: string;
@@ -14,7 +13,19 @@ export interface SanctionRecord {
   confidence: string;
 }
 
-export interface VesselWithSanctions extends VesselWithPosition {
+/**
+ * VesselWithSanctions is defined independently (not extending VesselWithPosition)
+ * because vessels sourced from vessel_positions may not have a matching row in vessels,
+ * making imo/name/flag/shipType nullable.
+ */
+export interface VesselWithSanctions {
+  imo: string | null;
+  mmsi: string;
+  name: string | null;
+  flag: string | null;
+  shipType: number | null;
+  destination: string | null;
+  lastSeen: Date | null;
   isSanctioned: boolean;
   sanctioningAuthority: string | null;
   sanctionReason: string | null;
@@ -22,6 +33,19 @@ export interface VesselWithSanctions extends VesselWithPosition {
   anomalyType?: string | null;
   anomalyConfidence?: string | null;
   anomalyDetectedAt?: Date | null;
+  // Position is always non-null — every row came from vessel_positions
+  position: {
+    time: Date;
+    mmsi: string;
+    imo: string | null;
+    latitude: number;
+    longitude: number;
+    speed: number | null;
+    course: number | null;
+    heading: number | null;
+    navStatus: number | null;
+    lowConfidence: boolean;
+  };
 }
 
 /**
@@ -61,21 +85,21 @@ export async function getSanction(imo: string): Promise<SanctionRecord | null> {
 
 // Internal row type for query result
 interface VesselSanctionsRow {
-  imo: string;
+  imo: string | null;
   mmsi: string;
-  name: string;
-  flag: string;
-  shipType: number;
+  name: string | null;
+  flag: string | null;
+  shipType: number | null;
   destination: string | null;
-  lastSeen: Date;
-  latitude: number | null;
-  longitude: number | null;
+  lastSeen: Date | null;
+  latitude: number;
+  longitude: number;
   speed: number | null;
   course: number | null;
   heading: number | null;
   navStatus: number | null;
   lowConfidence: boolean;
-  time: Date | null;
+  time: Date;
   isSanctioned: boolean;
   sanctioningAuthority: string | null;
   sanctionReason: string | null;
@@ -86,37 +110,50 @@ interface VesselSanctionsRow {
 }
 
 /**
- * Get vessels with sanctions data via LEFT JOIN.
- * Returns vessels enriched with sanctions information.
+ * Get vessels with sanctions data, sourced from vessel_positions first.
+ * Every ship with a recent position appears; vessel metadata is enriched where available.
+ * Ships without a matching row in vessels (no IMO) appear with nullable metadata fields.
  */
 export async function getVesselsWithSanctions(
   tankersOnly: boolean = false
 ): Promise<VesselWithSanctions[]> {
   const result = await pool.query<VesselSanctionsRow>(
     `
-    SELECT v.imo, v.mmsi, v.name, v.flag, v.ship_type as "shipType",
-           v.destination, v.last_seen as "lastSeen",
-           p.latitude, p.longitude, p.speed, p.course, p.heading,
-           p.nav_status as "navStatus", p.low_confidence as "lowConfidence", p.time,
-           CASE WHEN s.imo IS NOT NULL THEN true ELSE false END as "isSanctioned",
-           s.sanctioning_authority as "sanctioningAuthority",
-           s.reason as "sanctionReason",
-           a.anomaly_type as "anomalyType",
-           a.confidence as "anomalyConfidence",
-           a.detected_at as "anomalyDetectedAt"
-    FROM vessels v
-    LEFT JOIN LATERAL (
-      SELECT * FROM vessel_positions WHERE mmsi = v.mmsi
-      ORDER BY time DESC LIMIT 1
-    ) p ON true
+    SELECT
+      p.mmsi,
+      p.latitude, p.longitude, p.speed, p.course, p.heading,
+      p.nav_status    AS "navStatus",
+      p.low_confidence AS "lowConfidence",
+      p.time,
+      v.imo, v.name, v.flag,
+      v.ship_type     AS "shipType",
+      v.destination,
+      v.last_seen     AS "lastSeen",
+      CASE WHEN s.imo IS NOT NULL THEN true ELSE false END AS "isSanctioned",
+      s.sanctioning_authority AS "sanctioningAuthority",
+      s.reason        AS "sanctionReason",
+      a.anomaly_type  AS "anomalyType",
+      a.confidence    AS "anomalyConfidence",
+      a.detected_at   AS "anomalyDetectedAt"
+    FROM (
+      SELECT DISTINCT ON (mmsi)
+        mmsi, latitude, longitude, speed, course, heading,
+        nav_status, low_confidence, time
+      FROM vessel_positions
+      ORDER BY mmsi, time DESC
+    ) p
+    LEFT JOIN vessels v ON v.mmsi = p.mmsi
     LEFT JOIN vessel_sanctions s ON v.imo = s.imo
     LEFT JOIN vessel_anomalies a ON v.imo = a.imo AND a.resolved_at IS NULL
-    ${tankersOnly ? 'WHERE v.ship_type BETWEEN 80 AND 89' : ''}
-    ORDER BY v.last_seen DESC
-  `
+    ${tankersOnly
+      ? 'WHERE v.ship_type IS NOT NULL AND v.ship_type BETWEEN 80 AND 89'
+      : ''}
+    ORDER BY p.time DESC
+    `
   );
 
   // Transform rows to VesselWithSanctions with nested position
+  // Every row has a valid position (sourced from vessel_positions CTE)
   return result.rows.map((row) => ({
     imo: row.imo,
     mmsi: row.mmsi,
@@ -131,19 +168,17 @@ export async function getVesselsWithSanctions(
     anomalyType: row.anomalyType,
     anomalyConfidence: row.anomalyConfidence,
     anomalyDetectedAt: row.anomalyDetectedAt,
-    position: row.latitude
-      ? {
-          time: row.time!,
-          mmsi: row.mmsi,
-          imo: row.imo,
-          latitude: row.latitude,
-          longitude: row.longitude!,
-          speed: row.speed,
-          course: row.course,
-          heading: row.heading,
-          navStatus: row.navStatus,
-          lowConfidence: row.lowConfidence,
-        }
-      : null,
+    position: {
+      time: row.time,
+      mmsi: row.mmsi,
+      imo: row.imo,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      speed: row.speed,
+      course: row.course,
+      heading: row.heading,
+      navStatus: row.navStatus,
+      lowConfidence: row.lowConfidence,
+    },
   }));
 }
