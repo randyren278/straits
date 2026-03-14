@@ -78,18 +78,25 @@ function isInJammingZone(lat: number, lon: number): boolean {
 // AISStream.io Subscription
 // ============================================================================
 
-// Explicit per-region bounding boxes covering the three critical chokepoints
+// Regional bounding boxes covering Persian Gulf, Gulf of Oman, Arabian Sea, Red Sea, Gulf of Aden, Suez/Eastern Med
 const subscription = {
   APIKey: process.env.AISSTREAM_API_KEY,
   BoundingBoxes: [
-    // Strait of Hormuz + Persian Gulf entrance
-    [[23.5, 55.5], [27.0, 57.5]],
-    // Bab-el-Mandeb (Red Sea / Gulf of Aden)
-    [[11.0, 42.5], [13.5, 45.0]],
-    // Suez Canal (Red Sea to Mediterranean)
-    [[29.5, 31.5], [32.5, 33.0]],
-    // Eastern Mediterranean / Cyprus area
-    [[33.0, 28.0], [37.0, 37.0]],
+    // Full Persian Gulf — loading terminals (Ras Tanura, Kharg Island, Kuwait, UAE ports)
+    // Extends existing Hormuz box westward to cover the entire gulf
+    [[23.0, 47.0], [30.0, 57.5]],
+    // Gulf of Oman + Arabian Sea western approaches
+    // Tankers exiting Hormuz heading east toward India/Asia
+    [[15.0, 55.0], [26.0, 66.0]],
+    // Arabian Sea transit corridor — eastbound tanker routes to India/Asia
+    [[8.0, 60.0], [25.0, 78.0]],
+    // Full Red Sea — extends existing Bab-el-Mandeb box northward to Suez
+    [[12.0, 32.0], [30.0, 45.0]],
+    // Gulf of Aden — exits from Bab-el-Mandeb heading east
+    [[11.0, 42.0], [14.0, 52.0]],
+    // Suez Canal + Eastern Mediterranean
+    // Unchanged from current coverage
+    [[29.5, 31.5], [37.0, 37.0]],
   ],
   FilterMessageTypes: ['PositionReport', 'ShipStaticData'],
 };
