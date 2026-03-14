@@ -32,21 +32,21 @@ export async function fetchAlphaVantagePrices(): Promise<OilPriceData[]> {
     { symbol: 'BRENT' as const, function: 'BRENT' },
   ];
 
-  const results = await Promise.all(
-    endpoints.map(async ({ symbol, function: fn }) => {
-      const url = `https://www.alphavantage.co/query?function=${fn}&interval=daily&apikey=${apiKey}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Alpha Vantage ${symbol}: ${res.status}`);
+  // Fetch sequentially to avoid hitting the 5-req/min free tier rate limit
+  const results: OilPriceData[] = [];
+  for (const { symbol, function: fn } of endpoints) {
+    const url = `https://www.alphavantage.co/query?function=${fn}&interval=daily&apikey=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Alpha Vantage ${symbol}: ${res.status}`);
 
-      const data = await res.json();
-      // Check for rate limit message
-      if (data.Note || data['Error Message']) {
-        throw new Error(`Alpha Vantage rate limit: ${data.Note || data['Error Message']}`);
-      }
+    const data = await res.json();
+    // Check for rate limit message (Note, Information, or Error Message)
+    if (data.Note || data['Error Message'] || data.Information) {
+      throw new Error(`Alpha Vantage rate limit: ${data.Note || data.Information || data['Error Message']}`);
+    }
 
-      return parseAlphaVantageResponse(data, symbol);
-    })
-  );
+    results.push(parseAlphaVantageResponse(data, symbol));
+  }
 
   return results;
 }

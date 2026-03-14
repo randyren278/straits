@@ -21,6 +21,7 @@ export function VesselMap() {
   const map = useRef<mapboxgl.Map | null>(null);
   const [vessels, setVessels] = useState<VesselWithSanctions[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack, mapCenter, setMapCenter, anomalyFilter } =
     useVesselStore();
@@ -29,12 +30,21 @@ export function VesselMap() {
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: [54, 25], // Strait of Hormuz region
-      zoom: 5,
-    });
+    let mapInstance: mapboxgl.Map;
+    try {
+      mapInstance = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/dark-v11',
+        center: [54, 25], // Strait of Hormuz region
+        zoom: 5,
+      });
+      map.current = mapInstance;
+    } catch (err) {
+      setMapError(err instanceof Error ? err.message : 'Map failed to load');
+      return;
+    }
+
+    map.current = mapInstance;
 
     map.current.on('load', () => {
       if (!map.current) return;
@@ -267,6 +277,18 @@ export function VesselMap() {
     // Clear the navigation request after flying
     setMapCenter(null);
   }, [mapCenter, mapLoaded, setMapCenter]);
+
+  if (mapError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-black text-gray-500 font-mono text-sm">
+        <div className="text-center">
+          <div className="text-amber-500 uppercase tracking-widest mb-2">MAP ERROR</div>
+          <div>{mapError}</div>
+          <div className="mt-2 text-xs text-gray-600">WebGL required for map rendering</div>
+        </div>
+      </div>
+    );
+  }
 
   return <div ref={mapContainer} className="w-full h-full" />;
 }
