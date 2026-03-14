@@ -140,6 +140,7 @@ export async function getVesselsWithSanctions(
         mmsi, latitude, longitude, speed, course, heading,
         nav_status, low_confidence, time
       FROM vessel_positions
+      WHERE time > NOW() - INTERVAL '24 hours'
       ORDER BY mmsi, time DESC
     ) p
     LEFT JOIN vessels v ON v.mmsi = p.mmsi
