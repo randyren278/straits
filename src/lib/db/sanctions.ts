@@ -113,6 +113,8 @@ interface VesselSanctionsRow {
  * Get vessels with sanctions data, sourced from vessel_positions first.
  * Every ship with a recent position appears; vessel metadata is enriched where available.
  * Ships without a matching row in vessels (no IMO) appear with nullable metadata fields.
+ * tankersOnly mode includes unclassified vessels (NULL ship_type) — ships that have positions
+ * but never broadcast ShipStaticData are exactly what you want to see, not silently filter out.
  */
 export async function getVesselsWithSanctions(
   tankersOnly: boolean = false
@@ -147,7 +149,7 @@ export async function getVesselsWithSanctions(
     LEFT JOIN vessel_sanctions s ON v.imo = s.imo
     LEFT JOIN vessel_anomalies a ON v.imo = a.imo AND a.resolved_at IS NULL
     ${tankersOnly
-      ? 'WHERE v.ship_type IS NOT NULL AND v.ship_type BETWEEN 80 AND 89'
+      ? 'WHERE (v.ship_type IS NULL OR v.ship_type BETWEEN 80 AND 89)'
       : ''}
     ORDER BY p.time DESC
     `
