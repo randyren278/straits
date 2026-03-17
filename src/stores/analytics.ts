@@ -4,7 +4,7 @@
  * Requirement: HIST-01
  */
 import { create } from 'zustand';
-import type { TimeRange, RouteRegion } from '@/types/analytics';
+import type { TimeRange, RouteRegion, ShipTypeFilter } from '@/types/analytics';
 
 interface AnalyticsStore {
   /** Selected time range for queries */
@@ -17,6 +17,8 @@ interface AnalyticsStore {
   viewMode: 'chokepoint' | 'route';
   /** Loading state for data fetches */
   isLoading: boolean;
+  /** Ship type filter for traffic queries */
+  shipTypeFilter: ShipTypeFilter;
 
   /** Set time range and trigger re-fetch */
   setTimeRange: (range: TimeRange) => void;
@@ -28,6 +30,8 @@ interface AnalyticsStore {
   setViewMode: (mode: 'chokepoint' | 'route') => void;
   /** Set loading state */
   setIsLoading: (loading: boolean) => void;
+  /** Set ship type filter */
+  setShipTypeFilter: (filter: ShipTypeFilter) => void;
 }
 
 export const useAnalyticsStore = create<AnalyticsStore>((set) => ({
@@ -37,6 +41,7 @@ export const useAnalyticsStore = create<AnalyticsStore>((set) => ({
   selectedRoutes: ['east_asia', 'europe', 'americas'], // Exclude 'unknown' by default
   viewMode: 'chokepoint',
   isLoading: false,
+  shipTypeFilter: 'all',
 
   // Setters
   setTimeRange: (timeRange) => set({ timeRange }),
@@ -44,4 +49,5 @@ export const useAnalyticsStore = create<AnalyticsStore>((set) => ({
   setSelectedRoutes: (selectedRoutes) => set({ selectedRoutes }),
   setViewMode: (viewMode) => set({ viewMode }),
   setIsLoading: (isLoading) => set({ isLoading }),
+  setShipTypeFilter: (shipTypeFilter) => set({ shipTypeFilter }),
 }));
