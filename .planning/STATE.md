@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: "Roadmap defined, ready for `/gsd:plan-phase 8`"
-stopped_at: Completed 09-all-ships-analytics-02-PLAN.md
-last_updated: "2026-03-17T22:03:16.026Z"
+stopped_at: Completed 10-chokepoint-live-ships-01-PLAN.md
+last_updated: "2026-03-17T22:09:51.943Z"
 last_activity: 2026-03-17 — Roadmap created for v1.2 (phases 8–10)
 progress:
   total_phases: 10
   completed_phases: 9
-  total_plans: 29
-  completed_plans: 29
+  total_plans: 31
+  completed_plans: 30
   percent: 0
 ---
 
@@ -66,6 +66,7 @@ Progress: [____________________] 0/? plans (0%)
 | Phase 08-all-ships-anomalies P02 | 8 | 2 tasks | 2 files |
 | Phase 09-all-ships-analytics P01 | 3 | 2 tasks | 4 files |
 | Phase 09-all-ships-analytics P02 | 2 | 2 tasks | 2 files |
+| Phase 10-chokepoint-live-ships P01 | 1 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,8 @@ Recent decisions affecting current work:
 - [Phase 09-all-ships-analytics]: SQL shipType clause injected as controlled string fragment (validated ShipTypeFilter enum, not raw user input) (09-01)
 - [Phase 09-all-ships-analytics]: shipTypeFilter added to useCallback deps array — changing filter triggers automatic re-fetch (09-02)
 - [Phase 09-all-ships-analytics]: Default 'all' filter on analytics page load — no regression from pre-Phase-9 behavior (09-02)
+- [Phase 10-chokepoint-live-ships]: getVesselsInChokepoint returns null for unknown chokepoint IDs — caller owns the 404 response
+- [Phase 10-chokepoint-live-ships]: Next.js 16 async params: await params before accessing id in chokepoints/[id]/vessels route
 
 ### Pending Todos
 
@@ -185,6 +188,6 @@ None — v1.2 roadmap defined. Ready to plan Phase 8.
 
 ## Session Continuity
 
-Last session: 2026-03-17T22:00:56.497Z
-Stopped at: Completed 09-all-ships-analytics-02-PLAN.md
+Last session: 2026-03-17T22:09:51.940Z
+Stopped at: Completed 10-chokepoint-live-ships-01-PLAN.md
 Resume file: None

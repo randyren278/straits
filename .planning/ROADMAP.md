@@ -187,7 +187,7 @@ Plans:
   2. Each entry in the list shows the vessel's flag, ship type, and an anomaly indicator if the vessel has an active anomaly
   3. Clicking a vessel in the chokepoint list flies the map to that vessel's position and opens its identity panel
   4. The list is empty (with a "no vessels" state) when no vessels are currently inside the zone — it does not show stale data
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 10-01-PLAN.md — /api/chokepoints/[id]/vessels endpoint + DB query for vessels inside bounds
@@ -209,7 +209,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Documentation | 3/3 | Complete    | 2026-03-13 |
 | 8. All-Ships Anomalies | 2/2 | Complete    | 2026-03-17 |
 | 9. All-Ships Analytics | 2/2 | Complete    | 2026-03-17 |
-| 10. Chokepoint Live Ships | 0/2 | Not started | - |
+| 10. Chokepoint Live Ships | 1/2 | In Progress|  |
 
 ---
 *Roadmap created: 2026-03-11*
