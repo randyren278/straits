@@ -125,6 +125,60 @@ describe('getTrafficByRoute', () => {
   });
 });
 
+describe('getTrafficByChokepoint with shipTypeFilter', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('filter=all: does not inject AND v.ship_type WHERE clause', async () => {
+    (pool.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [] });
+
+    await getTrafficByChokepoint('hormuz', '7d', 'all');
+
+    const sql: string = (pool.query as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    // The WHERE block should not have an AND v.ship_type clause (FILTER clause for tankerCount is separate)
+    expect(sql).not.toMatch(/AND v\.ship_type BETWEEN/);
+    expect(sql).not.toMatch(/AND \(v\.ship_type IS NULL/);
+  });
+
+  it('filter=tanker: injects AND v.ship_type BETWEEN 80 AND 89 in WHERE block', async () => {
+    (pool.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [] });
+
+    await getTrafficByChokepoint('hormuz', '7d', 'tanker');
+
+    const sql: string = (pool.query as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(sql).toMatch(/AND v\.ship_type BETWEEN 80 AND 89/);
+  });
+
+  it('filter=cargo: injects AND v.ship_type BETWEEN 70 AND 79 in WHERE block', async () => {
+    (pool.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [] });
+
+    await getTrafficByChokepoint('hormuz', '7d', 'cargo');
+
+    const sql: string = (pool.query as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(sql).toMatch(/AND v\.ship_type BETWEEN 70 AND 79/);
+  });
+
+  it('filter=other: injects AND (v.ship_type IS NULL OR ... NOT BETWEEN 70 AND 89)', async () => {
+    (pool.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [] });
+
+    await getTrafficByChokepoint('hormuz', '7d', 'other');
+
+    const sql: string = (pool.query as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(sql).toMatch(/AND \(v\.ship_type IS NULL/);
+    expect(sql).toMatch(/NOT BETWEEN 70 AND 89/);
+  });
+
+  it('default (no filter arg) behaves same as filter=all', async () => {
+    (pool.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [] });
+
+    await getTrafficByChokepoint('hormuz', '7d');
+
+    const sql: string = (pool.query as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(sql).not.toMatch(/AND v\.ship_type BETWEEN/);
+  });
+});
+
 describe('getPriceHistoryForOverlay', () => {
   beforeEach(() => {
     vi.clearAllMocks();
