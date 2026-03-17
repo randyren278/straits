@@ -1,5 +1,5 @@
 /**
- * Analytics Correlation API (HIST-01)
+ * Analytics Correlation API (HIST-01, ANLX-05)
  *
  * GET /api/analytics/correlation
  * Returns combined traffic and oil price data for correlation charts.
@@ -8,14 +8,16 @@
  * - range: TimeRange ('7d', '30d', '90d') - default '30d'
  * - chokepoint: chokepoint ID - default 'hormuz'
  * - priceSymbol: 'WTI' | 'BRENT' - default 'WTI'
+ * - shipType: ShipTypeFilter ('all'|'tanker'|'cargo'|'other') - default 'all'
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getTrafficByChokepoint, getPriceHistoryForOverlay } from '@/lib/db/analytics';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints';
-import type { TimeRange, TrafficWithPrices } from '@/types/analytics';
+import type { TimeRange, TrafficWithPrices, ShipTypeFilter } from '@/types/analytics';
 
 const VALID_RANGES: TimeRange[] = ['7d', '30d', '90d'];
 const VALID_SYMBOLS = ['WTI', 'BRENT'];
+const VALID_SHIP_TYPES: ShipTypeFilter[] = ['all', 'tanker', 'cargo', 'other'];
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,9 +42,15 @@ export async function GET(request: NextRequest) {
     const symbolParam = searchParams.get('priceSymbol') || 'WTI';
     const priceSymbol = VALID_SYMBOLS.includes(symbolParam) ? symbolParam : 'WTI';
 
-    // Fetch traffic and prices in parallel
+    // Parse ship type filter
+    const shipTypeParam = searchParams.get('shipType') || 'all';
+    const shipTypeFilter: ShipTypeFilter = VALID_SHIP_TYPES.includes(shipTypeParam as ShipTypeFilter)
+      ? (shipTypeParam as ShipTypeFilter)
+      : 'all';
+
+    // Fetch traffic and prices in parallel — oil prices are independent of ship type
     const [trafficData, priceData] = await Promise.all([
-      getTrafficByChokepoint(chokepointId, range),
+      getTrafficByChokepoint(chokepointId, range, shipTypeFilter),
       getPriceHistoryForOverlay(priceSymbol, range),
     ]);
 
