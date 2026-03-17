@@ -8,6 +8,9 @@
 /** Time range options for analytics queries */
 export type TimeRange = '7d' | '30d' | '90d';
 
+/** Ship type filter for analytics queries */
+export type ShipTypeFilter = 'all' | 'tanker' | 'cargo' | 'other';
+
 /**
  * Convert TimeRange to days number for query.
  *

@@ -7,7 +7,7 @@
 import { pool } from './index';
 import { CHOKEPOINTS } from '../geo/chokepoints';
 import { classifyRoute } from '../analytics/routes';
-import type { DailyTrafficPoint, RouteTrafficPoint, TimeRange } from '@/types/analytics';
+import type { DailyTrafficPoint, RouteTrafficPoint, TimeRange, ShipTypeFilter } from '@/types/analytics';
 import { timeRangeToDays } from '@/types/analytics';
 
 /**
@@ -16,17 +16,29 @@ import { timeRangeToDays } from '@/types/analytics';
  *
  * @param chokepointId - ID from CHOKEPOINTS (hormuz, babel_mandeb, suez)
  * @param range - Time range ('7d', '30d', '90d')
+ * @param shipTypeFilter - Optional ship type filter (default 'all' = no filter)
  * @returns Daily traffic points sorted by date ascending
  */
 export async function getTrafficByChokepoint(
   chokepointId: string,
-  range: TimeRange
+  range: TimeRange,
+  shipTypeFilter: ShipTypeFilter = 'all'
 ): Promise<DailyTrafficPoint[]> {
   const chokepoint = CHOKEPOINTS[chokepointId];
   if (!chokepoint) return [];
 
   const { minLat, maxLat, minLon, maxLon } = chokepoint.bounds;
   const days = timeRangeToDays(range);
+
+  // Build controlled SQL clause from validated enum — never inject raw user input
+  const shipTypeClause = (() => {
+    switch (shipTypeFilter) {
+      case 'tanker': return 'AND v.ship_type BETWEEN 80 AND 89';
+      case 'cargo':  return 'AND v.ship_type BETWEEN 70 AND 79';
+      case 'other':  return 'AND (v.ship_type IS NULL OR v.ship_type NOT BETWEEN 70 AND 89)';
+      default:       return ''; // 'all' — no additional ship_type filter
+    }
+  })();
 
   const result = await pool.query<{
     bucket_day: Date;
@@ -42,6 +54,7 @@ export async function getTrafficByChokepoint(
     WHERE vp.time > NOW() - $1::interval
       AND vp.latitude BETWEEN $2 AND $3
       AND vp.longitude BETWEEN $4 AND $5
+      ${shipTypeClause}
     GROUP BY bucket_day
     ORDER BY bucket_day ASC
   `, [`${days} days`, minLat, maxLat, minLon, maxLon]);
@@ -57,12 +70,24 @@ export async function getTrafficByChokepoint(
  * Get daily vessel traffic grouped by destination route region.
  *
  * @param range - Time range ('7d', '30d', '90d')
+ * @param shipTypeFilter - Optional ship type filter (default 'all' = no filter)
  * @returns Daily traffic points with route classification
  */
 export async function getTrafficByRoute(
-  range: TimeRange
+  range: TimeRange,
+  shipTypeFilter: ShipTypeFilter = 'all'
 ): Promise<RouteTrafficPoint[]> {
   const days = timeRangeToDays(range);
+
+  // Build controlled SQL clause from validated enum — never inject raw user input
+  const shipTypeClause = (() => {
+    switch (shipTypeFilter) {
+      case 'tanker': return 'AND v.ship_type BETWEEN 80 AND 89';
+      case 'cargo':  return 'AND v.ship_type BETWEEN 70 AND 79';
+      case 'other':  return 'AND (v.ship_type IS NULL OR v.ship_type NOT BETWEEN 70 AND 89)';
+      default:       return ''; // 'all' — no additional ship_type filter
+    }
+  })();
 
   // Get vessels with destinations and their daily positions
   const result = await pool.query<{
@@ -79,6 +104,7 @@ export async function getTrafficByRoute(
     FROM vessel_positions vp
     LEFT JOIN vessels v ON vp.mmsi = v.mmsi
     WHERE vp.time > NOW() - $1::interval
+      ${shipTypeClause}
     GROUP BY bucket_day, v.destination
     ORDER BY bucket_day ASC
   `, [`${days} days`]);
