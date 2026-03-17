@@ -75,8 +75,8 @@ All 20 requirements shipped and validated.
 
 ### Analytics (All Ships)
 
-- [ ] **ANLX-05**: Historical traffic chart shows vessel counts for all ship types, not just tankers
-- [ ] **ANLX-06**: User can filter traffic chart by ship type (all / tankers / cargo / other)
+- [x] **ANLX-05**: Historical traffic chart shows vessel counts for all ship types, not just tankers
+- [x] **ANLX-06**: User can filter traffic chart by ship type (all / tankers / cargo / other)
 
 ### Chokepoint Intelligence
 
@@ -131,8 +131,8 @@ All 20 requirements shipped and validated.
 
 | ANOM-05 | Phase 8 | Complete |
 | ANOM-06 | Phase 8 | Complete |
-| ANLX-05 | Phase 9 | Pending |
-| ANLX-06 | Phase 9 | Pending |
+| ANLX-05 | Phase 9 | Complete |
+| ANLX-06 | Phase 9 | Complete |
 | CHKP-01 | Phase 10 | Pending |
 | CHKP-02 | Phase 10 | Pending |
 

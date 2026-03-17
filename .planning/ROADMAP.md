@@ -172,7 +172,7 @@ Plans:
   2. A ship type filter (all / tankers / cargo / other) appears on the analytics page and re-queries the chart when changed
   3. Selecting "tankers" produces a chart identical to the pre-v1.2 baseline (regression check)
   4. The dual Y-axis oil price overlay continues to render correctly regardless of which ship type filter is active
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 09-01-PLAN.md — ShipTypeFilter type + DB query param + correlation API ?shipType= support
@@ -208,7 +208,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Data Wiring | 3/3 | Complete    | 2026-03-13 |
 | 7. Documentation | 3/3 | Complete    | 2026-03-13 |
 | 8. All-Ships Anomalies | 2/2 | Complete    | 2026-03-17 |
-| 9. All-Ships Analytics | 0/2 | Not started | - |
+| 9. All-Ships Analytics | 1/2 | In Progress|  |
 | 10. Chokepoint Live Ships | 0/2 | Not started | - |
 
 ---

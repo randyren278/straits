@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: "Roadmap defined, ready for `/gsd:plan-phase 8`"
-stopped_at: Completed 08-all-ships-anomalies-02-PLAN.md
-last_updated: "2026-03-17T21:48:44.767Z"
+stopped_at: Completed 09-all-ships-analytics-01-PLAN.md
+last_updated: "2026-03-17T21:57:36.650Z"
 last_activity: 2026-03-17 — Roadmap created for v1.2 (phases 8–10)
 progress:
   total_phases: 10
   completed_phases: 8
-  total_plans: 27
-  completed_plans: 27
+  total_plans: 29
+  completed_plans: 28
   percent: 0
 ---
 
@@ -64,6 +64,7 @@ Progress: [____________________] 0/? plans (0%)
 | Phase 07-documentation P03 | 1 | 2 tasks | 0 files |
 | Phase 08-all-ships-anomalies P01 | 4 | 2 tasks | 6 files |
 | Phase 08-all-ships-anomalies P02 | 8 | 2 tasks | 2 files |
+| Phase 09-all-ships-analytics P01 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -153,6 +154,9 @@ Recent decisions affecting current work:
 - [Phase 08-all-ships-anomalies]: NotificationBell switched to /api/anomalies for ship type filter support
 - [Phase 08-all-ships-anomalies]: useRef mirrors shipTypeFilter state to prevent stale closure in 30s polling interval (08-02)
 - [Phase 08-all-ships-anomalies]: SQL shipType clause injected as controlled string fragment (validated enum, not raw user input) (08-02)
+- [Phase 09-all-ships-analytics]: ShipTypeFilter clause injected into WHERE block of vessel count query; tankerCount FILTER clause preserved for backward compat
+- [Phase 09-all-ships-analytics]: filter=all produces empty string clause — pre-Phase-9 query behavior preserved exactly (regression safe)
+- [Phase 09-all-ships-analytics]: SQL shipType clause injected as controlled string fragment (validated ShipTypeFilter enum, not raw user input) (09-01)
 
 ### Pending Todos
 
@@ -178,6 +182,6 @@ None — v1.2 roadmap defined. Ready to plan Phase 8.
 
 ## Session Continuity
 
-Last session: 2026-03-17T21:46:29.484Z
-Stopped at: Completed 08-all-ships-anomalies-02-PLAN.md
+Last session: 2026-03-17T21:57:36.647Z
+Stopped at: Completed 09-all-ships-analytics-01-PLAN.md
 Resume file: None
