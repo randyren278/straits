@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 Phase: 8 — All-Ships Anomalies
 Plan: —
 Status: Roadmap defined, ready for `/gsd:plan-phase 8`
-Last activity: 2026-03-17 — Roadmap created for v1.2 (phases 8–10)
+Last activity: 2026-03-17 — Completed quick task 10: chokepoint header vessel list collapse to dropdown
 
 Progress: [____________________] 0/? plans (0%)
 
