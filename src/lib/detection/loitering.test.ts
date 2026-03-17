@@ -97,7 +97,7 @@ describe('detectLoitering', () => {
     vi.clearAllMocks();
   });
 
-  it('queries positions from last 6 hours for tankers', async () => {
+  it('queries positions from last 6 hours for all vessels (no ship_type filter)', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
 
     await detectLoitering();
@@ -105,7 +105,32 @@ describe('detectLoitering', () => {
     expect(mockQuery).toHaveBeenCalled();
     const query = mockQuery.mock.calls[0][0];
     expect(query).toContain("INTERVAL '6 hours'");
-    expect(query).toContain('ship_type BETWEEN 80 AND 89');
+    expect(query).not.toContain('ship_type BETWEEN 80 AND 89');
+  });
+
+  it('does NOT exclude non-tanker vessel (ship_type 72 cargo) from query', async () => {
+    // A cargo vessel (ship_type 72) loitering outside anchorage should be detected
+    const mockCargoVessel = {
+      imo: '6666666',
+      mmsi: '666666666',
+      positions: [
+        { lat: 20.0, lon: 60.0, time: new Date() },
+        { lat: 20.01, lon: 60.01, time: new Date() },
+        { lat: 20.02, lon: 60.02, time: new Date() },
+      ],
+    };
+
+    mockQuery.mockResolvedValueOnce({ rows: [mockCargoVessel] });
+
+    const count = await detectLoitering();
+
+    expect(count).toBe(1);
+    expect(mockUpsertAnomaly).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imo: '6666666',
+        anomalyType: 'loitering',
+      })
+    );
   });
 
   it('creates loitering anomaly for vessel within 5nm radius outside anchorage', async () => {

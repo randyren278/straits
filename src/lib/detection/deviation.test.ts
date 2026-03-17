@@ -57,14 +57,39 @@ describe('detectSpeedAnomaly', () => {
     vi.clearAllMocks();
   });
 
-  it('queries tankers with recent positions', async () => {
+  it('queries all vessels with recent positions (no ship_type filter)', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
 
     await detectSpeedAnomaly();
 
     expect(mockQuery).toHaveBeenCalled();
     const query = mockQuery.mock.calls[0][0];
-    expect(query).toContain('ship_type BETWEEN 80 AND 89');
+    expect(query).not.toContain('ship_type BETWEEN 80 AND 89');
+  });
+
+  it('does NOT exclude non-tanker vessel (ship_type 72 cargo) from query', async () => {
+    // A cargo vessel moving slowly outside anchorage should be detected
+    const mockCargoVessel = {
+      imo: '7777777',
+      speed: 1.5,
+      latitude: 20.0,
+      longitude: 60.0,
+    };
+
+    mockQuery.mockResolvedValueOnce({ rows: [mockCargoVessel] });
+
+    const count = await detectSpeedAnomaly();
+
+    expect(count).toBe(1);
+    expect(mockUpsertAnomaly).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imo: '7777777',
+        anomalyType: 'speed',
+        details: expect.objectContaining({
+          speedKnots: 1.5,
+        }),
+      })
+    );
   });
 
   it('creates speed anomaly for slow tanker outside anchorage', async () => {

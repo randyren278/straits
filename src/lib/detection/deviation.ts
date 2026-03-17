@@ -2,7 +2,7 @@
  * Route Deviation and Speed Anomaly Detection
  *
  * Detects vessels exhibiting suspicious route behavior:
- * - Speed anomaly: Tanker moving <3 knots outside port/anchorage (drifting/disabled)
+ * - Speed anomaly: Vessel moving <3 knots outside port/anchorage (drifting/disabled)
  * - Deviation: Heading differs >45 deg from expected route (stub for v1)
  *
  * Requirements: ANOM-02
@@ -39,7 +39,7 @@ export function isSpeedAnomaly(speedKnots: number, lat: number, lon: number): bo
  * Detect tankers with anomalously slow speed outside anchorages.
  *
  * Process:
- * 1. Query tankers with recent position updates
+ * 1. Query all vessels with recent position updates
  * 2. Check if speed < 3 knots
  * 3. Exclude vessels in known anchorages
  * 4. Create speed anomaly records
@@ -47,7 +47,7 @@ export function isSpeedAnomaly(speedKnots: number, lat: number, lon: number): bo
  * @returns Number of speed anomalies detected
  */
 export async function detectSpeedAnomaly(): Promise<number> {
-  // Get recent positions with speed for tankers
+  // Get recent positions with speed for all vessels
   const result = await pool.query<{
     imo: string;
     speed: number;
@@ -57,8 +57,7 @@ export async function detectSpeedAnomaly(): Promise<number> {
     SELECT DISTINCT ON (v.imo) v.imo, p.speed, p.latitude, p.longitude
     FROM vessels v
     JOIN vessel_positions p ON p.mmsi = v.mmsi
-    WHERE v.ship_type BETWEEN 80 AND 89
-      AND p.time > NOW() - INTERVAL '1 hour'
+    WHERE p.time > NOW() - INTERVAL '1 hour'
       AND p.speed IS NOT NULL
     ORDER BY v.imo, p.time DESC
   `);

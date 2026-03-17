@@ -71,14 +71,14 @@ export function isLoiteringBehavior(positions: Position[]): boolean {
  * Detect vessels exhibiting loitering behavior.
  *
  * Process:
- * 1. Query position history from last 6 hours for tankers
+ * 1. Query position history from last 6 hours for all vessels
  * 2. Calculate centroid and max radius for each vessel
  * 3. Flag as loitering if radius < 5nm and NOT in anchorage
  *
  * @returns Number of loitering anomalies detected
  */
 export async function detectLoitering(): Promise<number> {
-  // Get positions from last 6 hours for tankers, grouped by vessel
+  // Get positions from last 6 hours for all vessels, grouped by vessel
   const result = await pool.query<{
     imo: string;
     mmsi: string;
@@ -92,8 +92,7 @@ export async function detectLoitering(): Promise<number> {
            ) ORDER BY p.time) as positions
     FROM vessels v
     JOIN vessel_positions p ON p.mmsi = v.mmsi
-    WHERE v.ship_type BETWEEN 80 AND 89
-      AND p.time > NOW() - INTERVAL '6 hours'
+    WHERE p.time > NOW() - INTERVAL '6 hours'
     GROUP BY v.imo, v.mmsi
     HAVING COUNT(*) >= 3
   `);
