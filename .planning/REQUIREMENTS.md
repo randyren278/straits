@@ -1,7 +1,7 @@
 # Requirements: Tanker Tracker
 
 **Defined:** 2026-03-11
-**Updated:** 2026-03-13 (v1.1 requirements added)
+**Updated:** 2026-03-17 (v1.2 requirements added)
 **Core Value:** Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
 
 ## v1.0 Requirements (Complete)
@@ -66,6 +66,23 @@ All 20 requirements shipped and validated.
 - [x] **DOCS-03**: README includes production deployment section (hosting options, env config, ingester deployment)
 - [x] **DOCS-04**: .gitignore excludes .env files, build artifacts, TimescaleDB data volumes, and local logs
 
+## v1.2 Requirements
+
+### Anomaly Detection (All Ships)
+
+- [ ] **ANOM-05**: Anomaly detection (going dark, loitering, speed) runs on all ship types, not just tankers
+- [ ] **ANOM-06**: User can filter the anomaly/alerts panel by ship type
+
+### Analytics (All Ships)
+
+- [ ] **ANLX-05**: Historical traffic chart shows vessel counts for all ship types, not just tankers
+- [ ] **ANLX-06**: User can filter traffic chart by ship type (all / tankers / cargo / other)
+
+### Chokepoint Intelligence
+
+- [ ] **CHKP-01**: Each chokepoint widget shows a live list of vessels currently inside the zone (name, flag, ship type, anomaly status)
+- [ ] **CHKP-02**: User can click a vessel in the chokepoint list to navigate to it on the map
+
 ## v2 Requirements
 
 ### Advanced Intelligence
@@ -112,11 +129,18 @@ All 20 requirements shipped and validated.
 | DOCS-03 | Phase 7 | Complete |
 | DOCS-04 | Phase 7 | Complete |
 
+| ANOM-05 | Phase 8 | Pending |
+| ANOM-06 | Phase 8 | Pending |
+| ANLX-05 | Phase 9 | Pending |
+| ANLX-06 | Phase 9 | Pending |
+| CHKP-01 | Phase 10 | Pending |
+| CHKP-02 | Phase 10 | Pending |
+
 **Coverage:**
-- v1.1 requirements: 15 total
-- Mapped to phases: 15
+- v1.2 requirements: 6 total
+- Mapped to phases: 6
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-13 after v1.1 roadmap creation*
+*Last updated: 2026-03-17 after v1.2 requirements defined*
