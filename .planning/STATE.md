@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: "Roadmap defined, ready for `/gsd:plan-phase 8`"
-stopped_at: Completed 10-chokepoint-live-ships-02-PLAN.md
-last_updated: "2026-03-17T22:16:58.224Z"
+stopped_at: Completed quick-10 (chokepoint vessel list collapse)
+last_updated: "2026-03-17T22:42:29Z"
 last_activity: 2026-03-17 — Roadmap created for v1.2 (phases 8–10)
 progress:
   total_phases: 10
@@ -184,6 +184,7 @@ None yet.
 | 7 | expand AIS coverage bounding boxes to include full Persian Gulf, Gulf of Oman, full Red Sea, Arabian Sea transit routes, and Gulf of Aden — revert sanctions.ts 24h window | 2026-03-14 | 1896072 | [7-expand-ais-coverage-bounding-boxes-to-in](./quick/7-expand-ais-coverage-bounding-boxes-to-in/) |
 | 8 | update documentation to reflect expanded AIS coverage (6 bounding boxes) | 2026-03-14 | ee8ba4d | [8-update-documentation-to-reflect-expanded](./quick/8-update-documentation-to-reflect-expanded/) |
 | 9 | fix tanker filter to include unclassified vessels (NULL ship_type) | 2026-03-14 | e76bc44 | [9-fix-tanker-filter-to-include-unclassifie](./quick/9-fix-tanker-filter-to-include-unclassifie/) |
+| 10 | chokepoint header vessel list collapse toggle with absolute dropdown | 2026-03-17 | f1e0ea2 | [10-chokepoint-header-vessel-list-collapse-t](./quick/10-chokepoint-header-vessel-list-collapse-t/) |
 
 ### Blockers/Concerns
 
