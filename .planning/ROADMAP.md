@@ -207,7 +207,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. UI Redesign | 3/3 | Complete    | 2026-03-13 |
 | 6. Data Wiring | 3/3 | Complete    | 2026-03-13 |
 | 7. Documentation | 3/3 | Complete    | 2026-03-13 |
-| 8. All-Ships Anomalies | 2/2 | Complete   | 2026-03-17 |
+| 8. All-Ships Anomalies | 2/2 | Complete    | 2026-03-17 |
 | 9. All-Ships Analytics | 0/? | Not started | - |
 | 10. Chokepoint Live Ships | 0/? | Not started | - |
 

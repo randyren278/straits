@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: milestone
 status: "Roadmap defined, ready for `/gsd:plan-phase 8`"
 stopped_at: Completed 08-all-ships-anomalies-02-PLAN.md
-last_updated: "2026-03-17T21:46:29.487Z"
+last_updated: "2026-03-17T21:48:44.767Z"
 last_activity: 2026-03-17 — Roadmap created for v1.2 (phases 8–10)
 progress:
   total_phases: 10
