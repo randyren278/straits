@@ -160,8 +160,8 @@ Plans:
 **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 08-01-PLAN.md — Remove tanker-only ship_type filter from all three detection jobs
-- [ ] 08-02-PLAN.md — Ship type filter in /api/anomalies + NotificationBell panel
+- [x] 08-01-PLAN.md — Remove tanker-only ship_type filter from all three detection jobs
+- [x] 08-02-PLAN.md — Ship type filter in /api/anomalies + NotificationBell panel
 
 ### Phase 9: All-Ships Analytics
 **Goal**: Historical traffic charts show all vessel types with a breakdown by ship type, and users can filter the chart to compare tanker volume against cargo, bulk, or all-vessel totals
@@ -175,8 +175,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Remove tanker-only ship_type filter from all three detection jobs
-- [ ] 08-02-PLAN.md — Ship type filter in /api/anomalies + NotificationBell panel
+- [ ] 09-01-PLAN.md — ShipTypeFilter type + DB query param + correlation API ?shipType= support
+- [ ] 09-02-PLAN.md — Zustand shipTypeFilter state + analytics page filter buttons wired to fetch
 
 ### Phase 10: Chokepoint Live Ships
 **Goal**: Each chokepoint widget shows the actual vessels currently inside the zone — name, flag, ship type, and anomaly status — and clicking any vessel navigates the map to its position
@@ -190,8 +190,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Remove tanker-only ship_type filter from all three detection jobs
-- [ ] 08-02-PLAN.md — Ship type filter in /api/anomalies + NotificationBell panel
+- [ ] 10-01-PLAN.md — /api/chokepoints/[id]/vessels endpoint + DB query for vessels inside bounds
+- [ ] 10-02-PLAN.md — Chokepoint widget vessel list UI + map flyTo on click
 
 ## Progress
 
@@ -208,8 +208,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Data Wiring | 3/3 | Complete    | 2026-03-13 |
 | 7. Documentation | 3/3 | Complete    | 2026-03-13 |
 | 8. All-Ships Anomalies | 2/2 | Complete    | 2026-03-17 |
-| 9. All-Ships Analytics | 0/? | Not started | - |
-| 10. Chokepoint Live Ships | 0/? | Not started | - |
+| 9. All-Ships Analytics | 0/2 | Not started | - |
+| 10. Chokepoint Live Ships | 0/2 | Not started | - |
 
 ---
 *Roadmap created: 2026-03-11*
@@ -220,3 +220,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 *v1.1 phases 5–7 added: 2026-03-13*
 *Phase 7 planned: 2026-03-13*
 *v1.2 phases 8–10 added: 2026-03-17*
+*Phase 9 planned: 2026-03-17*
