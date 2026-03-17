@@ -5,9 +5,9 @@ milestone_name: All-Vessels Intelligence
 status: planning
 stopped_at: —
 last_updated: "2026-03-17T00:00:00.000Z"
-last_activity: 2026-03-17 — Milestone v1.2 started
+last_activity: 2026-03-17 — Roadmap created for v1.2 (phases 8–10)
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,19 +18,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-13)
+See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
-**Current focus:** v1.1 Polish & Ship — Phase 7: Documentation (ready to plan)
+**Current focus:** v1.2 All-Vessels Intelligence — Phase 8: All-Ships Anomalies (ready to plan)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 8 — All-Ships Anomalies
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-17 — Milestone v1.2 started
+Status: Roadmap defined, ready for `/gsd:plan-phase 8`
+Last activity: 2026-03-17 — Roadmap created for v1.2 (phases 8–10)
 
-Progress: [████████████████████] 22/22 plans (100%)
+Progress: [____________________] 0/? plans (0%)
 
 ## Performance Metrics
 
@@ -168,10 +168,10 @@ None yet.
 
 ### Blockers/Concerns
 
-None — Phase 6 wiring complete. Phase 7 is documentation only (no API dependencies).
+None — v1.2 roadmap defined. Ready to plan Phase 8.
 
 ## Session Continuity
 
-Last session: 2026-03-14T06:01:00Z
-Stopped at: Completed quick task 9: fix tanker filter to include unclassified vessels
+Last session: 2026-03-17T00:00:00Z
+Stopped at: v1.2 roadmap created (phases 8–10)
 Resume file: None

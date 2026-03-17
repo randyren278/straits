@@ -6,6 +6,8 @@ The project builds in four phases ordered by dependency: first the data pipeline
 
 v1.1 (Polish & Ship) continues from Phase 4, adding three phases that transform the working prototype into a shareable, production-ready tool: UI redesign to match the Bloomberg terminal aesthetic, full data pipeline wiring so every panel shows real live data, and documentation so the app can be handed to friends and deployed independently.
 
+v1.2 (All-Vessels Intelligence) continues from Phase 7, adding three phases that expand scope from tankers-only to all AIS ship types across anomaly detection and analytics, and add live vessel enumeration inside each chokepoint zone.
+
 ## Phases
 
 **Phase Numbering:**
@@ -21,6 +23,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: UI Redesign** - Bloomberg terminal aesthetic: true black, amber accents, monospace data, hard-bordered grid layout (completed 2026-03-13)
 - [x] **Phase 6: Data Wiring** - All data sources live end-to-end: real AIS, oil prices, news, sanctions flags, anomaly crons, and system status bar (completed 2026-03-13)
 - [x] **Phase 7: Documentation** - README covers full local setup and production deployment; .gitignore properly excludes secrets and build artifacts (completed 2026-03-13)
+- [ ] **Phase 8: All-Ships Anomalies** - Lift tanker-only filters in anomaly detection backend and alert panel; ship type filter in alerts UI
+- [ ] **Phase 9: All-Ships Analytics** - Lift tanker-only filters in traffic charts; add ship type filter UI to analytics page
+- [ ] **Phase 10: Chokepoint Live Ships** - API and UI listing vessels currently inside each chokepoint zone with map navigation
 
 ## Phase Details
 
@@ -105,9 +110,9 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 05-01-PLAN.md — Design tokens: globals.css @theme (radius reset, JetBrains Mono) + layout.tsx font registration
-- [ ] 05-02-PLAN.md — Dashboard CSS Grid restructure + panel terminal styling (Wave 2)
-- [ ] 05-03-PLAN.md — Color sweep: Header, analytics page, UI widgets, TrafficChart (Wave 2)
+- [x] 05-01-PLAN.md — Design tokens: globals.css @theme (radius reset, JetBrains Mono) + layout.tsx font registration
+- [x] 05-02-PLAN.md — Dashboard CSS Grid restructure + panel terminal styling (Wave 2)
+- [x] 05-03-PLAN.md — Color sweep: Header, analytics page, UI widgets, TrafficChart (Wave 2)
 
 ### Phase 6: Data Wiring
 **Goal**: Every data source is connected and delivering real data end-to-end — AIS ingester runs with a single command, prices and news come from live APIs, sanctions flags appear on ingested vessels, anomaly crons fire on schedule, and a system status bar shows the health of each source
@@ -123,9 +128,9 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 06-01-PLAN.md — Refresh jobs (prices/news/sanctions) + ingester npm scripts (Wave 1)
-- [ ] 06-02-PLAN.md — /api/status endpoint + StatusBar component (Wave 1)
-- [ ] 06-03-PLAN.md — Human verification checkpoint: end-to-end wiring confirmed (Wave 2)
+- [x] 06-01-PLAN.md — Refresh jobs (prices/news/sanctions) + ingester npm scripts (Wave 1)
+- [x] 06-02-PLAN.md — /api/status endpoint + StatusBar component (Wave 1)
+- [x] 06-03-PLAN.md — Human verification checkpoint: end-to-end wiring confirmed (Wave 2)
 
 ### Phase 7: Documentation
 **Goal**: A person who has never seen the codebase can clone the repo, follow the README, and have the app running locally — and know how to deploy it to production without asking for help
@@ -139,14 +144,47 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 07-01-PLAN.md — Fix .gitignore (complete exclusion rules) + update .env.example (all 8 vars)
-- [ ] 07-02-PLAN.md — Write README.md (local setup + env var table + production deployment)
-- [ ] 07-03-PLAN.md — Human verification checkpoint: README walkthrough + .gitignore checks (Wave 2)
+- [x] 07-01-PLAN.md — Fix .gitignore (complete exclusion rules) + update .env.example (all 8 vars)
+- [x] 07-02-PLAN.md — Write README.md (local setup + env var table + production deployment)
+- [x] 07-03-PLAN.md — Human verification checkpoint: README walkthrough + .gitignore checks (Wave 2)
+
+### Phase 8: All-Ships Anomalies
+**Goal**: Anomaly detection runs on every vessel type in the AIS stream, not just tankers, and users can filter the alerts panel by ship type to focus on the vessel classes they care about
+**Depends on**: Phase 7
+**Requirements**: ANOM-05, ANOM-06
+**Success Criteria** (what must be TRUE):
+  1. Going-dark and loitering detections appear for cargo ships, bulk carriers, and other vessel types — not only vessels with tanker ship type codes
+  2. The anomaly/alerts panel shows a ship type filter; selecting a type limits the visible alerts to that class of vessel
+  3. Filtering by ship type does not change detection logic — it only affects panel display
+  4. Existing tanker anomaly alerts remain visible and correctly filtered when "tanker" is selected
+**Plans**: TBD
+
+### Phase 9: All-Ships Analytics
+**Goal**: Historical traffic charts show all vessel types with a breakdown by ship type, and users can filter the chart to compare tanker volume against cargo, bulk, or all-vessel totals
+**Depends on**: Phase 8
+**Requirements**: ANLX-05, ANLX-06
+**Success Criteria** (what must be TRUE):
+  1. The traffic chart on the analytics page counts all vessel types, not only tankers — total volume is visibly higher than the tanker-only baseline
+  2. A ship type filter (all / tankers / cargo / other) appears on the analytics page and re-queries the chart when changed
+  3. Selecting "tankers" produces a chart identical to the pre-v1.2 baseline (regression check)
+  4. The dual Y-axis oil price overlay continues to render correctly regardless of which ship type filter is active
+**Plans**: TBD
+
+### Phase 10: Chokepoint Live Ships
+**Goal**: Each chokepoint widget shows the actual vessels currently inside the zone — name, flag, ship type, and anomaly status — and clicking any vessel navigates the map to its position
+**Depends on**: Phase 9
+**Requirements**: CHKP-01, CHKP-02
+**Success Criteria** (what must be TRUE):
+  1. Each chokepoint widget (Hormuz, Bab el-Mandeb, Suez) displays a live list of vessel names currently inside its bounding box, refreshed on the same cadence as vessel positions
+  2. Each entry in the list shows the vessel's flag, ship type, and an anomaly indicator if the vessel has an active anomaly
+  3. Clicking a vessel in the chokepoint list flies the map to that vessel's position and opens its identity panel
+  4. The list is empty (with a "no vessels" state) when no vessels are currently inside the zone — it does not show stale data
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -157,6 +195,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 5. UI Redesign | 3/3 | Complete    | 2026-03-13 |
 | 6. Data Wiring | 3/3 | Complete    | 2026-03-13 |
 | 7. Documentation | 3/3 | Complete    | 2026-03-13 |
+| 8. All-Ships Anomalies | 0/? | Not started | - |
+| 9. All-Ships Analytics | 0/? | Not started | - |
+| 10. Chokepoint Live Ships | 0/? | Not started | - |
 
 ---
 *Roadmap created: 2026-03-11*
@@ -166,3 +207,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 *Phase 4 planned: 2026-03-12*
 *v1.1 phases 5–7 added: 2026-03-13*
 *Phase 7 planned: 2026-03-13*
+*v1.2 phases 8–10 added: 2026-03-17*
