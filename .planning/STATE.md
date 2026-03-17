@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: "Roadmap defined, ready for `/gsd:plan-phase 8`"
-stopped_at: Completed 08-all-ships-anomalies/08-01-PLAN.md
-last_updated: "2026-03-17T21:46:09.762Z"
+stopped_at: Completed 08-all-ships-anomalies-02-PLAN.md
+last_updated: "2026-03-17T21:46:29.487Z"
 last_activity: 2026-03-17 — Roadmap created for v1.2 (phases 8–10)
 progress:
   total_phases: 10
@@ -63,6 +63,7 @@ Progress: [____________________] 0/? plans (0%)
 | Phase 07-documentation P02 | 2 | 1 tasks | 1 files |
 | Phase 07-documentation P03 | 1 | 2 tasks | 0 files |
 | Phase 08-all-ships-anomalies P01 | 4 | 2 tasks | 6 files |
+| Phase 08-all-ships-anomalies P02 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -149,6 +150,9 @@ Recent decisions affecting current work:
 - [Phase 07-documentation]: Phase 7 documentation verified complete via automated checks + auto-approved human checkpoint
 - [Phase 07-documentation]: All 4 DOCS requirements (DOCS-01 through DOCS-04) confirmed satisfied
 - [Phase 08-all-ships-anomalies]: ANOM-05: anomaly detection now applies to all vessel types, not only tankers (ship_type 80-89) — cargo, bulk carriers, and unclassified vessels are now included
+- [Phase 08-all-ships-anomalies]: NotificationBell switched to /api/anomalies for ship type filter support
+- [Phase 08-all-ships-anomalies]: useRef mirrors shipTypeFilter state to prevent stale closure in 30s polling interval (08-02)
+- [Phase 08-all-ships-anomalies]: SQL shipType clause injected as controlled string fragment (validated enum, not raw user input) (08-02)
 
 ### Pending Todos
 
@@ -174,6 +178,6 @@ None — v1.2 roadmap defined. Ready to plan Phase 8.
 
 ## Session Continuity
 
-Last session: 2026-03-17T21:46:09.759Z
-Stopped at: Completed 08-all-ships-anomalies/08-01-PLAN.md
+Last session: 2026-03-17T21:46:29.484Z
+Stopped at: Completed 08-all-ships-anomalies-02-PLAN.md
 Resume file: None
