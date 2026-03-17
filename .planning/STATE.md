@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: "Roadmap defined, ready for `/gsd:plan-phase 8`"
-stopped_at: Completed 10-chokepoint-live-ships-01-PLAN.md
-last_updated: "2026-03-17T22:09:51.943Z"
+stopped_at: Completed 10-chokepoint-live-ships-02-PLAN.md
+last_updated: "2026-03-17T22:11:59.771Z"
 last_activity: 2026-03-17 — Roadmap created for v1.2 (phases 8–10)
 progress:
   total_phases: 10
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 31
-  completed_plans: 30
+  completed_plans: 31
   percent: 0
 ---
 
@@ -67,6 +67,7 @@ Progress: [____________________] 0/? plans (0%)
 | Phase 09-all-ships-analytics P01 | 3 | 2 tasks | 4 files |
 | Phase 09-all-ships-analytics P02 | 2 | 2 tasks | 2 files |
 | Phase 10-chokepoint-live-ships P01 | 1 | 2 tasks | 2 files |
+| Phase 10-chokepoint-live-ships P02 | 1 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -163,6 +164,8 @@ Recent decisions affecting current work:
 - [Phase 09-all-ships-analytics]: Default 'all' filter on analytics page load — no regression from pre-Phase-9 behavior (09-02)
 - [Phase 10-chokepoint-live-ships]: getVesselsInChokepoint returns null for unknown chokepoint IDs — caller owns the 404 response
 - [Phase 10-chokepoint-live-ships]: Next.js 16 async params: await params before accessing id in chokepoints/[id]/vessels route
+- [Phase 10-chokepoint-live-ships]: ChokepointWidget vessel list container separate from header button — header preserves onSelect (chokepoint flyTo), vessel rows call handleVesselClick (vessel flyTo + panel)
+- [Phase 10-chokepoint-live-ships]: ChokepointVessel type defined locally in client component — no server import needed
 
 ### Pending Todos
 
@@ -188,6 +191,6 @@ None — v1.2 roadmap defined. Ready to plan Phase 8.
 
 ## Session Continuity
 
-Last session: 2026-03-17T22:09:51.940Z
-Stopped at: Completed 10-chokepoint-live-ships-01-PLAN.md
+Last session: 2026-03-17T22:11:59.768Z
+Stopped at: Completed 10-chokepoint-live-ships-02-PLAN.md
 Resume file: None

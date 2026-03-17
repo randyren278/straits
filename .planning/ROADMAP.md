@@ -25,7 +25,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Documentation** - README covers full local setup and production deployment; .gitignore properly excludes secrets and build artifacts (completed 2026-03-13)
 - [x] **Phase 8: All-Ships Anomalies** - Lift tanker-only filters in anomaly detection backend and alert panel; ship type filter in alerts UI (completed 2026-03-17)
 - [x] **Phase 9: All-Ships Analytics** - Lift tanker-only filters in traffic charts; add ship type filter UI to analytics page (completed 2026-03-17)
-- [ ] **Phase 10: Chokepoint Live Ships** - API and UI listing vessels currently inside each chokepoint zone with map navigation
+- [x] **Phase 10: Chokepoint Live Ships** - API and UI listing vessels currently inside each chokepoint zone with map navigation (completed 2026-03-17)
 
 ## Phase Details
 
@@ -187,7 +187,7 @@ Plans:
   2. Each entry in the list shows the vessel's flag, ship type, and an anomaly indicator if the vessel has an active anomaly
   3. Clicking a vessel in the chokepoint list flies the map to that vessel's position and opens its identity panel
   4. The list is empty (with a "no vessels" state) when no vessels are currently inside the zone — it does not show stale data
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 10-01-PLAN.md — /api/chokepoints/[id]/vessels endpoint + DB query for vessels inside bounds
@@ -209,7 +209,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Documentation | 3/3 | Complete    | 2026-03-13 |
 | 8. All-Ships Anomalies | 2/2 | Complete    | 2026-03-17 |
 | 9. All-Ships Analytics | 2/2 | Complete    | 2026-03-17 |
-| 10. Chokepoint Live Ships | 1/2 | In Progress|  |
+| 10. Chokepoint Live Ships | 2/2 | Complete   | 2026-03-17 |
 
 ---
 *Roadmap created: 2026-03-11*

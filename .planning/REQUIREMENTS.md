@@ -81,7 +81,7 @@ All 20 requirements shipped and validated.
 ### Chokepoint Intelligence
 
 - [x] **CHKP-01**: Each chokepoint widget shows a live list of vessels currently inside the zone (name, flag, ship type, anomaly status)
-- [ ] **CHKP-02**: User can click a vessel in the chokepoint list to navigate to it on the map
+- [x] **CHKP-02**: User can click a vessel in the chokepoint list to navigate to it on the map
 
 ## v2 Requirements
 
@@ -134,7 +134,7 @@ All 20 requirements shipped and validated.
 | ANLX-05 | Phase 9 | Complete |
 | ANLX-06 | Phase 9 | Complete |
 | CHKP-01 | Phase 10 | Complete |
-| CHKP-02 | Phase 10 | Pending |
+| CHKP-02 | Phase 10 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 6 total
