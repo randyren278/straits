@@ -70,3 +70,55 @@ export async function getChokepointStats(): Promise<ChokepointStats[]> {
 
   return stats;
 }
+
+/**
+ * A vessel currently inside a chokepoint zone, enriched with anomaly status.
+ */
+export interface ChokepointVessel {
+  mmsi: string;
+  imo: string | null;
+  name: string | null;
+  flag: string | null;
+  shipType: number | null;
+  latitude: number;
+  longitude: number;
+  hasActiveAnomaly: boolean;
+  anomalyType: string | null;
+}
+
+/**
+ * Get all vessels currently inside a chokepoint's bounding box.
+ * Only considers positions from the last hour for freshness.
+ * Enriches each vessel with active anomaly status.
+ *
+ * @param chokepointId - Chokepoint identifier (e.g. 'hormuz', 'suez', 'babel_mandeb')
+ * @returns Array of vessels, or null if the chokepoint ID is unknown
+ */
+export async function getVesselsInChokepoint(chokepointId: string): Promise<ChokepointVessel[] | null> {
+  const cp = CHOKEPOINTS[chokepointId];
+  if (!cp) return null;
+
+  const { bounds } = cp;
+
+  const result = await pool.query<ChokepointVessel>(`
+    SELECT DISTINCT ON (vp.mmsi)
+      vp.mmsi,
+      v.imo,
+      v.name,
+      v.flag,
+      v.ship_type AS "shipType",
+      vp.latitude,
+      vp.longitude,
+      CASE WHEN a.imo IS NOT NULL THEN true ELSE false END AS "hasActiveAnomaly",
+      a.anomaly_type AS "anomalyType"
+    FROM vessel_positions vp
+    LEFT JOIN vessels v ON v.mmsi = vp.mmsi
+    LEFT JOIN vessel_anomalies a ON v.imo = a.imo AND a.resolved_at IS NULL
+    WHERE vp.time > NOW() - INTERVAL '1 hour'
+      AND vp.latitude BETWEEN $1 AND $2
+      AND vp.longitude BETWEEN $3 AND $4
+    ORDER BY vp.mmsi, vp.time DESC
+  `, [bounds.minLat, bounds.maxLat, bounds.minLon, bounds.maxLon]);
+
+  return result.rows;
+}
