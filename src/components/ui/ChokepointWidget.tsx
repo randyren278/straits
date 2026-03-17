@@ -1,12 +1,14 @@
 'use client';
 
 /**
- * Chokepoint monitoring widgets showing vessel counts.
- * Displays tanker and total vessel counts for each critical chokepoint.
- * Requirements: MAP-07
+ * Chokepoint monitoring widgets showing vessel counts and live vessel lists.
+ * Each widget expands to show a scrollable list of vessels inside the zone.
+ * Clicking a vessel flies the map to its position and opens the identity panel.
+ * Requirements: MAP-07, CHKP-01, CHKP-02
  */
 import { useEffect, useState } from 'react';
 import { Anchor } from 'lucide-react';
+import { useVesselStore } from '@/stores/vessel';
 
 interface ChokepointData {
   id: string;
@@ -21,20 +23,80 @@ interface ChokepointData {
   };
 }
 
+interface ChokepointVessel {
+  mmsi: string;
+  imo: string | null;
+  name: string | null;
+  flag: string | null;
+  shipType: number | null;
+  latitude: number;
+  longitude: number;
+  hasActiveAnomaly: boolean;
+  anomalyType: string | null;
+}
+
 interface ChokepointWidgetsProps {
   onSelect?: (bounds: ChokepointData['bounds'], name: string) => void;
 }
 
+function shipTypeLabel(shipType: number | null): string {
+  if (shipType == null) return 'OTHER';
+  if (shipType >= 80 && shipType <= 89) return 'TANKER';
+  if (shipType >= 70 && shipType <= 79) return 'CARGO';
+  return 'OTHER';
+}
+
 export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
   const [chokepoints, setChokepoints] = useState<ChokepointData[]>([]);
+  const [vesselMap, setVesselMap] = useState<Record<string, ChokepointVessel[]>>({});
   const [loading, setLoading] = useState(true);
 
+  const { setSelectedVessel, setMapCenter } = useVesselStore();
+
+  const handleVesselClick = (vessel: ChokepointVessel) => {
+    setSelectedVessel({
+      imo: vessel.imo ?? '',
+      mmsi: vessel.mmsi,
+      name: vessel.name ?? vessel.mmsi,
+      flag: vessel.flag ?? '',
+      shipType: vessel.shipType ?? 0,
+      destination: null,
+      lastSeen: new Date(),
+      position: {
+        time: new Date(),
+        mmsi: vessel.mmsi,
+        imo: vessel.imo,
+        latitude: vessel.latitude,
+        longitude: vessel.longitude,
+        speed: null,
+        course: null,
+        heading: null,
+        navStatus: null,
+        lowConfidence: false,
+      },
+    });
+    setMapCenter({ lat: vessel.latitude, lon: vessel.longitude, zoom: 10 });
+  };
+
   useEffect(() => {
+    const fetchAllVessels = async (ids: string[]) => {
+      const entries = await Promise.all(
+        ids.map(async (id) => {
+          const res = await fetch(`/api/chokepoints/${id}/vessels`);
+          const data = await res.json();
+          return [id, data.vessels ?? []] as [string, ChokepointVessel[]];
+        })
+      );
+      setVesselMap(Object.fromEntries(entries));
+    };
+
     const fetchStats = async () => {
       try {
         const res = await fetch('/api/chokepoints');
         const data = await res.json();
-        setChokepoints(data.chokepoints || []);
+        const cps: ChokepointData[] = data.chokepoints || [];
+        setChokepoints(cps);
+        await fetchAllVessels(cps.map((cp) => cp.id));
       } catch (error) {
         console.error('Failed to fetch chokepoints:', error);
       } finally {
@@ -43,8 +105,8 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
     };
 
     fetchStats();
-    // Refresh every minute
-    const interval = setInterval(fetchStats, 60000);
+    // Refresh every 30 seconds to match map vessel position polling
+    const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -53,21 +115,49 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
   return (
     <div className="flex gap-2">
       {chokepoints.map((cp) => (
-        <button
+        <div
           key={cp.id}
-          onClick={() => onSelect?.(cp.bounds, cp.name)}
-          className="flex items-center gap-2 px-3 py-1.5 bg-black hover:bg-gray-900 border border-amber-500/20 transition-colors"
+          className="bg-black border border-amber-500/20 min-w-[160px] max-w-[200px]"
         >
-          <Anchor className="w-3.5 h-3.5 text-amber-500" />
-          <div className="text-left">
-            <p className="text-xs text-gray-300 font-medium whitespace-nowrap">
-              {cp.name.replace('Strait of ', '').replace(' Canal', '')}
-            </p>
-            <p className="text-xs text-gray-500">
-              {cp.tankerCount} tankers / {cp.totalVessels} total
-            </p>
+          <button
+            onClick={() => onSelect?.(cp.bounds, cp.name)}
+            className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-900 transition-colors"
+          >
+            <Anchor className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+            <div className="text-left">
+              <p className="text-xs text-gray-300 font-medium whitespace-nowrap">
+                {cp.name.replace('Strait of ', '').replace(' Canal', '')}
+              </p>
+              <p className="text-xs text-gray-500">
+                {cp.tankerCount} tankers / {cp.totalVessels} total
+              </p>
+            </div>
+          </button>
+          <div className="mt-1 max-h-28 overflow-y-auto border-t border-amber-500/10">
+            {(vesselMap[cp.id] ?? []).length === 0 ? (
+              <p className="px-2 py-1 text-xs text-gray-600 font-mono">NO VESSELS</p>
+            ) : (
+              (vesselMap[cp.id] ?? []).map((v) => (
+                <button
+                  key={v.mmsi}
+                  onClick={() => handleVesselClick(v)}
+                  className="w-full flex items-center gap-1.5 px-2 py-0.5 hover:bg-gray-900 text-left"
+                >
+                  {v.hasActiveAnomaly && (
+                    <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
+                  )}
+                  <span className="text-xs font-mono text-gray-200 truncate flex-1">
+                    {v.name ?? v.mmsi}
+                  </span>
+                  <span className="text-xs text-gray-500 flex-shrink-0">{v.flag ?? '??'}</span>
+                  <span className="text-xs font-mono text-gray-600 flex-shrink-0">
+                    {shipTypeLabel(v.shipType)}
+                  </span>
+                </button>
+              ))
+            )}
           </div>
-        </button>
+        </div>
       ))}
     </div>
   );
