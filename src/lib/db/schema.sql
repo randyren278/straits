@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS vessel_anomalies (
 );
 
 -- Index for active anomalies (resolved_at IS NULL)
-CREATE INDEX IF NOT EXISTS idx_anomalies_active ON vessel_anomalies(imo, anomaly_type)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_anomalies_active ON vessel_anomalies(imo, anomaly_type)
   WHERE resolved_at IS NULL;
 
 -- Index for efficient lookup by type
