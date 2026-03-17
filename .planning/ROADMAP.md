@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: UI Redesign** - Bloomberg terminal aesthetic: true black, amber accents, monospace data, hard-bordered grid layout (completed 2026-03-13)
 - [x] **Phase 6: Data Wiring** - All data sources live end-to-end: real AIS, oil prices, news, sanctions flags, anomaly crons, and system status bar (completed 2026-03-13)
 - [x] **Phase 7: Documentation** - README covers full local setup and production deployment; .gitignore properly excludes secrets and build artifacts (completed 2026-03-13)
-- [ ] **Phase 8: All-Ships Anomalies** - Lift tanker-only filters in anomaly detection backend and alert panel; ship type filter in alerts UI
+- [x] **Phase 8: All-Ships Anomalies** - Lift tanker-only filters in anomaly detection backend and alert panel; ship type filter in alerts UI (completed 2026-03-17)
 - [ ] **Phase 9: All-Ships Analytics** - Lift tanker-only filters in traffic charts; add ship type filter UI to analytics page
 - [ ] **Phase 10: Chokepoint Live Ships** - API and UI listing vessels currently inside each chokepoint zone with map navigation
 
@@ -157,7 +157,7 @@ Plans:
   2. The anomaly/alerts panel shows a ship type filter; selecting a type limits the visible alerts to that class of vessel
   3. Filtering by ship type does not change detection logic — it only affects panel display
   4. Existing tanker anomaly alerts remain visible and correctly filtered when "tanker" is selected
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 08-01-PLAN.md — Remove tanker-only ship_type filter from all three detection jobs
@@ -207,7 +207,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. UI Redesign | 3/3 | Complete    | 2026-03-13 |
 | 6. Data Wiring | 3/3 | Complete    | 2026-03-13 |
 | 7. Documentation | 3/3 | Complete    | 2026-03-13 |
-| 8. All-Ships Anomalies | 0/? | Not started | - |
+| 8. All-Ships Anomalies | 2/2 | Complete   | 2026-03-17 |
 | 9. All-Ships Analytics | 0/? | Not started | - |
 | 10. Chokepoint Live Ships | 0/? | Not started | - |
 

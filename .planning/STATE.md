@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: All-Vessels Intelligence
-status: planning
-stopped_at: —
-last_updated: "2026-03-17T00:00:00.000Z"
+milestone: v1.1
+milestone_name: milestone
+status: "Roadmap defined, ready for `/gsd:plan-phase 8`"
+stopped_at: Completed 08-all-ships-anomalies/08-01-PLAN.md
+last_updated: "2026-03-17T21:46:09.762Z"
 last_activity: 2026-03-17 — Roadmap created for v1.2 (phases 8–10)
 progress:
-  total_phases: 3
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_phases: 10
+  completed_phases: 8
+  total_plans: 27
+  completed_plans: 27
   percent: 0
 ---
 
@@ -62,6 +62,7 @@ Progress: [____________________] 0/? plans (0%)
 | Phase 07-documentation P01 | 1 | 2 tasks | 2 files |
 | Phase 07-documentation P02 | 2 | 1 tasks | 1 files |
 | Phase 07-documentation P03 | 1 | 2 tasks | 0 files |
+| Phase 08-all-ships-anomalies P01 | 4 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -147,6 +148,7 @@ Recent decisions affecting current work:
 - [Phase 07-documentation]: NEXT_PUBLIC_ prefix explained with blank-map consequence to prevent the most common misconfiguration
 - [Phase 07-documentation]: Phase 7 documentation verified complete via automated checks + auto-approved human checkpoint
 - [Phase 07-documentation]: All 4 DOCS requirements (DOCS-01 through DOCS-04) confirmed satisfied
+- [Phase 08-all-ships-anomalies]: ANOM-05: anomaly detection now applies to all vessel types, not only tankers (ship_type 80-89) — cargo, bulk carriers, and unclassified vessels are now included
 
 ### Pending Todos
 
@@ -172,6 +174,6 @@ None — v1.2 roadmap defined. Ready to plan Phase 8.
 
 ## Session Continuity
 
-Last session: 2026-03-17T00:00:00Z
-Stopped at: v1.2 roadmap created (phases 8–10)
+Last session: 2026-03-17T21:46:09.759Z
+Stopped at: Completed 08-all-ships-anomalies/08-01-PLAN.md
 Resume file: None

@@ -70,7 +70,7 @@ All 20 requirements shipped and validated.
 
 ### Anomaly Detection (All Ships)
 
-- [ ] **ANOM-05**: Anomaly detection (going dark, loitering, speed) runs on all ship types, not just tankers
+- [x] **ANOM-05**: Anomaly detection (going dark, loitering, speed) runs on all ship types, not just tankers
 - [ ] **ANOM-06**: User can filter the anomaly/alerts panel by ship type
 
 ### Analytics (All Ships)
@@ -129,7 +129,7 @@ All 20 requirements shipped and validated.
 | DOCS-03 | Phase 7 | Complete |
 | DOCS-04 | Phase 7 | Complete |
 
-| ANOM-05 | Phase 8 | Pending |
+| ANOM-05 | Phase 8 | Complete |
 | ANOM-06 | Phase 8 | Pending |
 | ANLX-05 | Phase 9 | Pending |
 | ANLX-06 | Phase 9 | Pending |
