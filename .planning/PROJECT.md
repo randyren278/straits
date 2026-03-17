@@ -2,21 +2,20 @@
 
 ## What This Is
 
-A personal geopolitical intelligence dashboard that tracks oil tankers across the Middle East and major shipping routes in near real-time. It combines live vessel positions from AIS data with oil price overlays, sanctions tracking, route anomaly detection, and news integration — displayed in a data-dense, Bloomberg-terminal-meets-command-center interface. Built for a small group of friends interested in watching how oil flows respond to geopolitical events (particularly the Iran conflict).
+A personal geopolitical intelligence dashboard that tracks all vessels across the Middle East and major shipping routes in near real-time. It combines live vessel positions from AIS data with oil price overlays, sanctions tracking, route anomaly detection, and news integration — displayed in a data-dense, Bloomberg-terminal-meets-command-center interface. Built for a small group of friends interested in watching how maritime traffic responds to geopolitical events (particularly the Iran conflict).
 
 ## Core Value
 
 Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
 
-## Current Milestone: v1.1 — Polish & Ship
+## Current Milestone: v1.2 — All-Vessels Intelligence
 
-**Goal:** Make the app actually usable — replace the placeholder UI with a real Bloomberg-terminal aesthetic, wire all data sources end to end, and document setup for sharing with friends.
+**Goal:** Expand anomaly detection and analytics from tankers-only to all AIS ship types, and add live vessel lists inside each chokepoint zone.
 
 **Target features:**
-- Bloomberg terminal UI (true black, amber accents, monospace data, grid layout)
-- Full data pipeline wiring (AIS ingester, oil prices, news, sanctions, anomaly crons)
-- System status visibility (live/dead indicators per data source)
-- Comprehensive README + .gitignore + production deployment guide
+- All-ship anomaly detection (going dark, loitering, speed for every vessel type)
+- All-ship historical analytics (traffic charts with ship type breakdown)
+- Live vessel list per chokepoint (Hormuz, Bab el-Mandeb, Suez) showing ships currently inside
 
 ## Requirements
 
@@ -31,11 +30,14 @@ Real-time visibility into Middle Eastern oil tanker movements with enough contex
 - ✓ AIS ingester launchable with single command, logs connection status — v1.1 Phase 6
 - ✓ All data sources (prices, news, sanctions, anomalies) verified working end-to-end — v1.1 Phase 6
 - ✓ System status indicator shows live/dead state per data source — v1.1 Phase 6
+- ✓ Comprehensive README covering installation, env setup, running locally, production deployment — v1.1 Phase 7
+- ✓ .gitignore properly excludes secrets, build artifacts, local data — v1.1 Phase 7
 
 ### Active
 
-- [ ] Comprehensive README covering installation, env setup, running locally, production deployment
-- [ ] .gitignore properly excludes secrets, build artifacts, local data
+- [ ] Anomaly detection covers all ship types (not just tankers)
+- [ ] Historical analytics traffic charts include all ship types with type breakdown
+- [ ] Each chokepoint widget shows live list of vessels currently inside the zone
 
 ### Out of Scope
 
@@ -78,4 +80,4 @@ Real-time visibility into Middle Eastern oil tanker movements with enough contex
 | Prices cron 6h, news 30m, sanctions daily | Respects Alpha Vantage 25 req/day free tier limit | Phase 6 |
 
 ---
-*Last updated: 2026-03-13 after Phase 6 (Data Wiring)*
+*Last updated: 2026-03-17 after v1.2 milestone start*

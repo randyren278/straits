@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: milestone
+milestone: v1.2
+milestone_name: All-Vessels Intelligence
 status: planning
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-03-13T17:58:19.315Z"
-last_activity: 2026-03-13 — Phase 6 (Data Wiring) complete — 3/3 plans
+stopped_at: —
+last_updated: "2026-03-17T00:00:00.000Z"
+last_activity: 2026-03-17 — Milestone v1.2 started
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 25
-  completed_plans: 25
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 ## Current Position
 
-Phase: Phase 7 — Documentation (ready to plan)
+Phase: Not started (defining requirements)
 Plan: —
-Status: Ready to plan
-Last activity: 2026-03-14 - Completed quick task 7: expand AIS coverage bounding boxes to full regional routes
+Status: Defining requirements
+Last activity: 2026-03-17 — Milestone v1.2 started
 
 Progress: [████████████████████] 22/22 plans (100%)
 
