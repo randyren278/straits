@@ -157,7 +157,11 @@ Plans:
   2. The anomaly/alerts panel shows a ship type filter; selecting a type limits the visible alerts to that class of vessel
   3. Filtering by ship type does not change detection logic — it only affects panel display
   4. Existing tanker anomaly alerts remain visible and correctly filtered when "tanker" is selected
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Remove tanker-only ship_type filter from all three detection jobs
+- [ ] 08-02-PLAN.md — Ship type filter in /api/anomalies + NotificationBell panel
 
 ### Phase 9: All-Ships Analytics
 **Goal**: Historical traffic charts show all vessel types with a breakdown by ship type, and users can filter the chart to compare tanker volume against cargo, bulk, or all-vessel totals
@@ -168,7 +172,11 @@ Plans:
   2. A ship type filter (all / tankers / cargo / other) appears on the analytics page and re-queries the chart when changed
   3. Selecting "tankers" produces a chart identical to the pre-v1.2 baseline (regression check)
   4. The dual Y-axis oil price overlay continues to render correctly regardless of which ship type filter is active
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Remove tanker-only ship_type filter from all three detection jobs
+- [ ] 08-02-PLAN.md — Ship type filter in /api/anomalies + NotificationBell panel
 
 ### Phase 10: Chokepoint Live Ships
 **Goal**: Each chokepoint widget shows the actual vessels currently inside the zone — name, flag, ship type, and anomaly status — and clicking any vessel navigates the map to its position
@@ -179,7 +187,11 @@ Plans:
   2. Each entry in the list shows the vessel's flag, ship type, and an anomaly indicator if the vessel has an active anomaly
   3. Clicking a vessel in the chokepoint list flies the map to that vessel's position and opens its identity panel
   4. The list is empty (with a "no vessels" state) when no vessels are currently inside the zone — it does not show stale data
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Remove tanker-only ship_type filter from all three detection jobs
+- [ ] 08-02-PLAN.md — Ship type filter in /api/anomalies + NotificationBell panel
 
 ## Progress
 
