@@ -8,15 +8,6 @@ A personal geopolitical intelligence dashboard that tracks all vessels across th
 
 Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
 
-## Current Milestone: v1.2 — All-Vessels Intelligence
-
-**Goal:** Expand anomaly detection and analytics from tankers-only to all AIS ship types, and add live vessel lists inside each chokepoint zone.
-
-**Target features:**
-- All-ship anomaly detection (going dark, loitering, speed for every vessel type)
-- All-ship historical analytics (traffic charts with ship type breakdown)
-- Live vessel list per chokepoint (Hormuz, Bab el-Mandeb, Suez) showing ships currently inside
-
 ## Requirements
 
 ### Validated
@@ -32,12 +23,13 @@ Real-time visibility into Middle Eastern oil tanker movements with enough contex
 - ✓ System status indicator shows live/dead state per data source — v1.1 Phase 6
 - ✓ Comprehensive README covering installation, env setup, running locally, production deployment — v1.1 Phase 7
 - ✓ .gitignore properly excludes secrets, build artifacts, local data — v1.1 Phase 7
+- ✓ Anomaly detection covers all ship types (not just tankers) — v1.2 Phase 8
+- ✓ Historical analytics traffic charts include all ship types with ship type filter — v1.2 Phase 9
+- ✓ Each chokepoint widget shows live list of vessels currently inside the zone — v1.2 Phase 10
 
 ### Active
 
-- [ ] Anomaly detection covers all ship types (not just tankers)
-- [ ] Historical analytics traffic charts include all ship types with type breakdown
-- [ ] Each chokepoint widget shows live list of vessels currently inside the zone
+(None — v1.2 shipped. Start next milestone with `/gsd:new-milestone`.)
 
 ### Out of Scope
 
@@ -78,6 +70,8 @@ Real-time visibility into Middle Eastern oil tanker movements with enough contex
 | Status from DB freshness (not API pings) | Avoids rate limit cost; classify() exported for direct unit testing | Phase 6 |
 | Refresh jobs inside ingester process | Single process to manage; follows existing detection-jobs.ts pattern | Phase 6 |
 | Prices cron 6h, news 30m, sanctions daily | Respects Alpha Vantage 25 req/day free tier limit | Phase 6 |
+| ShipTypeFilter = 'all'\|'tanker'\|'cargo'\|'other' | Controlled switch prevents SQL injection; default 'all' is backward-compatible | v1.2 Phase 9 ✓ |
+| getVesselsInChokepoint uses DISTINCT ON + 1h freshness | Reuses existing coverage pattern; null for unknown IDs = clean 404 | v1.2 Phase 10 ✓ |
 
 ---
-*Last updated: 2026-03-17 after v1.2 milestone start*
+*Last updated: 2026-03-17 after v1.2 milestone (All-Vessels Intelligence)*

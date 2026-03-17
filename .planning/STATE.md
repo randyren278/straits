@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: milestone
 status: "Roadmap defined, ready for `/gsd:plan-phase 8`"
 stopped_at: Completed 10-chokepoint-live-ships-02-PLAN.md
-last_updated: "2026-03-17T22:14:18.855Z"
+last_updated: "2026-03-17T22:16:58.224Z"
 last_activity: 2026-03-17 — Roadmap created for v1.2 (phases 8–10)
 progress:
   total_phases: 10
