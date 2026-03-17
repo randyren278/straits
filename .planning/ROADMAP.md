@@ -24,7 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Data Wiring** - All data sources live end-to-end: real AIS, oil prices, news, sanctions flags, anomaly crons, and system status bar (completed 2026-03-13)
 - [x] **Phase 7: Documentation** - README covers full local setup and production deployment; .gitignore properly excludes secrets and build artifacts (completed 2026-03-13)
 - [x] **Phase 8: All-Ships Anomalies** - Lift tanker-only filters in anomaly detection backend and alert panel; ship type filter in alerts UI (completed 2026-03-17)
-- [ ] **Phase 9: All-Ships Analytics** - Lift tanker-only filters in traffic charts; add ship type filter UI to analytics page
+- [x] **Phase 9: All-Ships Analytics** - Lift tanker-only filters in traffic charts; add ship type filter UI to analytics page (completed 2026-03-17)
 - [ ] **Phase 10: Chokepoint Live Ships** - API and UI listing vessels currently inside each chokepoint zone with map navigation
 
 ## Phase Details
@@ -172,7 +172,7 @@ Plans:
   2. A ship type filter (all / tankers / cargo / other) appears on the analytics page and re-queries the chart when changed
   3. Selecting "tankers" produces a chart identical to the pre-v1.2 baseline (regression check)
   4. The dual Y-axis oil price overlay continues to render correctly regardless of which ship type filter is active
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 09-01-PLAN.md — ShipTypeFilter type + DB query param + correlation API ?shipType= support
@@ -208,7 +208,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Data Wiring | 3/3 | Complete    | 2026-03-13 |
 | 7. Documentation | 3/3 | Complete    | 2026-03-13 |
 | 8. All-Ships Anomalies | 2/2 | Complete    | 2026-03-17 |
-| 9. All-Ships Analytics | 1/2 | In Progress|  |
+| 9. All-Ships Analytics | 2/2 | Complete   | 2026-03-17 |
 | 10. Chokepoint Live Ships | 0/2 | Not started | - |
 
 ---
