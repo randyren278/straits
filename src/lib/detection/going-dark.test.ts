@@ -71,7 +71,7 @@ describe('detectGoingDark', () => {
     vi.clearAllMocks();
   });
 
-  it('queries vessels with >2h gap that are tankers', async () => {
+  it('queries all vessels with >2h gap (no ship_type filter)', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rows: [] }); // resolve query
 
@@ -81,7 +81,32 @@ describe('detectGoingDark', () => {
     const query = mockQuery.mock.calls[0][0];
     expect(query).toContain('INTERVAL');
     expect(query).toContain('2 hours');
-    expect(query).toContain('ship_type BETWEEN 80 AND 89');
+    expect(query).not.toContain('ship_type BETWEEN 80 AND 89');
+  });
+
+  it('does NOT exclude non-tanker vessel (ship_type 72 cargo) from query', async () => {
+    const mockCargoVessel: GapCandidate = {
+      imo: '5555555',
+      lastSeen: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 hours ago
+      lastLat: 26.0, // Persian Gulf
+      lastLon: 51.0,
+      gapMinutes: 180,
+    };
+
+    mockQuery.mockResolvedValueOnce({ rows: [mockCargoVessel] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // resolve query
+
+    // ship_type 72 (cargo) vessel in coverage zone should be detected
+    const count = await detectGoingDark();
+
+    expect(count).toBe(1);
+    expect(mockUpsertAnomaly).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imo: '5555555',
+        anomalyType: 'going_dark',
+        confidence: 'suspected',
+      })
+    );
   });
 
   it('creates suspected anomaly for vessel with 2-4h gap in coverage zone', async () => {

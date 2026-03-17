@@ -70,7 +70,7 @@ export function shouldFlagAsGoingDark(lat: number, lon: number, gapMinutes: numb
  * Detect vessels that have gone dark (stopped AIS transmission in coverage zones).
  *
  * Process:
- * 1. Query all tankers with no AIS update for >2 hours
+ * 1. Query all vessels with no AIS update for >2 hours
  * 2. Filter to those in terrestrial coverage zones
  * 3. Create/update anomaly records with appropriate confidence
  * 4. Resolve anomalies for vessels that have reported back
@@ -78,7 +78,7 @@ export function shouldFlagAsGoingDark(lat: number, lon: number, gapMinutes: numb
  * @returns Number of anomalies detected/updated
  */
 export async function detectGoingDark(): Promise<number> {
-  // Query vessels with no update in >2 hours (tankers only, ship_type 80-89)
+  // Query all vessels with no update in >2 hours
   const result = await pool.query<GapCandidate>(`
     SELECT v.imo, v.last_seen as "lastSeen",
            p.latitude as "lastLat", p.longitude as "lastLon",
@@ -89,7 +89,6 @@ export async function detectGoingDark(): Promise<number> {
       WHERE mmsi = v.mmsi ORDER BY time DESC LIMIT 1
     ) p ON true
     WHERE v.last_seen < NOW() - INTERVAL '2 hours'
-      AND v.ship_type BETWEEN 80 AND 89
   `);
 
   let count = 0;
