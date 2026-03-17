@@ -28,9 +28,11 @@ export default function AnalyticsPage() {
     timeRange,
     selectedChokepoints,
     isLoading,
+    shipTypeFilter,
     setTimeRange,
     setSelectedChokepoints,
     setIsLoading,
+    setShipTypeFilter,
   } = useAnalyticsStore();
 
   const [chartData, setChartData] = useState<Record<string, TrafficWithPrices[]>>({});
@@ -47,7 +49,7 @@ export default function AnalyticsPage() {
       await Promise.all(
         selectedChokepoints.map(async (cpId) => {
           const res = await fetch(
-            `/api/analytics/correlation?range=${timeRange}&chokepoint=${cpId}&priceSymbol=WTI`
+            `/api/analytics/correlation?range=${timeRange}&chokepoint=${cpId}&priceSymbol=WTI&shipType=${shipTypeFilter}`
           );
 
           if (!res.ok) {
@@ -66,7 +68,7 @@ export default function AnalyticsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [timeRange, selectedChokepoints, setIsLoading]);
+  }, [timeRange, selectedChokepoints, shipTypeFilter, setIsLoading]);
 
   useEffect(() => {
     fetchData();
@@ -97,6 +99,24 @@ export default function AnalyticsPage() {
               selected={selectedChokepoints}
               onChange={setSelectedChokepoints}
             />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Ship Type</label>
+            <div className="flex gap-1">
+              {(['all', 'tanker', 'cargo', 'other'] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setShipTypeFilter(f)}
+                  className={
+                    shipTypeFilter === f
+                      ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1'
+                      : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1'
+                  }
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
