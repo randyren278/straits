@@ -6,14 +6,16 @@
  *
  * Schedule:
  * - Going dark detection: every 15 minutes
- * - Route anomalies (loitering, speed, deviation): every 30 minutes
+ * - Route anomalies (loitering, speed, deviation, repeat_dark, sts): every 30 minutes
  *
- * Requirements: ANOM-01, ANOM-02, DEVI-01, DEVI-02
+ * Requirements: ANOM-01, ANOM-02, DEVI-01, DEVI-02, PATT-01, PATT-03
  */
 import cron from 'node-cron';
 import { detectGoingDark } from '../../lib/detection/going-dark';
 import { detectLoitering } from '../../lib/detection/loitering';
 import { detectSpeedAnomaly, detectDeviation } from '../../lib/detection/deviation';
+import { detectRepeatGoingDark } from '../../lib/detection/repeat-going-dark';
+import { detectStsTransfers } from '../../lib/detection/sts-transfer';
 import { generateAlertsForNewAnomalies } from '../../lib/db/alerts';
 
 /**
@@ -42,10 +44,14 @@ export function startDetectionJobs(): void {
       const loiteringCount = await detectLoitering();
       const speedCount = await detectSpeedAnomaly();
       const deviationCount = await detectDeviation();
-      console.log(`[CRON] Route anomalies: ${loiteringCount} loitering, ${speedCount} speed, ${deviationCount} deviation`);
+      const repeatDarkCount = await detectRepeatGoingDark();
+      const stsCount = await detectStsTransfers();
+      console.log(`[CRON] Route anomalies: ${loiteringCount} loitering, ${speedCount} speed, ${deviationCount} deviation, ${repeatDarkCount} repeat_dark, ${stsCount} sts`);
       await generateAlertsForNewAnomalies('loitering');
       await generateAlertsForNewAnomalies('speed');
       await generateAlertsForNewAnomalies('deviation');
+      await generateAlertsForNewAnomalies('repeat_going_dark');
+      await generateAlertsForNewAnomalies('sts_transfer');
     } catch (err) {
       console.error('[CRON] Route anomaly detection error:', err);
     }
@@ -53,5 +59,5 @@ export function startDetectionJobs(): void {
 
   console.log('Detection cron jobs scheduled:');
   console.log('  - going_dark: every 15 minutes (*/15 * * * *)');
-  console.log('  - loitering/speed/deviation: every 30 minutes (*/30 * * * *)');
+  console.log('  - loitering/speed/deviation/repeat_dark/sts: every 30 minutes (*/30 * * * *)');
 }
