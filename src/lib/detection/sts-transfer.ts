@@ -2,8 +2,8 @@
  * Ship-to-Ship Transfer Detection
  *
  * Detects vessel pairs in close proximity at sea, suggesting cargo transfer.
- * Close proximity = within 0.5 nautical miles (0.926 km) with both vessels
- * having recent AIS positions (within 30 minutes).
+ * Close proximity = within 0.5 nautical miles (0.926 km) sustained for 30+ minutes.
+ * Uses vessel_proximity_events table to track when pairs were first observed close.
  *
  * Requirements: PATT-03
  */
@@ -21,6 +21,12 @@ const STS_DISTANCE_KM = 0.926;
  * How recently both vessels must have reported positions (minutes)
  */
 const POSITION_FRESHNESS_MINUTES = 30;
+
+/**
+ * Minimum sustained co-location duration before firing an STS anomaly (minutes).
+ * Enforces PATT-03: pairs must be observed within 0.5nm across multiple cron runs.
+ */
+const SUSTAINED_PROXIMITY_MINUTES = 30;
 
 /**
  * Row returned from the STS proximity query
@@ -41,9 +47,10 @@ interface StsRow {
  * Detect vessel pairs in STS transfer proximity.
  *
  * Process:
- * 1. SQL haversine query finds all vessel pairs within 0.5nm where both have
- *    positions in the last 30 minutes — b.imo > a.imo ensures each pair found once
- * 2. For each pair, upsert TWO anomalies (one per vessel) with cross-reference details
+ * 1. SQL haversine query finds all vessel pairs within 0.5nm with recent positions
+ * 2. Upsert vessel_proximity_events for each close pair (tracks first_seen_at)
+ * 3. Clean up stale proximity events for pairs no longer close
+ * 4. Only fire sts_transfer anomaly for pairs with 30+ minutes sustained proximity
  *
  * @returns Total number of anomalies upserted (2 per pair)
  */
@@ -78,9 +85,35 @@ export async function detectStsTransfers(): Promise<number> {
       )) < ${STS_DISTANCE_KM}
   `);
 
+  // Step A — Upsert proximity events for all currently-close pairs
+  for (const row of result.rows) {
+    await pool.query(`
+      INSERT INTO vessel_proximity_events (imo_a, imo_b, first_seen_at, last_seen_at)
+      VALUES ($1, $2, NOW(), NOW())
+      ON CONFLICT (imo_a, imo_b) DO UPDATE SET last_seen_at = NOW()
+    `, [row.imo_a, row.imo_b]);
+  }
+
+  // Step B — Clean up stale proximity events (pairs no longer within 0.5nm)
+  // Use POSITION_FRESHNESS_MINUTES + 5 (35 min) to account for cron timing drift
+  await pool.query(`
+    DELETE FROM vessel_proximity_events
+    WHERE last_seen_at < NOW() - INTERVAL '${POSITION_FRESHNESS_MINUTES + 5} minutes'
+  `);
+
+  // Step C — Fire anomalies only for pairs with 30+ minutes of sustained proximity
+  const sustained = await pool.query<{ imo_a: string; imo_b: string }>(`
+    SELECT imo_a, imo_b FROM vessel_proximity_events
+    WHERE last_seen_at - first_seen_at >= INTERVAL '${SUSTAINED_PROXIMITY_MINUTES} minutes'
+  `);
+
+  const sustainedPairs = new Set(sustained.rows.map(r => `${r.imo_a}:${r.imo_b}`));
   let count = 0;
 
   for (const row of result.rows) {
+    const pairKey = `${row.imo_a}:${row.imo_b}`;
+    if (!sustainedPairs.has(pairKey)) continue;
+
     const distanceKm = Number(row.distance_km);
 
     // Anomaly for vessel A — references vessel B

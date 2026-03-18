@@ -192,3 +192,13 @@ CREATE TABLE IF NOT EXISTS vessel_destination_changes (
 
 -- Index for efficient per-vessel destination change history (most recent first)
 CREATE INDEX IF NOT EXISTS idx_dest_changes_imo_time ON vessel_destination_changes(imo, changed_at DESC);
+
+-- Vessel proximity events — tracks when pairs are first observed within 0.5nm
+-- Used by STS transfer detector to enforce 30-minute sustained co-location (PATT-03)
+CREATE TABLE IF NOT EXISTS vessel_proximity_events (
+  imo_a TEXT NOT NULL,
+  imo_b TEXT NOT NULL,
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (imo_a, imo_b)
+);
