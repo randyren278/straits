@@ -202,3 +202,16 @@ CREATE TABLE IF NOT EXISTS vessel_proximity_events (
   last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (imo_a, imo_b)
 );
+
+-- =============================================================================
+-- Phase 13: Dark Fleet Risk Score
+-- =============================================================================
+
+-- Per-vessel composite risk score (RISK-01)
+-- Only vessels with >=1 anomaly event are stored; zero-score vessels excluded.
+CREATE TABLE IF NOT EXISTS vessel_risk_scores (
+  imo TEXT PRIMARY KEY,
+  score INTEGER NOT NULL DEFAULT 0,
+  factors JSONB NOT NULL,
+  computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
