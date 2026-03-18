@@ -18,8 +18,8 @@
 
 ### Risk Scoring
 
-- [ ] **RISK-01**: Each vessel has a computed dark fleet risk score (0–100) factoring going-dark frequency, flag state risk, active sanctions, loitering history, and STS events
-- [ ] **RISK-02**: Risk score is recomputed automatically when new anomaly events are detected for a vessel
+- [x] **RISK-01**: Each vessel has a computed dark fleet risk score (0–100) factoring going-dark frequency, flag state risk, active sanctions, loitering history, and STS events
+- [x] **RISK-02**: Risk score is recomputed automatically when new anomaly events are detected for a vessel
 
 ### Panel Intelligence
 
@@ -50,8 +50,8 @@
 | PATT-01 | Phase 12 | Complete |
 | PATT-02 | Phase 12 | Complete |
 | PATT-03 | Phase 12 | Complete |
-| RISK-01 | Phase 13 | Pending |
-| RISK-02 | Phase 13 | Pending |
+| RISK-01 | Phase 13 | Complete |
+| RISK-02 | Phase 13 | Complete |
 | PANL-01 | Phase 14 | Pending |
 | PANL-02 | Phase 14 | Pending |
 | PANL-03 | Phase 14 | Pending |
