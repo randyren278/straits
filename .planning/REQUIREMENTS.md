@@ -12,9 +12,9 @@
 
 ### Behavioral Patterns
 
-- [ ] **PATT-01**: System identifies vessels that have gone dark 3+ times in the past 30 days and marks them as repeat offenders
-- [ ] **PATT-02**: System detects when a vessel changes its declared AIS destination while underway and logs each change with timestamps
-- [ ] **PATT-03**: System detects when two vessels are within 0.5nm of each other for 30+ minutes and flags as a potential ship-to-ship transfer
+- [x] **PATT-01**: System identifies vessels that have gone dark 3+ times in the past 30 days and marks them as repeat offenders
+- [x] **PATT-02**: System detects when a vessel changes its declared AIS destination while underway and logs each change with timestamps
+- [x] **PATT-03**: System detects when two vessels are within 0.5nm of each other for 30+ minutes and flags as a potential ship-to-ship transfer
 
 ### Risk Scoring
 
@@ -47,9 +47,9 @@
 |-------------|-------|--------|
 | DEVI-01 | Phase 11 | Complete |
 | DEVI-02 | Phase 11 | Complete |
-| PATT-01 | Phase 12 | Pending |
-| PATT-02 | Phase 12 | Pending |
-| PATT-03 | Phase 12 | Pending |
+| PATT-01 | Phase 12 | Complete |
+| PATT-02 | Phase 12 | Complete |
+| PATT-03 | Phase 12 | Complete |
 | RISK-01 | Phase 13 | Pending |
 | RISK-02 | Phase 13 | Pending |
 | PANL-01 | Phase 14 | Pending |

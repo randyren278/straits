@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Evasion Intelligence
 status: planning
-stopped_at: Completed 11-01-PLAN.md — route deviation detection implemented and registered in cron
-last_updated: "2026-03-18T02:40:29.579Z"
+stopped_at: "Completed 12-01-PLAN.md — behavioral pattern detection foundation: types, schema, ingester destination change tracking"
+last_updated: "2026-03-18T05:45:04.879Z"
 last_activity: 2026-03-17 — v1.3 roadmap created
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  total_plans: 3
+  completed_plans: 2
   percent: 0
 ---
 
@@ -69,6 +69,7 @@ Progress: [____________________] 0/? plans (0%)
 | Phase 10-chokepoint-live-ships P01 | 1 | 2 tasks | 2 files |
 | Phase 10-chokepoint-live-ships P02 | 1 | 1 tasks | 1 files |
 | Phase 11-route-deviation-detection P01 | 2 | 2 tasks | 3 files |
+| Phase 12-behavioral-pattern-detection P01 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -170,6 +171,9 @@ Recent decisions affecting current work:
 - [Phase 11-route-deviation-detection]: Nominatim geocoding with in-memory Map cache — avoids redundant API calls per destination string
 - [Phase 11-route-deviation-detection]: Sustained deviation: ALL positions in 2-hour window must deviate — reduces false positives (11-01)
 - [Phase 11-route-deviation-detection]: Auto-resolve deviation anomaly when heading corrects — no manual intervention needed (11-01)
+- [Phase 12-01]: Destination change detection: pre-upsert SELECT captures old value before COALESCE overwrites it
+- [Phase 12-01]: Only non-null to non-null transitions logged — NULL-to-value transitions are noise (first-seen vessels)
+- [Phase 12-01]: AnomalyBadge extended with repeat_going_dark/sts_transfer badge configs to maintain compile-time type safety
 
 ### Pending Todos
 
@@ -196,6 +200,6 @@ None — v1.3 roadmap defined. Ready to plan Phase 11.
 
 ## Session Continuity
 
-Last session: 2026-03-18T02:38:22.195Z
-Stopped at: Completed 11-01-PLAN.md — route deviation detection implemented and registered in cron
+Last session: 2026-03-18T05:45:04.875Z
+Stopped at: Completed 12-01-PLAN.md — behavioral pattern detection foundation: types, schema, ingester destination change tracking
 Resume file: None
