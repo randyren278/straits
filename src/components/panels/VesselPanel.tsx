@@ -3,20 +3,34 @@
 /**
  * Vessel detail side panel component.
  * Displays selected vessel information with track toggle, anomaly section, and watchlist button.
- * Requirements: MAP-02, MAP-04, INTL-01, ANOM-01, HIST-02
+ * Requirements: MAP-02, MAP-04, INTL-01, ANOM-01, HIST-02, PANL-01, PANL-02, PANL-03
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useVesselStore } from '@/stores/vessel';
-import { AlertTriangle, Eye, EyeOff } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { AlertTriangle, Eye, EyeOff, ChevronDown, ChevronRight, Shield } from 'lucide-react';
+import { formatDistanceToNow, format } from 'date-fns';
 import { AnomalyBadge } from '../ui/AnomalyBadge';
 import type { AnomalyType, Confidence } from '@/types/anomaly';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
+import type { RiskFactors } from '@/lib/db/risk-scores';
 
 export function VesselPanel() {
   const { selectedVessel, showTrack, setShowTrack, setSelectedVessel, watchlist, addToWatchlist, removeFromWatchlist } =
     useVesselStore();
   const [userId, setUserId] = useState<string | null>(null);
+
+  // Intelligence dossier state
+  const [riskScore, setRiskScore] = useState<{ score: number; factors: RiskFactors; computedAt: string | null } | null>(null);
+  const [anomalyHistory, setAnomalyHistory] = useState<Array<{
+    id: number; anomalyType: string; confidence: string;
+    detectedAt: string; resolvedAt: string | null; details: Record<string, unknown>;
+  }>>([]);
+  const [destChanges, setDestChanges] = useState<Array<{
+    id: number; previousDestination: string; newDestination: string; changedAt: string;
+  }>>([]);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    risk: true, anomalies: false, destinations: false,
+  });
 
   // Initialize user ID from localStorage
   useEffect(() => {
@@ -28,10 +42,43 @@ export function VesselPanel() {
     setUserId(id);
   }, []);
 
+  // imo may be null for IMO-less vessels (position-only reports from vessel_positions)
+  const vesselImo = selectedVessel ? ((selectedVessel as VesselWithSanctions).imo ?? null) : null;
+
+  // Fetch intelligence dossier data when vessel changes
+  useEffect(() => {
+    if (!vesselImo) {
+      setRiskScore(null);
+      setAnomalyHistory([]);
+      setDestChanges([]);
+      return;
+    }
+
+    const fetchDossier = async () => {
+      try {
+        const [riskRes, historyRes] = await Promise.all([
+          fetch(`/api/vessels/${vesselImo}/risk`),
+          fetch(`/api/vessels/${vesselImo}/history`),
+        ]);
+        if (riskRes.ok) setRiskScore(await riskRes.json());
+        if (historyRes.ok) {
+          const data = await historyRes.json();
+          setAnomalyHistory(data.anomalies || []);
+          setDestChanges(data.destinationChanges || []);
+        }
+      } catch (err) {
+        console.error('[VesselPanel] Failed to fetch dossier:', err);
+      }
+    };
+    fetchDossier();
+  }, [vesselImo]);
+
+  const toggleSection = useCallback((section: string) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  }, []);
+
   if (!selectedVessel) return null;
 
-  // imo may be null for IMO-less vessels (position-only reports from vessel_positions)
-  const vesselImo = (selectedVessel as VesselWithSanctions).imo ?? null;
   const isWatched = vesselImo ? watchlist.some(w => w.imo === vesselImo) : false;
 
   const handleWatchlist = async () => {
@@ -60,8 +107,21 @@ export function VesselPanel() {
     anomalyDetectedAt?: Date | null;
   };
 
+  const getRiskColor = (score: number) => {
+    if (score >= 70) return 'text-red-400';
+    if (score >= 40) return 'text-yellow-400';
+    return 'text-green-400';
+  };
+
+  const getBarColor = (score: number, max: number) => {
+    const pct = (score / max) * 100;
+    if (pct >= 70) return 'bg-red-500';
+    if (pct >= 40) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
   return (
-    <div className="bg-black">
+    <div className="bg-black max-h-[calc(100vh-4rem)] overflow-y-auto">
       {/* Terminal panel header */}
       <div className="px-3 py-1.5 border-b border-amber-500/20 flex items-center justify-between">
         <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">VESSEL DETAIL</span>
@@ -200,6 +260,131 @@ export function VesselPanel() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Risk Score Section (PANL-02) */}
+      {vesselImo && riskScore && (
+        <div className="mx-3 mb-2 border border-amber-500/20">
+          <button
+            onClick={() => toggleSection('risk')}
+            className="w-full px-3 py-1.5 flex items-center justify-between border-b border-amber-500/20"
+          >
+            <div className="flex items-center gap-2">
+              <Shield className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">RISK SCORE</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`font-mono text-sm font-bold ${getRiskColor(riskScore.score)}`}>
+                {riskScore.score}
+              </span>
+              {expandedSections.risk
+                ? <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                : <ChevronRight className="w-3.5 h-3.5 text-gray-500" />}
+            </div>
+          </button>
+          {expandedSections.risk && (
+            <div className="px-3 py-2 space-y-1.5">
+              {([
+                { label: 'Going Dark', value: riskScore.factors.goingDark, max: 40 },
+                { label: 'Sanctions', value: riskScore.factors.sanctions, max: 25 },
+                { label: 'Flag Risk', value: riskScore.factors.flagRisk, max: 15 },
+                { label: 'Loitering', value: riskScore.factors.loitering, max: 10 },
+                { label: 'STS Events', value: riskScore.factors.sts, max: 10 },
+              ] as const).map(({ label, value, max }) => (
+                <div key={label} className="flex items-center gap-2 text-xs">
+                  <span className="text-gray-500 w-20 shrink-0">{label}</span>
+                  <div className="flex-1 h-1.5 bg-gray-800">
+                    <div
+                      className={`h-full ${getBarColor(value, max)}`}
+                      style={{ width: `${(value / max) * 100}%` }}
+                    />
+                  </div>
+                  <span className="font-mono text-white w-8 text-right">{value}/{max}</span>
+                </div>
+              ))}
+              {riskScore.computedAt && (
+                <div className="text-xs text-gray-600 pt-1">
+                  Computed {formatDistanceToNow(new Date(riskScore.computedAt), { addSuffix: true })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Anomaly History Section (PANL-01) */}
+      {vesselImo && anomalyHistory.length > 0 && (
+        <div className="mx-3 mb-2 border border-amber-500/20">
+          <button
+            onClick={() => toggleSection('anomalies')}
+            className="w-full px-3 py-1.5 flex items-center justify-between border-b border-amber-500/20"
+          >
+            <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">ANOMALY HISTORY</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 font-mono">{anomalyHistory.length}</span>
+              {expandedSections.anomalies
+                ? <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                : <ChevronRight className="w-3.5 h-3.5 text-gray-500" />}
+            </div>
+          </button>
+          {expandedSections.anomalies && (
+            <div className="max-h-48 overflow-y-auto">
+              {anomalyHistory.map((a) => (
+                <div key={a.id} className="px-3 py-1.5 border-b border-gray-800/50 text-xs">
+                  <div className="flex items-center justify-between">
+                    <AnomalyBadge
+                      type={a.anomalyType as AnomalyType}
+                      confidence={a.confidence as Confidence}
+                      size="sm"
+                    />
+                    <span className="text-gray-500 font-mono">
+                      {format(new Date(a.detectedAt), 'MM/dd HH:mm')}
+                    </span>
+                  </div>
+                  {a.resolvedAt && (
+                    <div className="text-gray-600 mt-0.5 font-mono">
+                      Resolved {format(new Date(a.resolvedAt), 'MM/dd HH:mm')}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Destination Changes Section (PANL-03) */}
+      {vesselImo && destChanges.length > 0 && (
+        <div className="mx-3 mb-2 border border-amber-500/20">
+          <button
+            onClick={() => toggleSection('destinations')}
+            className="w-full px-3 py-1.5 flex items-center justify-between border-b border-amber-500/20"
+          >
+            <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">DESTINATION LOG</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 font-mono">{destChanges.length}</span>
+              {expandedSections.destinations
+                ? <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                : <ChevronRight className="w-3.5 h-3.5 text-gray-500" />}
+            </div>
+          </button>
+          {expandedSections.destinations && (
+            <div className="max-h-48 overflow-y-auto">
+              {destChanges.map((dc) => (
+                <div key={dc.id} className="px-3 py-1.5 border-b border-gray-800/50 text-xs">
+                  <div className="flex items-center gap-1 font-mono">
+                    <span className="text-gray-500">{dc.previousDestination}</span>
+                    <span className="text-amber-500">{'\u2192'}</span>
+                    <span className="text-white">{dc.newDestination}</span>
+                  </div>
+                  <div className="text-gray-600 font-mono mt-0.5">
+                    {format(new Date(dc.changedAt), 'MM/dd HH:mm')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
