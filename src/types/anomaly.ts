@@ -5,7 +5,7 @@
  * Uses discriminated unions for type narrowing on anomaly details.
  */
 
-export type AnomalyType = 'going_dark' | 'loitering' | 'deviation' | 'speed';
+export type AnomalyType = 'going_dark' | 'loitering' | 'deviation' | 'speed' | 'repeat_going_dark' | 'sts_transfer';
 export type Confidence = 'confirmed' | 'suspected' | 'unknown';
 
 /**
@@ -49,6 +49,28 @@ export interface SpeedDetails {
 }
 
 /**
+ * Repeat Going Dark Anomaly Details
+ * When a vessel has gone dark multiple times within a time window — pattern indicates evasion
+ */
+export interface RepeatGoingDarkDetails {
+  goingDarkCount: number;
+  windowDays: number;
+  recentEvents: Array<{ detectedAt: string; resolvedAt: string | null }>;
+}
+
+/**
+ * Ship-to-Ship Transfer Anomaly Details
+ * When two vessels are detected in close proximity at sea, suggesting cargo transfer
+ */
+export interface StsTransferDetails {
+  otherImo: string;
+  otherName: string;
+  distanceKm: number;
+  lat: number;
+  lon: number;
+}
+
+/**
  * Anomaly record from database
  * Details field is a discriminated union based on anomaly type
  */
@@ -59,7 +81,7 @@ export interface Anomaly {
   confidence: Confidence;
   detectedAt: Date;
   resolvedAt: Date | null;
-  details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails;
+  details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails | RepeatGoingDarkDetails | StsTransferDetails;
 }
 
 /**
@@ -71,7 +93,7 @@ export interface UpsertAnomalyInput {
   anomalyType: AnomalyType;
   confidence: Confidence;
   detectedAt: Date;
-  details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails;
+  details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails | RepeatGoingDarkDetails | StsTransferDetails;
 }
 
 /**

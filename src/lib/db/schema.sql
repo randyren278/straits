@@ -174,3 +174,21 @@ CREATE TABLE IF NOT EXISTS alerts (
 -- Index for unread alerts
 CREATE INDEX IF NOT EXISTS idx_alerts_unread ON alerts(user_id, triggered_at DESC)
   WHERE read_at IS NULL;
+
+-- =============================================================================
+-- Phase 12: Behavioral Pattern Detection
+-- =============================================================================
+
+-- Vessel destination changes table (PATT-01)
+-- Logs every mid-voyage destination change detected during AIS ingestion.
+-- Only non-null to non-null transitions are recorded (NULL-to-value are ignored).
+CREATE TABLE IF NOT EXISTS vessel_destination_changes (
+  id SERIAL PRIMARY KEY,
+  imo TEXT NOT NULL,
+  previous_destination TEXT NOT NULL,
+  new_destination TEXT NOT NULL,
+  changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Index for efficient per-vessel destination change history (most recent first)
+CREATE INDEX IF NOT EXISTS idx_dest_changes_imo_time ON vessel_destination_changes(imo, changed_at DESC);
