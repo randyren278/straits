@@ -7,8 +7,8 @@
 
 ### Route Deviation
 
-- [ ] **DEVI-01**: System detects when a vessel's recent heading contradicts its declared AIS destination and flags it as a route deviation anomaly
-- [ ] **DEVI-02**: Route deviation anomalies flow through the existing anomaly pipeline (notification bell, map badge, vessel panel)
+- [x] **DEVI-01**: System detects when a vessel's recent heading contradicts its declared AIS destination and flags it as a route deviation anomaly
+- [x] **DEVI-02**: Route deviation anomalies flow through the existing anomaly pipeline (notification bell, map badge, vessel panel)
 
 ### Behavioral Patterns
 
@@ -45,8 +45,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEVI-01 | Phase 11 | Pending |
-| DEVI-02 | Phase 11 | Pending |
+| DEVI-01 | Phase 11 | Complete |
+| DEVI-02 | Phase 11 | Complete |
 | PATT-01 | Phase 12 | Pending |
 | PATT-02 | Phase 12 | Pending |
 | PATT-03 | Phase 12 | Pending |

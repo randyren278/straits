@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Evasion Intelligence
-status: "Roadmap defined"
-stopped_at: Roadmap created for v1.3 — ready to plan Phase 11
-last_updated: "2026-03-17T00:00:00Z"
-last_activity: 2026-03-17 — v1.3 roadmap created (4 phases, 11 requirements)
+status: planning
+stopped_at: Completed 11-01-PLAN.md — route deviation detection implemented and registered in cron
+last_updated: "2026-03-18T02:38:22.197Z"
+last_activity: 2026-03-17 — v1.3 roadmap created
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
   percent: 0
 ---
 
@@ -68,6 +68,7 @@ Progress: [____________________] 0/? plans (0%)
 | Phase 09-all-ships-analytics P02 | 2 | 2 tasks | 2 files |
 | Phase 10-chokepoint-live-ships P01 | 1 | 2 tasks | 2 files |
 | Phase 10-chokepoint-live-ships P02 | 1 | 1 tasks | 1 files |
+| Phase 11-route-deviation-detection P01 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -166,6 +167,9 @@ Recent decisions affecting current work:
 - [Phase 10-chokepoint-live-ships]: Next.js 16 async params: await params before accessing id in chokepoints/[id]/vessels route
 - [Phase 10-chokepoint-live-ships]: ChokepointWidget vessel list container separate from header button — header preserves onSelect (chokepoint flyTo), vessel rows call handleVesselClick (vessel flyTo + panel)
 - [Phase 10-chokepoint-live-ships]: ChokepointVessel type defined locally in client component — no server import needed
+- [Phase 11-route-deviation-detection]: Nominatim geocoding with in-memory Map cache — avoids redundant API calls per destination string
+- [Phase 11-route-deviation-detection]: Sustained deviation: ALL positions in 2-hour window must deviate — reduces false positives (11-01)
+- [Phase 11-route-deviation-detection]: Auto-resolve deviation anomaly when heading corrects — no manual intervention needed (11-01)
 
 ### Pending Todos
 
@@ -192,6 +196,6 @@ None — v1.3 roadmap defined. Ready to plan Phase 11.
 
 ## Session Continuity
 
-Last session: 2026-03-17T00:00:00Z
-Stopped at: v1.3 roadmap created — 4 phases, 11 requirements mapped
+Last session: 2026-03-18T02:38:22.195Z
+Stopped at: Completed 11-01-PLAN.md — route deviation detection implemented and registered in cron
 Resume file: None
