@@ -42,7 +42,7 @@
 **Milestone Goal:** Surface evasion behavior through route deviation detection, behavioral pattern tracking, and per-vessel risk scoring.
 
 - [x] **Phase 11: Route Deviation Detection** — Detect when vessel heading contradicts declared AIS destination; surface through existing anomaly pipeline (completed 2026-03-18)
-- [ ] **Phase 12: Behavioral Pattern Detection** — Flag repeat going-dark offenders, log destination changes, detect ship-to-ship transfers
+- [x] **Phase 12: Behavioral Pattern Detection** — Flag repeat going-dark offenders, log destination changes, detect ship-to-ship transfers (completed 2026-03-18)
 - [ ] **Phase 13: Dark Fleet Risk Score** — Compute 0–100 composite risk score per vessel; auto-update on new anomaly events
 - [ ] **Phase 14: Panel Intelligence** — Full anomaly history, risk score breakdown, destination change log, and STS vessel names in vessel panel
 
@@ -111,6 +111,6 @@ Plans:
 | 9. All-Ships Analytics | v1.2 | 2/2 | Complete | 2026-03-17 |
 | 10. Chokepoint Live Ships | v1.2 | 2/2 | Complete | 2026-03-17 |
 | 11. Route Deviation Detection | 1/1 | Complete    | 2026-03-18 | - |
-| 12. Behavioral Pattern Detection | 1/2 | In Progress|  | - |
+| 12. Behavioral Pattern Detection | 2/2 | Complete   | 2026-03-18 | - |
 | 13. Dark Fleet Risk Score | v1.3 | 0/? | Not started | - |
 | 14. Panel Intelligence | v1.3 | 0/? | Not started | - |
