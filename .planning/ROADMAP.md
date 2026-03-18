@@ -107,7 +107,7 @@ Plans:
 | 8. All-Ships Anomalies | v1.2 | 2/2 | Complete | 2026-03-17 |
 | 9. All-Ships Analytics | v1.2 | 2/2 | Complete | 2026-03-17 |
 | 10. Chokepoint Live Ships | v1.2 | 2/2 | Complete | 2026-03-17 |
-| 11. Route Deviation Detection | 1/1 | Complete   | 2026-03-18 | - |
+| 11. Route Deviation Detection | 1/1 | Complete    | 2026-03-18 | - |
 | 12. Behavioral Pattern Detection | v1.3 | 0/? | Not started | - |
 | 13. Dark Fleet Risk Score | v1.3 | 0/? | Not started | - |
 | 14. Panel Intelligence | v1.3 | 0/? | Not started | - |
