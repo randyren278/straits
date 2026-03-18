@@ -114,5 +114,5 @@ Plans:
 | 10. Chokepoint Live Ships | v1.2 | 2/2 | Complete | 2026-03-17 |
 | 11. Route Deviation Detection | 1/1 | Complete    | 2026-03-18 | - |
 | 12. Behavioral Pattern Detection | 3/3 | Complete    | 2026-03-18 | - |
-| 13. Dark Fleet Risk Score | 1/1 | Complete   | 2026-03-18 | - |
+| 13. Dark Fleet Risk Score | 1/1 | Complete    | 2026-03-18 | - |
 | 14. Panel Intelligence | v1.3 | 0/? | Not started | - |

@@ -4,7 +4,7 @@ milestone: v1.3
 milestone_name: Evasion Intelligence
 status: planning
 stopped_at: Completed 13-01-PLAN.md — Dark fleet risk score schema, computation, and API
-last_updated: "2026-03-18T20:09:01.124Z"
+last_updated: "2026-03-18T20:10:55.404Z"
 last_activity: 2026-03-17 — v1.3 roadmap created
 progress:
   total_phases: 4
