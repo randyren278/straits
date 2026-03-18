@@ -57,7 +57,9 @@
   2. Route deviation anomalies appear in the notification bell alongside other anomaly types
   3. Vessels with route deviation anomalies show a badge on the map
   4. Clicking a route deviation alert in the notification bell identifies the vessel and the conflict (heading vs. destination)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 11-01-PLAN.md — Implement detectDeviation() with Nominatim geocoding and register in cron
 
 ### Phase 12: Behavioral Pattern Detection
 **Goal**: Users can identify vessels exhibiting repeat evasion patterns — repeat going-dark, mid-voyage destination changes, and close-proximity rendezvous
@@ -105,7 +107,7 @@
 | 8. All-Ships Anomalies | v1.2 | 2/2 | Complete | 2026-03-17 |
 | 9. All-Ships Analytics | v1.2 | 2/2 | Complete | 2026-03-17 |
 | 10. Chokepoint Live Ships | v1.2 | 2/2 | Complete | 2026-03-17 |
-| 11. Route Deviation Detection | v1.3 | 0/? | Not started | - |
+| 11. Route Deviation Detection | v1.3 | 0/1 | In progress | - |
 | 12. Behavioral Pattern Detection | v1.3 | 0/? | Not started | - |
 | 13. Dark Fleet Risk Score | v1.3 | 0/? | Not started | - |
 | 14. Panel Intelligence | v1.3 | 0/? | Not started | - |
