@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Evasion Intelligence
 status: planning
-stopped_at: Completed 12-02-PLAN.md — repeat going-dark and STS transfer detectors
-last_updated: "2026-03-18T05:47:54.611Z"
+stopped_at: Completed 12-03-PLAN.md — STS sustained proximity enforcement
+last_updated: "2026-03-18T14:27:40.598Z"
 last_activity: 2026-03-17 — v1.3 roadmap created
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 0
 ---
 
@@ -71,6 +71,7 @@ Progress: [____________________] 0/? plans (0%)
 | Phase 11-route-deviation-detection P01 | 2 | 2 tasks | 3 files |
 | Phase 12-behavioral-pattern-detection P01 | 2 | 2 tasks | 4 files |
 | Phase 12 P02 | 2 | 2 tasks | 3 files |
+| Phase 12-behavioral-pattern-detection P03 | 1 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -177,6 +178,8 @@ Recent decisions affecting current work:
 - [Phase 12-01]: AnomalyBadge extended with repeat_going_dark/sts_transfer badge configs to maintain compile-time type safety
 - [Phase 12]: Repeat going-dark auto-resolve uses bulk UPDATE NOT IN subquery rather than per-vessel resolveAnomaly() loop (12-02)
 - [Phase 12]: STS dedup: b.imo > a.imo join condition chosen over LEAST/GREATEST DISTINCT ON — simpler, equivalent guarantee (12-02)
+- [Phase 12-behavioral-pattern-detection]: STS proximity gate: 35-minute staleness threshold (POSITION_FRESHNESS_MINUTES + 5) accounts for cron timing drift
+- [Phase 12-behavioral-pattern-detection]: vessel_proximity_events PK (imo_a, imo_b) covers all lookups — no additional index needed
 
 ### Pending Todos
 
@@ -203,6 +206,6 @@ None — v1.3 roadmap defined. Ready to plan Phase 11.
 
 ## Session Continuity
 
-Last session: 2026-03-18T05:47:54.608Z
-Stopped at: Completed 12-02-PLAN.md — repeat going-dark and STS transfer detectors
+Last session: 2026-03-18T14:27:40.595Z
+Stopped at: Completed 12-03-PLAN.md — STS sustained proximity enforcement
 Resume file: None
