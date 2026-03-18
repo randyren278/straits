@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useVesselStore } from '@/stores/vessel';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, isValid } from 'date-fns';
 
 export function DataFreshness() {
   const { lastUpdate } = useVesselStore();
@@ -19,7 +19,7 @@ export function DataFreshness() {
     return () => clearInterval(interval);
   }, []);
 
-  if (!lastUpdate) {
+  if (!lastUpdate || !isValid(lastUpdate)) {
     return (
       <span className="text-gray-500 text-sm flex items-center gap-1">
         <span className="w-2 h-2 rounded-full bg-gray-500 animate-pulse" />

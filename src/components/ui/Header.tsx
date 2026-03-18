@@ -78,7 +78,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
         </div>
       </div>
       {!isAnalytics && (
-        <div className="h-10 flex items-center px-4 border-t border-amber-500/10">
+        <div className="flex items-start px-4 py-2 border-t border-amber-500/10">
           <ChokepointWidgets onSelect={onChokepointSelect} />
         </div>
       )}

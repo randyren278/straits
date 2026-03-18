@@ -216,6 +216,9 @@ export function VesselMap() {
     async function fetchVessels() {
       try {
         const res = await fetch(`/api/vessels?tankersOnly=${tankersOnly}`);
+        if (!res.ok) {
+          throw new Error(`Failed to fetch vessels: ${res.status}`);
+        }
         const data = await res.json();
         setVessels(data.vessels || []);
         setLastUpdate(new Date(data.timestamp));
