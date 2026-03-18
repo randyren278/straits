@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Evasion Intelligence
 status: planning
-stopped_at: Completed 13-01-PLAN.md — Dark fleet risk score schema, computation, and API
-last_updated: "2026-03-18T20:10:55.404Z"
+stopped_at: Completed 14-01-PLAN.md — Vessel history API and STS notification bell names
+last_updated: "2026-03-18T20:19:55.241Z"
 last_activity: 2026-03-17 — v1.3 roadmap created
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 7
+  completed_plans: 6
   percent: 0
 ---
 
@@ -73,6 +73,7 @@ Progress: [____________________] 0/? plans (0%)
 | Phase 12 P02 | 2 | 2 tasks | 3 files |
 | Phase 12-behavioral-pattern-detection P03 | 1 | 1 tasks | 2 files |
 | Phase 13-dark-fleet-risk-score P01 | 8 | 2 tasks | 5 files |
+| Phase 14-panel-intelligence P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -184,6 +185,8 @@ Recent decisions affecting current work:
 - [Phase 13]: Single aggregation SQL query across vessel_anomalies + vessels + vessel_sanctions avoids N+1 queries for risk scoring (13-01)
 - [Phase 13]: getRiskScore() returns zero-score default for vessels not in vessel_risk_scores — callers never need null checks (13-01)
 - [Phase 13]: Next.js 16 async params: await params before accessing imo in /api/vessels/[imo]/risk/route.ts (13-01)
+- [Phase 14-panel-intelligence]: vessel history endpoint returns all anomalies (no resolved_at IS NULL filter) — panel needs full historical view
+- [Phase 14-panel-intelligence]: STS partner vessel shown inline with fallback chain: otherName -> otherImo -> 'unknown' (14-01)
 
 ### Pending Todos
 
@@ -210,6 +213,6 @@ None — v1.3 roadmap defined. Ready to plan Phase 11.
 
 ## Session Continuity
 
-Last session: 2026-03-18T20:09:01.121Z
-Stopped at: Completed 13-01-PLAN.md — Dark fleet risk score schema, computation, and API
+Last session: 2026-03-18T20:19:55.238Z
+Stopped at: Completed 14-01-PLAN.md — Vessel history API and STS notification bell names
 Resume file: None

@@ -23,10 +23,10 @@
 
 ### Panel Intelligence
 
-- [ ] **PANL-01**: Vessel panel shows full anomaly history for the vessel (all past events with type, timestamp, and details)
+- [x] **PANL-01**: Vessel panel shows full anomaly history for the vessel (all past events with type, timestamp, and details)
 - [ ] **PANL-02**: Vessel panel shows dark fleet risk score with a breakdown of contributing factors
-- [ ] **PANL-03**: Vessel panel shows destination change log (previous → current with timestamp)
-- [ ] **PANL-04**: STS transfer events in the notification bell show both vessel names involved
+- [x] **PANL-03**: Vessel panel shows destination change log (previous → current with timestamp)
+- [x] **PANL-04**: STS transfer events in the notification bell show both vessel names involved
 
 ## v2 Requirements
 
@@ -52,10 +52,10 @@
 | PATT-03 | Phase 12 | Complete |
 | RISK-01 | Phase 13 | Complete |
 | RISK-02 | Phase 13 | Complete |
-| PANL-01 | Phase 14 | Pending |
+| PANL-01 | Phase 14 | Complete |
 | PANL-02 | Phase 14 | Pending |
-| PANL-03 | Phase 14 | Pending |
-| PANL-04 | Phase 14 | Pending |
+| PANL-03 | Phase 14 | Complete |
+| PANL-04 | Phase 14 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 11 total
