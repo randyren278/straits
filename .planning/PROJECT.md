@@ -29,7 +29,29 @@ Real-time visibility into Middle Eastern oil tanker movements with enough contex
 
 ### Active
 
-(None — v1.2 shipped. Start next milestone with `/gsd:new-milestone`.)
+<!-- v1.3 Evasion Intelligence -->
+
+- [ ] System detects route deviation when vessel heading contradicts declared AIS destination
+- [ ] Route deviation anomalies flow through existing anomaly pipeline (bell, map, panel)
+- [ ] System flags vessels that have gone dark 3+ times in 30 days as repeat offenders
+- [ ] System detects AIS destination field changes while underway and logs with timestamps
+- [ ] System detects two vessels within 0.5nm for 30+ minutes as potential ship-to-ship transfer
+- [ ] Each vessel has a computed dark fleet risk score (0–100) with contributing factors
+- [ ] Risk score updates automatically as new anomaly events are detected
+- [ ] Vessel panel shows full anomaly history (all past events with timestamps)
+- [ ] Vessel panel shows dark fleet risk score with factor breakdown
+- [ ] Vessel panel shows destination change log (previous → current with timestamp)
+- [ ] STS transfer alerts in notification bell show both vessel names involved
+
+## Current Milestone: v1.3 Evasion Intelligence
+
+**Goal:** Surface evasion behavior through route deviation detection, behavioral pattern tracking, and per-vessel risk scoring.
+
+**Target features:**
+- Route deviation detection (heading vs. declared AIS destination)
+- Behavioral pattern tracking (repeat going-dark, destination changes, ship-to-ship transfers)
+- Dark fleet risk score per vessel (0–100 composite)
+- Expanded vessel panel with full history and risk score
 
 ### Out of Scope
 
@@ -74,4 +96,4 @@ Real-time visibility into Middle Eastern oil tanker movements with enough contex
 | getVesselsInChokepoint uses DISTINCT ON + 1h freshness | Reuses existing coverage pattern; null for unknown IDs = clean 404 | v1.2 Phase 10 ✓ |
 
 ---
-*Last updated: 2026-03-17 after v1.2 milestone (All-Vessels Intelligence)*
+*Last updated: 2026-03-17 after v1.3 milestone started (Evasion Intelligence)*

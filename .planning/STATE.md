@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: milestone
-status: "Roadmap defined, ready for `/gsd:plan-phase 8`"
-stopped_at: Completed quick-10 (chokepoint vessel list collapse)
-last_updated: "2026-03-17T22:42:29Z"
-last_activity: 2026-03-17 — Roadmap created for v1.2 (phases 8–10)
+milestone: v1.3
+milestone_name: Evasion Intelligence
+status: "Defining requirements"
+stopped_at: Starting milestone v1.3
+last_updated: "2026-03-17T00:00:00Z"
+last_activity: 2026-03-17 — Milestone v1.3 started
 progress:
-  total_phases: 10
-  completed_phases: 10
-  total_plans: 31
-  completed_plans: 31
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 0
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 8 — All-Ships Anomalies
+Phase: Not started (defining requirements)
 Plan: —
-Status: Roadmap defined, ready for `/gsd:plan-phase 8`
-Last activity: 2026-03-17 — Completed quick task 10: chokepoint header vessel list collapse to dropdown
+Status: Defining requirements
+Last activity: 2026-03-17 — Milestone v1.3 started
 
 Progress: [____________________] 0/? plans (0%)
 
