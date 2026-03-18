@@ -4,7 +4,7 @@
  * Alert notification bell with dropdown.
  * Shows active anomalies with ship type filter (All / Tanker / Cargo / Other).
  * Filtering is display-only — detection logic is not changed.
- * Requirements: ANOM-02, ANOM-06, HIST-02
+ * Requirements: ANOM-02, ANOM-06, HIST-02, PANL-04
  */
 import { useState, useEffect, useRef } from 'react';
 import { Bell } from 'lucide-react';
@@ -139,6 +139,13 @@ export function NotificationBell() {
                       <span className="font-medium text-white">
                         {anomaly.imo}
                       </span>
+                      {anomaly.anomalyType === 'sts_transfer' && anomaly.details && (
+                        <span className="text-xs text-gray-400 font-mono ml-1">
+                          + {(anomaly.details as { otherName?: string; otherImo?: string }).otherName
+                            || (anomaly.details as { otherImo?: string }).otherImo
+                            || 'unknown'}
+                        </span>
+                      )}
                       <span className="text-xs text-gray-500">
                         {formatDistanceToNow(new Date(anomaly.detectedAt), { addSuffix: true })}
                       </span>
@@ -150,6 +157,13 @@ export function NotificationBell() {
                         size="sm"
                       />
                     </div>
+                    {anomaly.anomalyType === 'sts_transfer' && anomaly.details && (
+                      <div className="text-xs text-gray-500 mt-0.5 font-mono">
+                        Proximity with {(anomaly.details as { otherName?: string; otherImo?: string }).otherName
+                          || (anomaly.details as { otherImo?: string }).otherImo
+                          || 'unknown vessel'}
+                      </div>
+                    )}
                   </div>
                 ))
               )}
