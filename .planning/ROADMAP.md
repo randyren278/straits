@@ -96,7 +96,10 @@ Plans:
   2. The vessel panel displays the dark fleet risk score (0–100) with a visible breakdown of which factors contributed and by how much
   3. The vessel panel shows a log of destination changes with previous value, new value, and timestamp for each change
   4. STS transfer notifications in the notification bell name both vessels involved in the proximity event
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 14-01-PLAN.md — Vessel history API endpoint and STS vessel names in notification bell
+- [ ] 14-02-PLAN.md — Risk score breakdown, anomaly history, and destination log in VesselPanel
 
 ## Progress
 
@@ -115,4 +118,4 @@ Plans:
 | 11. Route Deviation Detection | 1/1 | Complete    | 2026-03-18 | - |
 | 12. Behavioral Pattern Detection | 3/3 | Complete    | 2026-03-18 | - |
 | 13. Dark Fleet Risk Score | 1/1 | Complete    | 2026-03-18 | - |
-| 14. Panel Intelligence | v1.3 | 0/? | Not started | - |
+| 14. Panel Intelligence | v1.3 | 0/2 | Not started | - |
