@@ -7,7 +7,7 @@
 import { AlertTriangle, Radio, Navigation, Gauge } from 'lucide-react';
 
 interface AnomalyBadgeProps {
-  type: 'going_dark' | 'loitering' | 'deviation' | 'speed';
+  type: 'going_dark' | 'loitering' | 'deviation' | 'speed' | 'repeat_going_dark' | 'sts_transfer';
   confidence: 'confirmed' | 'suspected' | 'unknown';
   size?: 'sm' | 'md';
 }
@@ -32,6 +32,16 @@ const BADGE_CONFIG = {
     confirmed: { bg: 'bg-amber-600', icon: Gauge, label: 'DRIFT' },
     suspected: { bg: 'bg-amber-500', icon: Gauge, label: 'DRIFT?' },
     unknown: { bg: 'bg-gray-500', icon: Gauge, label: 'SLOW' },
+  },
+  repeat_going_dark: {
+    confirmed: { bg: 'bg-red-600', icon: Radio, label: 'REPEAT' },
+    suspected: { bg: 'bg-red-400', icon: Radio, label: 'REPEAT?' },
+    unknown: { bg: 'bg-gray-500', icon: Radio, label: 'PATTERN' },
+  },
+  sts_transfer: {
+    confirmed: { bg: 'bg-purple-600', icon: AlertTriangle, label: 'STS' },
+    suspected: { bg: 'bg-purple-400', icon: AlertTriangle, label: 'STS?' },
+    unknown: { bg: 'bg-gray-500', icon: AlertTriangle, label: 'STS' },
   },
 };
 

@@ -126,6 +126,12 @@ async function insertPosition(pos: VesselPosition): Promise<void> {
 }
 
 async function upsertVessel(v: VesselMetadata): Promise<void> {
+  // Fetch current destination before upsert so we can detect changes
+  const existing = await pool.query<{ destination: string | null }>(
+    `SELECT destination FROM vessels WHERE imo = $1`,
+    [v.imo]
+  );
+
   await pool.query(
     `INSERT INTO vessels (imo, mmsi, name, ship_type, destination, last_seen)
      VALUES ($1, $2, $3, $4, $5, NOW())
@@ -137,6 +143,24 @@ async function upsertVessel(v: VesselMetadata): Promise<void> {
        last_seen = NOW()`,
     [v.imo, v.mmsi, v.name, v.shipType, v.destination]
   );
+
+  // Log destination change if both old and new destinations are non-null and differ (case-insensitive)
+  try {
+    if (
+      existing.rows.length > 0 &&
+      existing.rows[0].destination != null &&
+      v.destination != null &&
+      existing.rows[0].destination.toUpperCase().trim() !== v.destination.toUpperCase().trim()
+    ) {
+      await pool.query(
+        `INSERT INTO vessel_destination_changes (imo, previous_destination, new_destination)
+         VALUES ($1, $2, $3)`,
+        [v.imo, existing.rows[0].destination, v.destination]
+      );
+    }
+  } catch (err: any) {
+    console.error('Failed to log destination change:', err.message);
+  }
 }
 
 // ============================================================================
