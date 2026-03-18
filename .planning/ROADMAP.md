@@ -83,7 +83,9 @@ Plans:
   1. Every vessel has a risk score between 0 and 100 stored in the database with a breakdown of contributing factors (going-dark frequency, flag state, sanctions status, loitering, STS events)
   2. The risk score for a vessel updates automatically when a new anomaly event is recorded for that vessel
   3. A vessel with no anomaly history shows a low (near-zero) risk score
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 13-01-PLAN.md — Schema, risk score computation, cron registration, and API endpoint
 
 ### Phase 14: Panel Intelligence
 **Goal**: The vessel panel becomes a full intelligence dossier — showing complete anomaly history, risk score with factor breakdown, destination change log, and STS alert context
@@ -112,5 +114,5 @@ Plans:
 | 10. Chokepoint Live Ships | v1.2 | 2/2 | Complete | 2026-03-17 |
 | 11. Route Deviation Detection | 1/1 | Complete    | 2026-03-18 | - |
 | 12. Behavioral Pattern Detection | 3/3 | Complete    | 2026-03-18 | - |
-| 13. Dark Fleet Risk Score | v1.3 | 0/? | Not started | - |
+| 13. Dark Fleet Risk Score | v1.3 | 0/1 | Not started | - |
 | 14. Panel Intelligence | v1.3 | 0/? | Not started | - |
