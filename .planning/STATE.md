@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Evasion Intelligence
-status: "Defining requirements"
-stopped_at: Starting milestone v1.3
+status: "Roadmap defined"
+stopped_at: Roadmap created for v1.3 — ready to plan Phase 11
 last_updated: "2026-03-17T00:00:00Z"
-last_activity: 2026-03-17 — Milestone v1.3 started
+last_activity: 2026-03-17 — v1.3 roadmap created (4 phases, 11 requirements)
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-17)
 
 **Core value:** Real-time visibility into Middle Eastern oil tanker movements with enough context (prices, sanctions, anomalies, news) to understand what's happening and why it matters.
-**Current focus:** v1.2 All-Vessels Intelligence — Phase 8: All-Ships Anomalies (ready to plan)
+**Current focus:** v1.3 Evasion Intelligence — Phase 11: Route Deviation Detection (ready to plan)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 11 — Route Deviation Detection
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-17 — Milestone v1.3 started
+Status: Roadmap defined, ready to plan
+Last activity: 2026-03-17 — v1.3 roadmap created
 
 Progress: [____________________] 0/? plans (0%)
 
@@ -188,10 +188,10 @@ None yet.
 
 ### Blockers/Concerns
 
-None — v1.2 roadmap defined. Ready to plan Phase 8.
+None — v1.3 roadmap defined. Ready to plan Phase 11.
 
 ## Session Continuity
 
-Last session: 2026-03-17T22:11:59.768Z
-Stopped at: Completed 10-chokepoint-live-ships-02-PLAN.md
+Last session: 2026-03-17T00:00:00Z
+Stopped at: v1.3 roadmap created — 4 phases, 11 requirements mapped
 Resume file: None
