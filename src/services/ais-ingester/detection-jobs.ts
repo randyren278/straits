@@ -8,7 +8,7 @@
  * - Going dark detection: every 15 minutes
  * - Route anomalies (loitering, speed, deviation, repeat_dark, sts): every 30 minutes
  *
- * Requirements: ANOM-01, ANOM-02, DEVI-01, DEVI-02, PATT-01, PATT-03
+ * Requirements: ANOM-01, ANOM-02, DEVI-01, DEVI-02, PATT-01, PATT-03, RISK-02
  */
 import cron from 'node-cron';
 import { detectGoingDark } from '../../lib/detection/going-dark';
@@ -16,6 +16,7 @@ import { detectLoitering } from '../../lib/detection/loitering';
 import { detectSpeedAnomaly, detectDeviation } from '../../lib/detection/deviation';
 import { detectRepeatGoingDark } from '../../lib/detection/repeat-going-dark';
 import { detectStsTransfers } from '../../lib/detection/sts-transfer';
+import { computeRiskScores } from '../../lib/detection/risk-score';
 import { generateAlertsForNewAnomalies } from '../../lib/db/alerts';
 
 /**
@@ -46,7 +47,8 @@ export function startDetectionJobs(): void {
       const deviationCount = await detectDeviation();
       const repeatDarkCount = await detectRepeatGoingDark();
       const stsCount = await detectStsTransfers();
-      console.log(`[CRON] Route anomalies: ${loiteringCount} loitering, ${speedCount} speed, ${deviationCount} deviation, ${repeatDarkCount} repeat_dark, ${stsCount} sts`);
+      const riskCount = await computeRiskScores();
+      console.log(`[CRON] Route anomalies: ${loiteringCount} loitering, ${speedCount} speed, ${deviationCount} deviation, ${repeatDarkCount} repeat_dark, ${stsCount} sts, ${riskCount} risk_scores`);
       await generateAlertsForNewAnomalies('loitering');
       await generateAlertsForNewAnomalies('speed');
       await generateAlertsForNewAnomalies('deviation');
