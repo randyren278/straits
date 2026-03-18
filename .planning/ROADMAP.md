@@ -70,7 +70,10 @@ Plans:
   2. When a vessel changes its AIS destination while underway, the change is logged with a before/after value and timestamp
   3. When two vessels are within 0.5nm of each other for 30+ minutes, a ship-to-ship transfer alert is generated
   4. STS alerts include identifying information for both vessels involved
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 12-01-PLAN.md — Extend anomaly types, add destination changes table, hook ingester for destination tracking
+- [ ] 12-02-PLAN.md — Implement repeat going-dark and STS transfer detectors, register in cron
 
 ### Phase 13: Dark Fleet Risk Score
 **Goal**: Every vessel has a computed 0–100 risk score that reflects its evasion history — and the score stays current as new events occur
@@ -108,6 +111,6 @@ Plans:
 | 9. All-Ships Analytics | v1.2 | 2/2 | Complete | 2026-03-17 |
 | 10. Chokepoint Live Ships | v1.2 | 2/2 | Complete | 2026-03-17 |
 | 11. Route Deviation Detection | 1/1 | Complete    | 2026-03-18 | - |
-| 12. Behavioral Pattern Detection | v1.3 | 0/? | Not started | - |
+| 12. Behavioral Pattern Detection | v1.3 | 0/2 | Not started | - |
 | 13. Dark Fleet Risk Score | v1.3 | 0/? | Not started | - |
 | 14. Panel Intelligence | v1.3 | 0/? | Not started | - |
