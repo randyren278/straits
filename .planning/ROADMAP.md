@@ -44,7 +44,7 @@
 - [x] **Phase 11: Route Deviation Detection** — Detect when vessel heading contradicts declared AIS destination; surface through existing anomaly pipeline (completed 2026-03-18)
 - [x] **Phase 12: Behavioral Pattern Detection** — Flag repeat going-dark offenders, log destination changes, detect ship-to-ship transfers (completed 2026-03-18)
 - [x] **Phase 13: Dark Fleet Risk Score** — Compute 0–100 composite risk score per vessel; auto-update on new anomaly events (completed 2026-03-18)
-- [ ] **Phase 14: Panel Intelligence** — Full anomaly history, risk score breakdown, destination change log, and STS vessel names in vessel panel
+- [x] **Phase 14: Panel Intelligence** — Full anomaly history, risk score breakdown, destination change log, and STS vessel names in vessel panel (completed 2026-03-18)
 
 ## Phase Details
 
@@ -118,4 +118,4 @@ Plans:
 | 11. Route Deviation Detection | 1/1 | Complete    | 2026-03-18 | - |
 | 12. Behavioral Pattern Detection | 3/3 | Complete    | 2026-03-18 | - |
 | 13. Dark Fleet Risk Score | 1/1 | Complete    | 2026-03-18 | - |
-| 14. Panel Intelligence | 1/2 | In Progress|  | - |
+| 14. Panel Intelligence | 2/2 | Complete   | 2026-03-18 | - |

@@ -24,7 +24,7 @@
 ### Panel Intelligence
 
 - [x] **PANL-01**: Vessel panel shows full anomaly history for the vessel (all past events with type, timestamp, and details)
-- [ ] **PANL-02**: Vessel panel shows dark fleet risk score with a breakdown of contributing factors
+- [x] **PANL-02**: Vessel panel shows dark fleet risk score with a breakdown of contributing factors
 - [x] **PANL-03**: Vessel panel shows destination change log (previous → current with timestamp)
 - [x] **PANL-04**: STS transfer events in the notification bell show both vessel names involved
 
@@ -53,7 +53,7 @@
 | RISK-01 | Phase 13 | Complete |
 | RISK-02 | Phase 13 | Complete |
 | PANL-01 | Phase 14 | Complete |
-| PANL-02 | Phase 14 | Pending |
+| PANL-02 | Phase 14 | Complete |
 | PANL-03 | Phase 14 | Complete |
 | PANL-04 | Phase 14 | Complete |
 
