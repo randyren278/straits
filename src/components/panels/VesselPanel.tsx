@@ -21,6 +21,7 @@ export function VesselPanel() {
 
   // Intelligence dossier state
   const [riskScore, setRiskScore] = useState<{ score: number; factors: RiskFactors; computedAt: string | null } | null>(null);
+  const [riskError, setRiskError] = useState(false);
   const [anomalyHistory, setAnomalyHistory] = useState<Array<{
     id: number; anomalyType: string; confidence: string;
     detectedAt: string; resolvedAt: string | null; details: Record<string, unknown>;
@@ -49,6 +50,7 @@ export function VesselPanel() {
   useEffect(() => {
     if (!vesselImo) {
       setRiskScore(null);
+      setRiskError(false);
       setAnomalyHistory([]);
       setDestChanges([]);
       return;
@@ -60,7 +62,12 @@ export function VesselPanel() {
           fetch(`/api/vessels/${vesselImo}/risk`),
           fetch(`/api/vessels/${vesselImo}/history`),
         ]);
-        if (riskRes.ok) setRiskScore(await riskRes.json());
+        if (riskRes.ok) {
+          setRiskScore(await riskRes.json());
+          setRiskError(false);
+        } else {
+          setRiskError(true);
+        }
         if (historyRes.ok) {
           const data = await historyRes.json();
           setAnomalyHistory(data.anomalies || []);
@@ -68,6 +75,7 @@ export function VesselPanel() {
         }
       } catch (err) {
         console.error('[VesselPanel] Failed to fetch dossier:', err);
+        setRiskError(true);
       }
     };
     fetchDossier();
@@ -264,6 +272,14 @@ export function VesselPanel() {
       )}
 
       {/* Risk Score Section (PANL-02) */}
+      {vesselImo && riskError && (
+        <div className="mx-3 mb-2 border border-amber-500/20">
+          <div className="px-3 py-1.5 flex items-center gap-2">
+            <Shield className="w-3.5 h-3.5 text-gray-600" />
+            <span className="text-xs text-gray-600 font-mono uppercase tracking-widest">RISK SCORE UNAVAILABLE</span>
+          </div>
+        </div>
+      )}
       {vesselImo && riskScore && (
         <div className="mx-3 mb-2 border border-amber-500/20">
           <button
