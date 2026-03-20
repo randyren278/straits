@@ -27,10 +27,13 @@ export async function GET(request: NextRequest) {
       SELECT va.id, va.imo, va.anomaly_type as "anomalyType", va.confidence,
              va.detected_at as "detectedAt", va.resolved_at as "resolvedAt", va.details,
              CASE WHEN vs.imo IS NOT NULL THEN true ELSE false END AS "isSanctioned",
-             vs.risk_category AS "sanctionRiskCategory"
+             vs.risk_category AS "sanctionRiskCategory",
+             v.name AS "vesselName", v.flag,
+             vrs.score AS "riskScore"
       FROM vessel_anomalies va
       LEFT JOIN vessels v ON v.imo = va.imo
       LEFT JOIN vessel_sanctions vs ON vs.imo = va.imo
+      LEFT JOIN vessel_risk_scores vrs ON vrs.imo = va.imo
       WHERE va.resolved_at IS NULL
       ${shipTypeClause}
     `;

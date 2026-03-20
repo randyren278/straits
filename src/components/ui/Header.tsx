@@ -38,7 +38,7 @@ interface HeaderProps {
 
 export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
   const pathname = usePathname();
-  const activeTab = pathname === '/analytics' ? 'analytics' : pathname === '/about' ? 'about' : 'dashboard';
+  const activeTab = pathname === '/fleet' ? 'fleet' : pathname === '/analytics' ? 'analytics' : pathname === '/about' ? 'about' : 'dashboard';
 
   return (
     <header className="bg-black border-b border-amber-500/20">
@@ -65,6 +65,16 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
               }`}
             >
               Analytics
+            </Link>
+            <Link
+              href="/fleet"
+              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
+                activeTab === 'fleet'
+                  ? 'border-amber-500 text-amber-500 bg-amber-500/10'
+                  : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
+              }`}
+            >
+              Fleet
             </Link>
             <Link
               href="/about"

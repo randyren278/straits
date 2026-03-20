@@ -67,7 +67,7 @@ interface VesselStore {
 export const useVesselStore = create<VesselStore>((set) => ({
   // Existing state
   selectedVessel: null,
-  tankersOnly: true,
+  tankersOnly: false,
   showTrack: false,
   lastUpdate: null,
   mapCenter: null,

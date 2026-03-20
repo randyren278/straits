@@ -86,6 +86,12 @@ export interface Anomaly {
   isSanctioned?: boolean;
   /** Risk category from sanctions data (M005-S03) */
   sanctionRiskCategory?: string | null;
+  /** Vessel name from joined vessel data (M006-S01) */
+  vesselName?: string;
+  /** Vessel flag state from joined vessel data (M006-S01) */
+  flag?: string;
+  /** Risk score from vessel_risk_scores table (M006-S01) */
+  riskScore?: number;
 }
 
 /**
