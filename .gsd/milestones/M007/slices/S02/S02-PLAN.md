@@ -42,7 +42,7 @@
   - Verify: `npx tsc --noEmit` exits 0; `npx vitest run src/components/fleet/__tests__/` — all 12 existing tests pass
   - Done when: `shipCategory` appears in SQL SELECT and TypeScript type, labels are exported from `src/types/anomaly.ts`, AnomalyTable imports from there, and zero regressions
 
-- [ ] **T02: Build AnomalyMatrix component with tests and wire into FleetPage** `est:30m`
+- [x] **T02: Build AnomalyMatrix component with tests and wire into FleetPage** `est:30m`
   - Why: The matrix is the core deliverable of this slice — a dense grid that visualizes anomaly counts by ship type × anomaly type with amber luminescence scaling.
   - Files: `src/components/fleet/AnomalyMatrix.tsx`, `src/components/fleet/__tests__/AnomalyMatrix.test.tsx`, `src/app/(protected)/fleet/page.tsx`
   - Do: Create `AnomalyMatrix` component receiving `anomalies: Anomaly[]`, aggregating into a count grid, rendering a `<table>` with 3 rows (Tanker/Cargo/Other) × 6 columns (anomaly types). Use pre-defined Tailwind opacity tiers for brightness scaling (never concatenate class names at runtime). Use abbreviated column headers (DARK, LOITER, ROUTE, DRIFT, REPEAT, STS). Return `null` for empty arrays. Treat missing `shipCategory` as `'other'`. Write tests covering: grid dimensions, count aggregation accuracy, brightness tier selection, empty state, missing-shipCategory fallback. Wire into FleetPage between `<SanctionedVessels>` and the anomaly groups `<div>`. Load skill: `react-best-practices`.

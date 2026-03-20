@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react';
 import { Header } from '@/components/ui/Header';
 import { AnomalyTable } from '@/components/fleet/AnomalyTable';
+import { AnomalyMatrix } from '@/components/fleet/AnomalyMatrix';
 import { SanctionedVessels } from '@/components/fleet/SanctionedVessels';
 import type { Anomaly, AnomalyType } from '@/types/anomaly';
 
@@ -135,6 +136,9 @@ export default function FleetPage() {
         {!loading && !error && anomalies.length > 0 && (
           <>
             <SanctionedVessels vessels={sanctionedVessels} />
+            <div className="mt-4">
+              <AnomalyMatrix anomalies={anomalies} />
+            </div>
             <div className={`space-y-4${sanctionedVessels.length > 0 ? ' mt-4' : ''}`}>
               {groups.map(({ type, items }) => (
                 <AnomalyTable

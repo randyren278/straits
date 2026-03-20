@@ -88,3 +88,10 @@ Create the `AnomalyMatrix` component — a dense, terminal-style heatmap grid sh
 - `src/components/fleet/AnomalyMatrix.tsx` — new: terminal-style heatmap grid component
 - `src/components/fleet/__tests__/AnomalyMatrix.test.tsx` — new: 5+ tests for matrix behavior
 - `src/app/(protected)/fleet/page.tsx` — modified: AnomalyMatrix wired between SanctionedVessels and anomaly tables
+
+## Observability Impact
+
+- **New diagnostic surface:** The `AnomalyMatrix` component renders `data-testid="anomaly-matrix"` on its outer div — DOM inspection or `document.querySelector('[data-testid="anomaly-matrix"]')` confirms it mounted.
+- **Aggregation visibility:** Each cell displays its numeric count, making it possible to visually verify that the aggregation logic matches the raw anomaly data. Compare cell values against `curl localhost:3000/api/anomalies | jq '[.anomalies[] | select(.shipCategory=="tanker" and .anomalyType=="going_dark")] | length'`.
+- **Empty state:** When no anomalies exist, the component returns `null` — absence of the `data-testid="anomaly-matrix"` element in the DOM confirms this path.
+- **Failure visibility:** If the matrix renders incorrect counts, the 6 unit tests (grid dimensions, aggregation, brightness, empty state, missing-category fallback, testid) will catch it. The brightness tier test specifically validates that the CSS class changes with count thresholds.
