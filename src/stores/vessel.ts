@@ -38,6 +38,8 @@ interface VesselStore {
   unreadCount: number;
   /** Filter to show only vessels with anomalies */
   anomalyFilter: boolean;
+  /** Target vessel IMO for cross-route map jumps (null = no pending target) */
+  targetVesselImo: string | null;
   /** Set the selected vessel (clears track state) */
   setSelectedVessel: (vessel: SelectableVessel | null) => void;
   /** Toggle tanker-only filter */
@@ -56,6 +58,8 @@ interface VesselStore {
   setUnreadCount: (count: number) => void;
   /** Toggle anomaly filter */
   setAnomalyFilter: (value: boolean) => void;
+  /** Set target vessel IMO for cross-route navigation (e.g. fleet → dashboard) */
+  setTargetVesselImo: (imo: string | null) => void;
   /** Add vessel to watchlist (optimistic update) */
   addToWatchlist: (entry: WatchlistEntry) => void;
   /** Remove vessel from watchlist (optimistic update) */
@@ -77,6 +81,7 @@ export const useVesselStore = create<VesselStore>((set) => ({
   alerts: [],
   unreadCount: 0,
   anomalyFilter: false,
+  targetVesselImo: null,
 
   // Existing setters
   setSelectedVessel: (vessel) => set({ selectedVessel: vessel, showTrack: false }),
@@ -93,6 +98,14 @@ export const useVesselStore = create<VesselStore>((set) => ({
   }),
   setUnreadCount: (unreadCount) => set({ unreadCount }),
   setAnomalyFilter: (anomalyFilter) => set({ anomalyFilter }),
+  setTargetVesselImo: (targetVesselImo) => {
+    if (targetVesselImo) {
+      console.log(`[VesselStore] targetVesselImo set: ${targetVesselImo}`);
+    } else {
+      console.log('[VesselStore] targetVesselImo cleared');
+    }
+    set({ targetVesselImo });
+  },
 
   // Optimistic updates for responsive UI
   addToWatchlist: (entry) => set((state) => ({

@@ -16,6 +16,7 @@
 - Human/UAT required: yes
 
 ## Verification
+- Verify inspectable failure state: ensure console warns or fails gracefully if targetVesselImo is set but no matching vessel is ever found in the map.
 
 - `npx tsc --noEmit`
 - `npm run test`
@@ -36,7 +37,7 @@
 
 ## Tasks
 
-- [ ] **T01: Extend vessel store and emit target IMO on navigation** `est:15m`
+- [x] **T01: Extend vessel store and emit target IMO on navigation** `est:15m`
   - Why: The store needs a way to hold a pending vessel selection during cross-route map jumps, since the fleet page doesn't have the full vessel data payload required by `setSelectedVessel`.
   - Files: `src/stores/vessel.ts`, `src/components/fleet/FleetVesselDetail.tsx`, `src/app/(protected)/dashboard/page.tsx`
   - Do: Add `targetVesselImo: string | null` state and `setTargetVesselImo` action to `useVesselStore`. In `FleetVesselDetail`'s `handleShowOnMap` and `DashboardPage`'s `handleSearchSelect`, dispatch the imo to `setTargetVesselImo` alongside `setMapCenter`.

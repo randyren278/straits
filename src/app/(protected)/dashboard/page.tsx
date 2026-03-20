@@ -15,6 +15,7 @@ import { useVesselStore } from '@/stores/vessel';
 
 export default function DashboardPage() {
   const setMapCenter = useVesselStore((state) => state.setMapCenter);
+  const setTargetVesselImo = useVesselStore((state) => state.setTargetVesselImo);
 
   // Handle vessel selection from search - fly to vessel position
   const handleSearchSelect = useCallback((result: {
@@ -31,8 +32,9 @@ export default function DashboardPage() {
         lon: result.longitude,
         zoom: 10,
       });
+      setTargetVesselImo(result.imo);
     }
-  }, [setMapCenter]);
+  }, [setMapCenter, setTargetVesselImo]);
 
   // Handle chokepoint selection - fly to chokepoint bounds
   const handleChokepointSelect = useCallback((bounds: {

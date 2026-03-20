@@ -169,7 +169,9 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
 
   const handleShowOnMap = () => {
     if (!position) return;
-    useVesselStore.getState().setMapCenter({ lat: position.lat, lon: position.lon, zoom: 12 });
+    const store = useVesselStore.getState();
+    store.setMapCenter({ lat: position.lat, lon: position.lon, zoom: 12 });
+    store.setTargetVesselImo(imo);
     router.push('/dashboard');
   };
 

@@ -40,3 +40,7 @@ The store needs a way to hold a pending vessel selection during cross-route map 
 - `src/stores/vessel.ts` — Store updated with `targetVesselImo`
 - `src/components/fleet/FleetVesselDetail.tsx` — Produces target IMO on map show
 - `src/app/(protected)/dashboard/page.tsx` — Produces target IMO on search
+
+## Observability Impact
+- Target vessel IMO is trackable in Zustand DevTools to ensure cross-page state is maintained correctly.
+- Add console logs when target vessel IMO is set or cleared, which helps trace cross-route jumps and target hydration without relying solely on DevTools.
