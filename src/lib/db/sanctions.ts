@@ -147,7 +147,13 @@ export async function getVesselsWithSanctions(
     ) p
     LEFT JOIN vessels v ON v.mmsi = p.mmsi
     LEFT JOIN vessel_sanctions s ON v.imo = s.imo
-    LEFT JOIN vessel_anomalies a ON v.imo = a.imo AND a.resolved_at IS NULL
+    LEFT JOIN LATERAL (
+      SELECT anomaly_type, confidence, detected_at
+      FROM vessel_anomalies
+      WHERE imo = v.imo AND resolved_at IS NULL
+      ORDER BY detected_at DESC
+      LIMIT 1
+    ) a ON true
     ${tankersOnly
       ? 'WHERE (v.ship_type IS NULL OR v.ship_type BETWEEN 80 AND 89)'
       : ''}

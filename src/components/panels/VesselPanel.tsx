@@ -129,7 +129,7 @@ export function VesselPanel() {
   };
 
   return (
-    <div className="bg-black max-h-[calc(100vh-4rem)] overflow-y-auto">
+    <div className="bg-black">
       {/* Terminal panel header */}
       <div className="px-3 py-1.5 border-b border-amber-500/20 flex items-center justify-between">
         <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">VESSEL DETAIL</span>
