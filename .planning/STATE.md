@@ -208,6 +208,7 @@ None yet.
 | 8 | update documentation to reflect expanded AIS coverage (6 bounding boxes) | 2026-03-14 | ee8ba4d | [8-update-documentation-to-reflect-expanded](./quick/8-update-documentation-to-reflect-expanded/) |
 | 9 | fix tanker filter to include unclassified vessels (NULL ship_type) | 2026-03-14 | e76bc44 | [9-fix-tanker-filter-to-include-unclassifie](./quick/9-fix-tanker-filter-to-include-unclassifie/) |
 | 10 | chokepoint header vessel list collapse toggle with absolute dropdown | 2026-03-17 | f1e0ea2 | [10-chokepoint-header-vessel-list-collapse-t](./quick/10-chokepoint-header-vessel-list-collapse-t/) |
+| 11 | add About tab with anomaly definitions and dark fleet risk score documentation | 2026-03-19 | 9ed2787 | [260319-vkp-add-about-tab-with-anomaly-definitions-a](./quick/260319-vkp-add-about-tab-with-anomaly-definitions-a/) |
 
 ### Blockers/Concerns
 
@@ -215,6 +216,6 @@ None — v1.3 roadmap defined. Ready to plan Phase 11.
 
 ## Session Continuity
 
-Last session: 2026-03-18T20:24:31.978Z
-Stopped at: Completed 14-02-PLAN.md — VesselPanel intelligence dossier with risk score, anomaly history, and destination log
+Last session: 2026-03-19T00:00:00Z
+Stopped at: Completed quick task 260319-vkp — About tab with anomaly definitions and risk score documentation
 Resume file: None
