@@ -65,8 +65,10 @@ export interface VesselWithSanctions {
 export const SANCTIONS_MIGRATION_SQL = `
   ALTER TABLE vessel_sanctions ADD COLUMN IF NOT EXISTS risk_category VARCHAR(50);
   ALTER TABLE vessel_sanctions ADD COLUMN IF NOT EXISTS datasets TEXT[];
-  ALTER TABLE vessel_sanctions ADD COLUMN IF NOT EXISTS flag VARCHAR(10);
-  ALTER TABLE vessel_sanctions ADD COLUMN IF NOT EXISTS mmsi VARCHAR(9);
+  ALTER TABLE vessel_sanctions ADD COLUMN IF NOT EXISTS flag VARCHAR(100);
+  ALTER TABLE vessel_sanctions ADD COLUMN IF NOT EXISTS mmsi VARCHAR(50);
+  ALTER TABLE vessel_sanctions ALTER COLUMN mmsi TYPE VARCHAR(50);
+  ALTER TABLE vessel_sanctions ALTER COLUMN flag TYPE VARCHAR(100);
   ALTER TABLE vessel_sanctions ADD COLUMN IF NOT EXISTS aliases TEXT[];
   ALTER TABLE vessel_sanctions ADD COLUMN IF NOT EXISTS opensanctions_url TEXT;
   ALTER TABLE vessel_sanctions ADD COLUMN IF NOT EXISTS vessel_type VARCHAR(20);

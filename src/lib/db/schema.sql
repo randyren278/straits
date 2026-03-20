@@ -90,8 +90,8 @@ CREATE TABLE IF NOT EXISTS vessel_sanctions (
   source_url TEXT,                                    -- URL to source document/list
   risk_category VARCHAR(50),                          -- OpenSanctions risk: sanction, mare.detained, mare.shadow;poi, poi, reg.warn
   datasets TEXT[],                                    -- All dataset IDs listing this entity (e.g., us_ofac_sdn, eu_fsf)
-  flag VARCHAR(10),                                   -- Vessel flag state ISO code from sanctions data
-  mmsi VARCHAR(9),                                    -- MMSI from sanctions data (cross-reference)
+  flag VARCHAR(100),                                   -- Vessel flag state(s) from sanctions data (may contain multiple semicolon-separated)
+  mmsi VARCHAR(50),                                    -- MMSI from sanctions data (may contain multiple semicolon-separated)
   aliases TEXT[],                                     -- All known aliases for the vessel
   opensanctions_url TEXT,                             -- Link to OpenSanctions entity profile
   vessel_type VARCHAR(20),                            -- VESSEL or ORGANIZATION
