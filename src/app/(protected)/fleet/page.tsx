@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react';
 import { Header } from '@/components/ui/Header';
 import { AnomalyTable } from '@/components/fleet/AnomalyTable';
+import { SanctionedVessels } from '@/components/fleet/SanctionedVessels';
 import type { Anomaly, AnomalyType } from '@/types/anomaly';
 
 /** Group anomalies by type and sort groups by count descending */
@@ -70,6 +71,19 @@ export default function FleetPage() {
 
   const groups = groupByType(anomalies);
 
+  // Deduplicate sanctioned vessels by IMO, keeping the highest risk score
+  const sanctionedVessels = (() => {
+    const sanctioned = anomalies.filter(a => a.isSanctioned);
+    const byImo = new Map<string, Anomaly>();
+    for (const a of sanctioned) {
+      const existing = byImo.get(a.imo);
+      if (!existing || (a.riskScore ?? 0) > (existing.riskScore ?? 0)) {
+        byImo.set(a.imo, a);
+      }
+    }
+    return Array.from(byImo.values());
+  })();
+
   return (
     <div className="min-h-screen bg-black text-white">
       <Header />
@@ -119,15 +133,18 @@ export default function FleetPage() {
 
         {/* Anomaly tables grouped by type */}
         {!loading && !error && anomalies.length > 0 && (
-          <div className="space-y-4">
-            {groups.map(({ type, items }) => (
-              <AnomalyTable
-                key={type}
-                anomalyType={type}
-                anomalies={items}
-              />
-            ))}
-          </div>
+          <>
+            <SanctionedVessels vessels={sanctionedVessels} />
+            <div className={`space-y-4${sanctionedVessels.length > 0 ? ' mt-4' : ''}`}>
+              {groups.map(({ type, items }) => (
+                <AnomalyTable
+                  key={type}
+                  anomalyType={type}
+                  anomalies={items}
+                />
+              ))}
+            </div>
+          </>
         )}
       </main>
     </div>
