@@ -12,6 +12,15 @@ Personal geopolitical intelligence dashboard tracking oil tankers across the Mid
 - Historical traffic analytics correlated with oil price movements
 - Vessel watchlist with notifications
 - Bloomberg terminal aesthetic: true black, amber accents, monospace data
+- Route deviation detection via destination geocoding
+- Behavioral pattern detection: repeat going-dark, destination changes, ship-to-ship transfers
+- Dark fleet risk scoring (0-100 composite score per vessel)
+- Vessel intelligence dossier panel with risk breakdown and anomaly history
+- About page documenting all anomaly definitions and scoring methodology
+
+## Anomaly Detection
+
+Tanker Tracker monitors 6 types of vessel anomalies: AIS signal loss (going dark), loitering outside anchorage, speed anomalies, route deviation from declared destination, repeat going-dark patterns, and ship-to-ship transfers. Each vessel receives a composite dark fleet risk score (0-100) based on its evasion signal history. See the About tab in the dashboard for full definitions and scoring methodology.
 
 ## Prerequisites
 
