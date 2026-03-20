@@ -1,10 +1,14 @@
 /**
  * SanctionedVessels — Red-accented panel listing sanctioned vessels at top of Fleet page.
  * Receives a pre-filtered, deduplicated array of Anomaly records from FleetPage.
+ * Click a row to expand the inline intelligence dossier (FleetVesselDetail).
  * Returns null when the array is empty (renders nothing).
  * Requirements: M007-S01 (Sanctions Priority List)
  */
+'use client';
 
+import React, { useState } from 'react';
+import { FleetVesselDetail } from '@/components/fleet/FleetVesselDetail';
 import type { Anomaly } from '@/types/anomaly';
 
 interface SanctionedVesselsProps {
@@ -12,6 +16,8 @@ interface SanctionedVesselsProps {
 }
 
 export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
+  const [expandedImo, setExpandedImo] = useState<string | null>(null);
+
   if (vessels.length === 0) {
     return null;
   }
@@ -57,41 +63,58 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
           </thead>
           <tbody>
             {vessels.map((vessel) => (
-              <tr
-                key={vessel.imo}
-                className="border-t border-red-500/10 hover:bg-red-500/5 transition-colors"
-                data-imo={vessel.imo}
-              >
-                <td className="px-4 py-2 text-sm font-mono text-gray-300">
-                  {vessel.vesselName || '—'}
-                </td>
-                <td className="px-4 py-2 text-sm font-mono text-gray-400">
-                  {vessel.imo}
-                </td>
-                <td className="px-4 py-2 text-sm font-mono text-gray-400">
-                  {vessel.flag || '—'}
-                </td>
-                <td className="px-4 py-2 text-sm font-mono">
-                  {vessel.riskScore != null ? (
-                    <span
-                      className={
-                        vessel.riskScore >= 70
-                          ? 'text-red-400'
-                          : vessel.riskScore >= 40
-                            ? 'text-amber-400'
-                            : 'text-green-400'
-                      }
-                    >
-                      {vessel.riskScore}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-2 text-sm font-mono text-gray-400">
-                  {vessel.sanctionRiskCategory || '—'}
-                </td>
-              </tr>
+              <React.Fragment key={vessel.imo}>
+                <tr
+                  className={`border-t border-red-500/10 cursor-pointer transition-colors ${
+                    expandedImo === vessel.imo
+                      ? 'bg-red-500/10'
+                      : 'hover:bg-red-500/5'
+                  }`}
+                  data-imo={vessel.imo}
+                  onClick={() => setExpandedImo(prev => prev === vessel.imo ? null : vessel.imo)}
+                >
+                  <td className="px-4 py-2 text-sm font-mono text-gray-300">
+                    {vessel.vesselName || '—'}
+                  </td>
+                  <td className="px-4 py-2 text-sm font-mono text-gray-400">
+                    {vessel.imo}
+                  </td>
+                  <td className="px-4 py-2 text-sm font-mono text-gray-400">
+                    {vessel.flag || '—'}
+                  </td>
+                  <td className="px-4 py-2 text-sm font-mono">
+                    {vessel.riskScore != null ? (
+                      <span
+                        className={
+                          vessel.riskScore >= 70
+                            ? 'text-red-400'
+                            : vessel.riskScore >= 40
+                              ? 'text-amber-400'
+                              : 'text-green-400'
+                        }
+                      >
+                        {vessel.riskScore}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-sm font-mono text-gray-400">
+                    {vessel.sanctionRiskCategory || '—'}
+                  </td>
+                </tr>
+                {expandedImo === vessel.imo && (
+                  <tr className="border-t border-red-500/10">
+                    <td colSpan={5} className="p-0">
+                      <FleetVesselDetail
+                        imo={vessel.imo}
+                        anomalyDetails={vessel.details}
+                        anomalyType={vessel.anomalyType}
+                      />
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
