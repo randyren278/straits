@@ -38,7 +38,7 @@ interface HeaderProps {
 
 export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
   const pathname = usePathname();
-  const isAnalytics = pathname === '/analytics';
+  const activeTab = pathname === '/analytics' ? 'analytics' : pathname === '/about' ? 'about' : 'dashboard';
 
   return (
     <header className="bg-black border-b border-amber-500/20">
@@ -49,7 +49,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             <Link
               href="/dashboard"
               className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
-                !isAnalytics
+                activeTab === 'dashboard'
                   ? 'border-amber-500 text-amber-500 bg-amber-500/10'
                   : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
               }`}
@@ -59,12 +59,22 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             <Link
               href="/analytics"
               className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
-                isAnalytics
+                activeTab === 'analytics'
                   ? 'border-amber-500 text-amber-500 bg-amber-500/10'
                   : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
               }`}
             >
               Analytics
+            </Link>
+            <Link
+              href="/about"
+              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
+                activeTab === 'about'
+                  ? 'border-amber-500 text-amber-500 bg-amber-500/10'
+                  : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
+              }`}
+            >
+              About
             </Link>
           </nav>
         </div>
@@ -77,7 +87,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
           <StatusBar />
         </div>
       </div>
-      {!isAnalytics && (
+      {activeTab === 'dashboard' && (
         <div className="flex items-start px-4 py-2 border-t border-amber-500/10">
           <ChokepointWidgets onSelect={onChokepointSelect} />
         </div>
