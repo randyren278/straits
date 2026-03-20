@@ -27,3 +27,19 @@
 **Impact:** Any feature that maps anomalies to coordinates must handle `null` positions. The "Show on Map" button in `FleetVesselDetail` disables itself when `extractPosition()` returns `null`. If new anomaly types are added, update the switch statement in `extractPosition()`.
 
 **File:** `src/components/fleet/FleetVesselDetail.tsx`
+
+## Client-side grouping threshold
+
+**Context:** The `/fleet` page groups anomalies by type entirely on the client after fetching the full `/api/anomalies` payload. This works well for typical fleet sizes (hundreds to low thousands of anomalies).
+
+**Threshold:** If the anomaly dataset grows beyond ~10k entries, move grouping and pagination to the server side. Signs you've hit this: slow initial render on `/fleet`, high memory usage in browser DevTools, or visible UI jank when the page loads.
+
+**File:** `src/app/(protected)/fleet/page.tsx` (`groupByType` function)
+
+## API endpoint enrichment via SQL JOINs
+
+**Pattern:** When a list endpoint needs related data from multiple tables (e.g. anomalies + vessel names + risk scores), enrich at the SQL level with LEFT JOINs rather than making N+1 client-side fetches. The `/api/anomalies` endpoint joins `vessel_anomalies`, `vessels`, and `vessel_risk_scores` in a single query.
+
+**Gotcha:** Any schema changes to the joined tables (`vessels`, `vessel_risk_scores`) must be reflected in the query. If columns are renamed or removed, the endpoint will return nulls or fail silently for those fields.
+
+**File:** `src/app/api/anomalies/route.ts`
