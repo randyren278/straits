@@ -48,9 +48,9 @@ export default function FleetPage() {
           const body = await res.json().catch(() => null);
           throw new Error(body?.error || `HTTP ${res.status}: Failed to fetch anomalies`);
         }
-        const data: Anomaly[] = await res.json();
+        const data: { anomalies: Anomaly[] } = await res.json();
         if (!cancelled) {
-          setAnomalies(data);
+          setAnomalies(data.anomalies || []);
         }
       } catch (err) {
         console.error('Fleet page fetch error:', err);
