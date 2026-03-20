@@ -49,7 +49,7 @@ This milestone is complete only when all are true:
 - [x] **S02: Inline Vessel Detail & Map Navigation** `risk:low` `depends:[S01]`
   > After this: Users can expand any anomaly row to see a detailed risk dossier and click "Show on Map" to jump to that vessel's map position.
 
-- [ ] **S03: End-to-End Fleet Integration & Verification** `risk:low` `depends:[S02]`
+- [x] **S03: End-to-End Fleet Integration & Verification** `risk:low` `depends:[S02]`
   > After this: The entire fleet workflow is proven to operate seamlessly from global overview down to specific vessel map tracking in a real environment.
 
 ## Boundary Map
