@@ -232,19 +232,30 @@ export function VesselPanel() {
 
       {/* Sanctions Alert Section */}
       {'isSanctioned' in selectedVessel &&
-        (selectedVessel as VesselWithSanctions).isSanctioned === true && (
-        <div className="mx-3 mb-2 px-3 py-2 bg-red-900/30 border border-red-700">
-          <div className="flex items-center gap-2 text-red-400">
-            <AlertTriangle className="w-4 h-4" />
-            <span className="font-mono text-xs uppercase tracking-widest">SANCTIONED</span>
-          </div>
-          <p className="text-xs text-red-300 mt-1">
-            {(selectedVessel as VesselWithSanctions).sanctioningAuthority}{' '}
-            {'\u2022'}{' '}
-            {(selectedVessel as VesselWithSanctions).sanctionReason || 'Sanctioned entity'}
-          </p>
-        </div>
-      )}
+        (selectedVessel as VesselWithSanctions).isSanctioned === true && (() => {
+          const sv = selectedVessel as VesselWithSanctions;
+          const riskCat = sv.sanctionRiskCategory || '';
+          const isShadow = riskCat === 'mare.shadow;poi';
+          const isDetained = riskCat.startsWith('mare.detained');
+          const isSanctionedRisk = riskCat === 'sanction';
+          const bgColor = isShadow ? 'bg-purple-900/30 border-purple-700' : isDetained ? 'bg-rose-900/30 border-rose-700' : 'bg-red-900/30 border-red-700';
+          const textColor = isShadow ? 'text-purple-400' : isDetained ? 'text-rose-400' : 'text-red-400';
+          const subColor = isShadow ? 'text-purple-300' : isDetained ? 'text-rose-300' : 'text-red-300';
+          const label = isShadow ? 'SHADOW FLEET' : isDetained ? 'DETAINED' : isSanctionedRisk ? 'SANCTIONED' : 'LISTED';
+          return (
+            <div className={`mx-3 mb-2 px-3 py-2 ${bgColor}`}>
+              <div className={`flex items-center gap-2 ${textColor}`}>
+                <AlertTriangle className="w-4 h-4" />
+                <span className="font-mono text-xs uppercase tracking-widest">{label}</span>
+              </div>
+              <p className={`text-xs ${subColor} mt-1`}>
+                {sv.sanctioningAuthority}{' '}
+                {'\u2022'}{' '}
+                {riskCat || 'Listed entity'}
+              </p>
+            </div>
+          );
+        })()}
 
       {/* Anomaly Detection Section */}
       {vesselWithAnomaly.anomalyType && (

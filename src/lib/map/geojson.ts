@@ -15,6 +15,7 @@ interface VesselForGeoJSON {
   destination: string | null;
   isSanctioned?: boolean;
   sanctioningAuthority?: string | null;
+  sanctionRiskCategory?: string | null;
   // Anomaly fields
   anomalyType?: string | null;
   anomalyConfidence?: string | null;
@@ -64,6 +65,7 @@ export function vesselsToGeoJSON(
           // Sanctions properties
           isSanctioned: v.isSanctioned || false,
           sanctioningAuthority: v.sanctioningAuthority || null,
+          sanctionRiskCategory: v.sanctionRiskCategory || null,
           // Anomaly properties
           hasAnomaly: v.anomalyType !== undefined && v.anomalyType !== null,
           anomalyType: v.anomalyType || null,

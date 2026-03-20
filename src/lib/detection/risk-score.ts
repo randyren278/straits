@@ -39,6 +39,9 @@ interface RiskAggRow {
  * Uses a single aggregation query across vessel_anomalies, vessels, and vessel_sanctions
  * to avoid N+1 per-vessel queries. Scores are upserted into vessel_risk_scores.
  *
+ * M005-S02: Only risk categories 'sanction' and 'mare.shadow;poi' contribute to the
+ * sanctions factor. Port state detentions (mare.detained) are informational only.
+ *
  * @returns Number of vessels scored
  */
 export async function computeRiskScores(): Promise<number> {
@@ -49,11 +52,11 @@ export async function computeRiskScores(): Promise<number> {
       COUNT(*) FILTER (WHERE va.anomaly_type = 'going_dark') AS dark_count,
       COUNT(*) FILTER (WHERE va.anomaly_type = 'loitering' AND va.detected_at > NOW() - INTERVAL '90 days') AS loiter_count,
       COUNT(*) FILTER (WHERE va.anomaly_type = 'sts_transfer') AS sts_count,
-      CASE WHEN vs.imo IS NOT NULL THEN 1 ELSE 0 END AS is_sanctioned
+      CASE WHEN vs.imo IS NOT NULL AND vs.risk_category IN ('sanction', 'mare.shadow;poi') THEN 1 ELSE 0 END AS is_sanctioned
     FROM vessel_anomalies va
     LEFT JOIN vessels v ON v.imo = va.imo
     LEFT JOIN vessel_sanctions vs ON vs.imo = va.imo
-    GROUP BY va.imo, v.flag, vs.imo
+    GROUP BY va.imo, v.flag, vs.imo, vs.risk_category
   `);
 
   let count = 0;

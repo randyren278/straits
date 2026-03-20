@@ -86,7 +86,28 @@ export function VesselMap() {
             // Priority 5: Deviation (purple)
             ['==', ['get', 'anomalyType'], 'deviation'],
             '#a855f7',
-            // Priority 6: Sanctioned vessels (red)
+            // Priority 6: Sanctioned vessels (bright red)
+            ['all',
+              ['==', ['get', 'isSanctioned'], true],
+              ['==', ['get', 'sanctionRiskCategory'], 'sanction']
+            ],
+            '#ef4444',
+            // Priority 7: Shadow fleet vessels (purple)
+            ['all',
+              ['==', ['get', 'isSanctioned'], true],
+              ['==', ['get', 'sanctionRiskCategory'], 'mare.shadow;poi']
+            ],
+            '#a855f7',
+            // Priority 8: Detained vessels (dim red/rose)
+            ['all',
+              ['==', ['get', 'isSanctioned'], true],
+              ['any',
+                ['==', ['get', 'sanctionRiskCategory'], 'mare.detained'],
+                ['==', ['get', 'sanctionRiskCategory'], 'mare.detained;reg.warn']
+              ]
+            ],
+            '#fb7185',
+            // Priority 9: Other sanctioned/listed vessels (red fallback)
             ['==', ['get', 'isSanctioned'], true],
             '#ef4444',
             // Priority 7: Tankers (amber)
