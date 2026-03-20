@@ -35,7 +35,8 @@ vi.mock('../../lib/external/opensanctions', () => ({
 }));
 
 vi.mock('../../lib/db/sanctions', () => ({
-  upsertSanction: vi.fn().mockResolvedValue(undefined),
+  batchUpsertSanctions: vi.fn().mockResolvedValue({ upserted: 0, deleted: 0 }),
+  migrateSanctionsSchema: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { startRefreshJobs } from './refresh-jobs';

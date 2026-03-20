@@ -1,14 +1,18 @@
 /**
- * Tests for OpenSanctions CSV fetcher and parser.
- * INTL-01: Sanctions matching
+ * Tests for OpenSanctions maritime CSV fetcher and parser.
+ * M005-S01: Updated for maritime-specific CSV format.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { normalizeIMO, parseSanctionsCSV, fetchSanctionsList } from './opensanctions';
+import { normalizeIMO, parseMaritimeCSV, parseSanctionsCSV, fetchSanctionsList } from './opensanctions';
 
-describe('OpenSanctions', () => {
+describe('OpenSanctions Maritime', () => {
   describe('normalizeIMO', () => {
     it('removes IMO prefix and returns 7-digit number', () => {
       expect(normalizeIMO('IMO 1234567')).toBe('1234567');
+    });
+
+    it('removes IMO prefix without space', () => {
+      expect(normalizeIMO('IMO9187629')).toBe('9187629');
     });
 
     it('removes lowercase imo prefix', () => {
@@ -48,77 +52,131 @@ describe('OpenSanctions', () => {
     });
   });
 
-  describe('parseSanctionsCSV', () => {
-    const sampleCSV = `id,name,datasets,first_seen,imo_number,topics,source_url
-q-123,TANKER VESSEL,us_ofac_sdn,2023-01-15,1234567,sanction,https://ofac.gov
-q-456,CARGO SHIP,eu_fsf,2023-06-20,IMO 7654321,debarment,https://europa.eu
-q-789,UNKNOWN ENTITY,un_sc,,,,
-q-012,BAD VESSEL,us_ofac_sdn,2024-03-01,123,crime,https://ofac.gov`;
+  describe('parseMaritimeCSV', () => {
+    const sampleCSV = `"type","caption","imo","risk","countries","flag","mmsi","id","url","datasets","aliases"
+"VESSEL","ABADAN","IMO9187629","sanction","ir;mt;tv;tz","ir","572469210","ofac-15036","https://www.opensanctions.org/entities/ofac-15036","us_ofac_sdn;us_trade_csl","ALPHA;ARTAVIL;SHONA"
+"VESSEL","ARK III","IMO9187655","sanction","ir","ir","","ofac-15037","https://www.opensanctions.org/entities/ofac-15037","us_ofac_sdn;us_trade_csl","ABADEH;Ark;CRYSTAL;SUNDIAL"
+"VESSEL","BOUDREAUX TIDE","IMO9427366","mare.detained","vu","vu","","abuja-mou-det-123","https://www.opensanctions.org/entities/abuja-mou-det-123","abuja_mou_detention",""
+"VESSEL","DMITRY POKROVSKY","IMO9683726","mare.shadow;poi","ru","ru","273332580","ua-ws-vessel-1003","https://www.opensanctions.org/entities/ua-ws-vessel-1003","ua_war_sanctions",""
+"ORGANIZATION","SOME COMPANY","IMO6495856","poi","cn;hk","","","org-123","https://www.opensanctions.org/entities/org-123","us_ofac_sdn",""
+"VESSEL","NO IMO VESSEL","","sanction","ir","ir","","ofac-99999","https://www.opensanctions.org/entities/ofac-99999","us_ofac_sdn",""`;
 
-    it('parses CSV rows into SanctionEntry objects', () => {
-      const entries = parseSanctionsCSV(sampleCSV);
-      expect(entries.length).toBe(3); // Only entries with valid IMO
+    it('parses maritime CSV rows into SanctionEntry objects', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      // 5 with valid IMO (one vessel has no IMO)
+      expect(entries.length).toBe(5);
     });
 
-    it('normalizes IMO numbers in parsed entries', () => {
-      const entries = parseSanctionsCSV(sampleCSV);
-      const tanker = entries.find(e => e.name === 'TANKER VESSEL');
-      expect(tanker?.imo).toBe('1234567');
+    it('normalizes IMO numbers with prefix', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const abadan = entries.find(e => e.name === 'ABADAN');
+      expect(abadan?.imo).toBe('9187629');
     });
 
-    it('normalizes IMO with prefix', () => {
-      const entries = parseSanctionsCSV(sampleCSV);
-      const cargo = entries.find(e => e.name === 'CARGO SHIP');
-      expect(cargo?.imo).toBe('7654321');
+    it('extracts vessel type', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const abadan = entries.find(e => e.name === 'ABADAN');
+      expect(abadan?.vesselType).toBe('VESSEL');
+      const org = entries.find(e => e.name === 'SOME COMPANY');
+      expect(org?.vesselType).toBe('ORGANIZATION');
     });
 
-    it('pads short IMO numbers', () => {
-      const entries = parseSanctionsCSV(sampleCSV);
-      const bad = entries.find(e => e.name === 'BAD VESSEL');
-      expect(bad?.imo).toBe('0000123');
+    it('extracts risk category', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const abadan = entries.find(e => e.name === 'ABADAN');
+      expect(abadan?.riskCategory).toBe('sanction');
+      const detained = entries.find(e => e.name === 'BOUDREAUX TIDE');
+      expect(detained?.riskCategory).toBe('mare.detained');
+      const shadow = entries.find(e => e.name === 'DMITRY POKROVSKY');
+      expect(shadow?.riskCategory).toBe('mare.shadow;poi');
     });
 
-    it('maps OFAC dataset to OFAC authority', () => {
-      const entries = parseSanctionsCSV(sampleCSV);
-      const tanker = entries.find(e => e.name === 'TANKER VESSEL');
-      expect(tanker?.authority).toBe('OFAC');
+    it('parses datasets into array', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const abadan = entries.find(e => e.name === 'ABADAN');
+      expect(abadan?.datasets).toEqual(['us_ofac_sdn', 'us_trade_csl']);
     });
 
-    it('maps EU dataset to EU authority', () => {
-      const entries = parseSanctionsCSV(sampleCSV);
-      const cargo = entries.find(e => e.name === 'CARGO SHIP');
-      expect(cargo?.authority).toBe('EU');
+    it('extracts flag state', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const abadan = entries.find(e => e.name === 'ABADAN');
+      expect(abadan?.flag).toBe('ir');
     });
 
-    it('parses first_seen as Date', () => {
-      const entries = parseSanctionsCSV(sampleCSV);
-      const tanker = entries.find(e => e.name === 'TANKER VESSEL');
-      expect(tanker?.listDate).toEqual(new Date('2023-01-15'));
+    it('extracts MMSI when available', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const abadan = entries.find(e => e.name === 'ABADAN');
+      expect(abadan?.mmsi).toBe('572469210');
+      const ark = entries.find(e => e.name === 'ARK III');
+      expect(ark?.mmsi).toBe('');
     });
 
-    it('returns null for missing first_seen', () => {
-      const csvWithoutDate = `id,name,datasets,first_seen,imo_number,topics,source_url
-q-123,NO DATE VESSEL,us_ofac_sdn,,9999999,sanction,https://ofac.gov`;
-      const entries = parseSanctionsCSV(csvWithoutDate);
-      expect(entries[0].listDate).toBeNull();
+    it('parses aliases into array', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const abadan = entries.find(e => e.name === 'ABADAN');
+      expect(abadan?.aliases).toEqual(['ALPHA', 'ARTAVIL', 'SHONA']);
+    });
+
+    it('handles empty aliases', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const detained = entries.find(e => e.name === 'BOUDREAUX TIDE');
+      expect(detained?.aliases).toEqual([]);
+    });
+
+    it('extracts OpenSanctions URL', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const abadan = entries.find(e => e.name === 'ABADAN');
+      expect(abadan?.opensanctionsUrl).toBe('https://www.opensanctions.org/entities/ofac-15036');
+    });
+
+    it('parses countries into array', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const abadan = entries.find(e => e.name === 'ABADAN');
+      expect(abadan?.countries).toEqual(['ir', 'mt', 'tv', 'tz']);
+    });
+
+    it('derives OFAC authority from datasets', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const abadan = entries.find(e => e.name === 'ABADAN');
+      expect(abadan?.authority).toBe('OFAC');
+    });
+
+    it('derives UA authority from war sanctions dataset', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const shadow = entries.find(e => e.name === 'DMITRY POKROVSKY');
+      expect(shadow?.authority).toBe('UA');
+    });
+
+    it('derives PSC authority from MoU detention dataset', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const detained = entries.find(e => e.name === 'BOUDREAUX TIDE');
+      expect(detained?.authority).toBe('PSC');
     });
 
     it('filters out entries without IMO numbers', () => {
-      const entries = parseSanctionsCSV(sampleCSV);
-      const unknown = entries.find(e => e.name === 'UNKNOWN ENTITY');
-      expect(unknown).toBeUndefined();
+      const entries = parseMaritimeCSV(sampleCSV);
+      const noImo = entries.find(e => e.name === 'NO IMO VESSEL');
+      expect(noImo).toBeUndefined();
     });
 
-    it('extracts reason from topics field', () => {
-      const entries = parseSanctionsCSV(sampleCSV);
-      const tanker = entries.find(e => e.name === 'TANKER VESSEL');
-      expect(tanker?.reason).toBe('sanction');
+    it('sets listDate to null (not available in maritime CSV)', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      expect(entries[0].listDate).toBeNull();
     });
 
-    it('extracts sourceUrl field', () => {
-      const entries = parseSanctionsCSV(sampleCSV);
-      const tanker = entries.find(e => e.name === 'TANKER VESSEL');
-      expect(tanker?.sourceUrl).toBe('https://ofac.gov');
+    it('uses risk category as reason for backward compatibility', () => {
+      const entries = parseMaritimeCSV(sampleCSV);
+      const abadan = entries.find(e => e.name === 'ABADAN');
+      expect(abadan?.reason).toBe('sanction');
+    });
+
+    it('throws on missing required columns', () => {
+      const badCSV = `"id","name","wrong_column"\n"1","test","value"`;
+      expect(() => parseMaritimeCSV(badCSV)).toThrow('Maritime CSV schema mismatch');
+    });
+
+    it('parseSanctionsCSV is backward-compatible alias', () => {
+      expect(parseSanctionsCSV).toBe(parseMaritimeCSV);
     });
   });
 
@@ -131,18 +189,18 @@ q-123,NO DATE VESSEL,us_ofac_sdn,,9999999,sanction,https://ofac.gov`;
       vi.unstubAllGlobals();
     });
 
-    it('fetches from OpenSanctions URL', async () => {
+    it('fetches from maritime CSV URL', async () => {
       const mockFetch = vi.mocked(fetch);
       mockFetch.mockResolvedValue({
         ok: true,
-        text: () => Promise.resolve(`id,name,datasets,first_seen,imo_number,topics,source_url
-q-123,TEST VESSEL,us_ofac_sdn,2023-01-15,1234567,sanction,https://ofac.gov`),
+        text: () => Promise.resolve(`"type","caption","imo","risk","countries","flag","mmsi","id","url","datasets","aliases"
+"VESSEL","TEST","IMO1234567","sanction","us","us","","test-1","https://opensanctions.org/test","us_ofac_sdn",""`)
       } as Response);
 
       await fetchSanctionsList();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://data.opensanctions.org/datasets/latest/default/targets.simple.csv'
+        'https://data.opensanctions.org/datasets/latest/maritime/maritime.csv'
       );
     });
 
@@ -150,8 +208,8 @@ q-123,TEST VESSEL,us_ofac_sdn,2023-01-15,1234567,sanction,https://ofac.gov`),
       const mockFetch = vi.mocked(fetch);
       mockFetch.mockResolvedValue({
         ok: true,
-        text: () => Promise.resolve(`id,name,datasets,first_seen,imo_number,topics,source_url
-q-123,TEST VESSEL,us_ofac_sdn,2023-01-15,1234567,sanction,https://ofac.gov`),
+        text: () => Promise.resolve(`"type","caption","imo","risk","countries","flag","mmsi","id","url","datasets","aliases"
+"VESSEL","TEST VESSEL","IMO1234567","sanction","us","us","123456789","test-1","https://opensanctions.org/test","us_ofac_sdn;us_trade_csl","ALIAS1;ALIAS2"`)
       } as Response);
 
       const entries = await fetchSanctionsList();
@@ -159,6 +217,9 @@ q-123,TEST VESSEL,us_ofac_sdn,2023-01-15,1234567,sanction,https://ofac.gov`),
       expect(entries).toHaveLength(1);
       expect(entries[0].imo).toBe('1234567');
       expect(entries[0].authority).toBe('OFAC');
+      expect(entries[0].riskCategory).toBe('sanction');
+      expect(entries[0].datasets).toEqual(['us_ofac_sdn', 'us_trade_csl']);
+      expect(entries[0].aliases).toEqual(['ALIAS1', 'ALIAS2']);
     });
 
     it('throws error on non-OK response', async () => {
@@ -168,7 +229,7 @@ q-123,TEST VESSEL,us_ofac_sdn,2023-01-15,1234567,sanction,https://ofac.gov`),
         status: 404,
       } as Response);
 
-      await expect(fetchSanctionsList()).rejects.toThrow('Failed to fetch sanctions: 404');
+      await expect(fetchSanctionsList()).rejects.toThrow('Failed to fetch maritime sanctions: 404');
     });
 
     it('throws error on network failure', async () => {

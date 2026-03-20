@@ -171,6 +171,7 @@ export function VesselMap() {
           isSanctioned: props?.isSanctioned || false,
           sanctioningAuthority: props?.sanctioningAuthority || null,
           sanctionReason: null, // Not stored in GeoJSON properties
+          sanctionRiskCategory: props?.sanctionRiskCategory || null,
           anomalyType: props?.anomalyType || null,
           anomalyConfidence: props?.anomalyConfidence || null,
           position: {

@@ -1,3 +1,7 @@
+/**
+ * Tests for Sanctions Matcher.
+ * M005-S01: Updated for enriched sanction records.
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { normalizeIMO, matchVesselSanctions } from './matcher';
 
@@ -31,13 +35,20 @@ describe('Sanctions Matcher', () => {
       mockGetSanction.mockReset();
     });
 
-    it('returns sanction data when IMO matches OFAC list', async () => {
+    it('returns enriched sanction data when IMO matches', async () => {
       mockGetSanction.mockResolvedValue({
         imo: '1234567',
         sanctioningAuthority: 'OFAC',
-        listDate: new Date('2023-01-15'),
+        listDate: null,
         reason: 'sanction',
         confidence: 'HIGH',
+        riskCategory: 'sanction',
+        datasets: ['us_ofac_sdn', 'us_trade_csl'],
+        flag: 'ir',
+        mmsi: '572469210',
+        aliases: ['ALPHA', 'ARTAVIL'],
+        opensanctionsUrl: 'https://www.opensanctions.org/entities/ofac-15036',
+        vesselType: 'VESSEL',
       });
 
       const result = await matchVesselSanctions('1234567');
@@ -45,43 +56,39 @@ describe('Sanctions Matcher', () => {
       expect(result).not.toBeNull();
       expect(result?.authority).toBe('OFAC');
       expect(result?.imo).toBe('1234567');
-    });
-
-    it('returns sanction data when IMO matches EU list', async () => {
-      mockGetSanction.mockResolvedValue({
-        imo: '7654321',
-        sanctioningAuthority: 'EU',
-        listDate: new Date('2024-03-01'),
-        reason: 'debarment',
-        confidence: 'HIGH',
-      });
-
-      const result = await matchVesselSanctions('7654321');
-
-      expect(result?.authority).toBe('EU');
+      expect(result?.riskCategory).toBe('sanction');
+      expect(result?.datasets).toEqual(['us_ofac_sdn', 'us_trade_csl']);
+      expect(result?.aliases).toEqual(['ALPHA', 'ARTAVIL']);
+      expect(result?.opensanctionsUrl).toBe('https://www.opensanctions.org/entities/ofac-15036');
+      expect(result?.flag).toBe('ir');
     });
 
     it('returns null when IMO not found in any list', async () => {
       mockGetSanction.mockResolvedValue(null);
 
       const result = await matchVesselSanctions('9999999');
-
       expect(result).toBeNull();
     });
 
-    it('returns highest confidence match when multiple sources', async () => {
-      // Since we only store one record per IMO, the stored confidence is returned
+    it('returns highest confidence match when stored', async () => {
       mockGetSanction.mockResolvedValue({
         imo: '1234567',
-        sanctioningAuthority: 'OFAC',
-        listDate: new Date('2023-01-15'),
+        sanctioningAuthority: 'EU',
+        listDate: null,
         reason: 'sanction',
         confidence: 'HIGH',
+        riskCategory: 'sanction',
+        datasets: ['eu_fsf'],
+        flag: 'ir',
+        mmsi: null,
+        aliases: null,
+        opensanctionsUrl: null,
+        vesselType: 'VESSEL',
       });
 
       const result = await matchVesselSanctions('1234567');
-
       expect(result?.confidence).toBe('HIGH');
+      expect(result?.authority).toBe('EU');
     });
   });
 });

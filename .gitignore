@@ -29,6 +29,30 @@ Thumbs.db
 # Planning debug artifacts
 .planning/debug/
 
+# GSD artifacts
+.gsd/browser-state/
+.gsd/browser-baselines/
+
 # Editor
 .vscode/
 .idea/
+
+# ── GSD baseline (auto-generated) ──
+.gsd
+*.swp
+*.swo
+*~
+*.code-workspace
+.env.*
+!.env.example
+dist/
+build/
+__pycache__/
+*.pyc
+.venv/
+venv/
+target/
+vendor/
+coverage/
+.cache/
+tmp/

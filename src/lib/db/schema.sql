@@ -77,16 +77,25 @@ SELECT add_compression_policy('vessel_positions', INTERVAL '7 days', if_not_exis
 -- Phase 2: Intelligence Layers
 -- =============================================================================
 
--- Vessel sanctions table (INTL-01)
--- Stores matched vessels from OpenSanctions and other sanctions lists
--- IMO as primary key allows direct joining with vessels table
+-- Vessel sanctions table (INTL-01, M005-S01)
+-- Stores matched vessels from OpenSanctions maritime dataset.
+-- IMO as primary key allows direct joining with vessels table.
+-- M005: Enriched with risk_category, datasets[], flag, mmsi, aliases[], opensanctions_url, vessel_type, name.
 CREATE TABLE IF NOT EXISTS vessel_sanctions (
   imo VARCHAR(10) PRIMARY KEY,                        -- Vessel IMO number (matches vessels.imo)
-  sanctioning_authority VARCHAR(10) NOT NULL,         -- Authority code: OFAC, EU, UN, etc.
-  list_date DATE,                                     -- Date vessel was added to sanctions list
-  reason TEXT,                                        -- Reason for sanctions (if provided)
+  sanctioning_authority VARCHAR(10) NOT NULL,         -- Primary authority code: OFAC, EU, UK, CA, UN, CH, UA, PSC, etc.
+  list_date DATE,                                     -- Date vessel was added to sanctions list (legacy, may be null)
+  reason TEXT,                                        -- Risk category used as reason for backward compatibility
   confidence VARCHAR(10) DEFAULT 'HIGH',              -- Match confidence: HIGH, MEDIUM, LOW
   source_url TEXT,                                    -- URL to source document/list
+  risk_category VARCHAR(50),                          -- OpenSanctions risk: sanction, mare.detained, mare.shadow;poi, poi, reg.warn
+  datasets TEXT[],                                    -- All dataset IDs listing this entity (e.g., us_ofac_sdn, eu_fsf)
+  flag VARCHAR(10),                                   -- Vessel flag state ISO code from sanctions data
+  mmsi VARCHAR(9),                                    -- MMSI from sanctions data (cross-reference)
+  aliases TEXT[],                                     -- All known aliases for the vessel
+  opensanctions_url TEXT,                             -- Link to OpenSanctions entity profile
+  vessel_type VARCHAR(20),                            -- VESSEL or ORGANIZATION
+  name TEXT,                                          -- Vessel/organization name from sanctions list
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),      -- Record creation time
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()       -- Last update time
 );

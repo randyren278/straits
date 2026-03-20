@@ -20,7 +20,7 @@ import { insertPrice } from '../../lib/db/prices';
 import { fetchNews } from '../../lib/news/fetcher';
 import { insertNewsItem } from '../../lib/db/news';
 import { fetchSanctionsList } from '../../lib/external/opensanctions';
-import { upsertSanction } from '../../lib/db/sanctions';
+import { batchUpsertSanctions, migrateSanctionsSchema } from '../../lib/db/sanctions';
 
 /**
  * Eager startup fetch for oil prices.
@@ -55,14 +55,16 @@ async function eagerFetchNews(): Promise<void> {
 
 /**
  * Eager startup fetch for sanctions list.
+ * Also runs schema migration to add enriched columns (idempotent).
  */
 async function eagerFetchSanctions(): Promise<void> {
   try {
+    await migrateSanctionsSchema();
     const entries = await fetchSanctionsList();
-    for (const entry of entries) {
-      await upsertSanction(entry);
-    }
-    console.log(`[STARTUP] Sanctions fetched: ${entries.length} entries`);
+    const result = await batchUpsertSanctions(entries);
+    console.log(
+      `[STARTUP] Sanctions fetched: ${result.upserted} entries upserted, ${result.deleted} stale removed`
+    );
   } catch (err) {
     console.error('[STARTUP] Sanctions fetch error:', err);
   }
@@ -119,10 +121,10 @@ export function startRefreshJobs(): void {
     console.log('[CRON] Running sanctions refresh...');
     try {
       const entries = await fetchSanctionsList();
-      for (const entry of entries) {
-        await upsertSanction(entry);
-      }
-      console.log(`[CRON] Sanctions refreshed: ${entries.length} entries`);
+      const result = await batchUpsertSanctions(entries);
+      console.log(
+        `[CRON] Sanctions refreshed: ${result.upserted} entries upserted, ${result.deleted} stale removed`
+      );
     } catch (err) {
       console.error('[CRON] Sanctions refresh error:', err);
     }

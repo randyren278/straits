@@ -1,21 +1,27 @@
 /**
- * Sanctions Matcher (INTL-01)
+ * Sanctions Matcher (INTL-01, M005)
  *
- * Matches vessel IMO numbers against OpenSanctions and other sanctions lists.
- * Supports OFAC, EU, and UN sanctions lists.
+ * Matches vessel IMO numbers against OpenSanctions maritime sanctions lists.
+ * Supports OFAC, EU, UK, Canada, UN, and 23 other data sources.
  */
 import { getSanction } from '../db/sanctions';
+import type { SanctionRecord } from '../db/sanctions';
 
 // Re-export normalizeIMO from opensanctions for backwards compatibility
 export { normalizeIMO } from '../external/opensanctions';
 
 export interface SanctionMatch {
   imo: string;
-  authority: 'OFAC' | 'EU' | 'UN';
+  authority: string;
   listDate: Date | null;
   reason: string | null;
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   sourceUrl: string | null;
+  riskCategory: string | null;
+  datasets: string[] | null;
+  aliases: string[] | null;
+  opensanctionsUrl: string | null;
+  flag: string | null;
 }
 
 /**
@@ -33,10 +39,15 @@ export async function matchVesselSanctions(
 
   return {
     imo: record.imo,
-    authority: record.sanctioningAuthority as 'OFAC' | 'EU' | 'UN',
+    authority: record.sanctioningAuthority,
     listDate: record.listDate,
     reason: record.reason,
     confidence: (record.confidence as 'HIGH' | 'MEDIUM' | 'LOW') || 'HIGH',
-    sourceUrl: null, // sourceUrl not stored in SanctionRecord
+    sourceUrl: record.opensanctionsUrl || null,
+    riskCategory: record.riskCategory || null,
+    datasets: record.datasets || null,
+    aliases: record.aliases || null,
+    opensanctionsUrl: record.opensanctionsUrl || null,
+    flag: record.flag || null,
   };
 }
