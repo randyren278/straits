@@ -3,6 +3,7 @@
  * Configures environment and mocks for all tests.
  */
 import { vi } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 
 // Mock environment variables for tests
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';

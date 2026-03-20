@@ -43,3 +43,13 @@
 **Gotcha:** Any schema changes to the joined tables (`vessels`, `vessel_risk_scores`) must be reflected in the query. If columns are renamed or removed, the endpoint will return nulls or fail silently for those fields.
 
 **File:** `src/app/api/anomalies/route.ts`
+
+## Happy-dom requires explicit cleanup in RTL tests
+
+**Context:** When using `@testing-library/react` with Vitest's `happy-dom` environment, DOM state accumulates across tests within the same file. Unlike `jsdom`, happy-dom doesn't integrate with RTL's automatic cleanup.
+
+**Fix:** Add `afterEach(cleanup)` at the top of each test file, imported from `@testing-library/react`. Without this, queries like `getByRole('button')` will fail with "multiple elements found" because previous test renders persist in the DOM.
+
+**Also:** Use `getByRole` with a `name` filter (e.g. `{ name: /Going Dark anomalies/ }`) to make queries resilient even if cleanup issues resurface — it's good practice regardless.
+
+**File:** `src/components/fleet/__tests__/AnomalyTable.test.tsx` (pattern reference)

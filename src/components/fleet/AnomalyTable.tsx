@@ -38,7 +38,7 @@ function formatTimestamp(date: Date | string): string {
 }
 
 export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
-  const [expanded, setExpanded] = useState<boolean>(true);
+  const [expanded, setExpanded] = useState<boolean>(false);
   const [expandedImo, setExpandedImo] = useState<string | null>(null);
 
   return (
