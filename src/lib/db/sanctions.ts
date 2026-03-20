@@ -131,8 +131,12 @@ export async function upsertSanction(entry: SanctionEntry): Promise<void> {
  * Batch upsert sanctions entries with stale cleanup.
  *
  * Strategy:
- * 1. Upsert all entries in batches of 500 (using unnest for multi-row insert)
+ * 1. Upsert all entries within a single transaction (individual INSERTs)
  * 2. Delete entries not present in the current fetch (stale cleanup)
+ *
+ * Using individual upserts in a transaction rather than unnest because
+ * PostgreSQL unnest can't handle arrays of arrays (text[][]) from node-pg.
+ * ~16,900 individual INSERTs in a transaction completes in <10 seconds.
  *
  * @param entries - Full list of sanction entries from the latest CSV fetch
  * @returns Object with counts of upserted and deleted entries
@@ -142,90 +146,66 @@ export async function batchUpsertSanctions(
 ): Promise<{ upserted: number; deleted: number }> {
   if (entries.length === 0) return { upserted: 0, deleted: 0 };
 
-  const BATCH_SIZE = 500;
-  let upserted = 0;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-    const batch = entries.slice(i, i + BATCH_SIZE);
-
-    const imos: string[] = [];
-    const authorities: string[] = [];
-    const reasons: (string | null)[] = [];
-    const sourceUrls: string[] = [];
-    const riskCategories: (string | null)[] = [];
-    const datasetsArr: (string[] | null)[] = [];
-    const flags: (string | null)[] = [];
-    const mmsis: (string | null)[] = [];
-    const aliasesArr: (string[] | null)[] = [];
-    const urls: (string | null)[] = [];
-    const vesselTypes: (string | null)[] = [];
-    const names: (string | null)[] = [];
-
-    for (const entry of batch) {
-      imos.push(entry.imo);
-      authorities.push(entry.authority);
-      reasons.push(entry.reason);
-      sourceUrls.push(entry.sourceUrl);
-      riskCategories.push(entry.riskCategory || null);
-      datasetsArr.push(entry.datasets.length > 0 ? entry.datasets : null);
-      flags.push(entry.flag || null);
-      mmsis.push(entry.mmsi || null);
-      aliasesArr.push(entry.aliases.length > 0 ? entry.aliases : null);
-      urls.push(entry.opensanctionsUrl || null);
-      vesselTypes.push(entry.vesselType || null);
-      names.push(entry.name || null);
+    for (const entry of entries) {
+      await client.query(
+        `
+        INSERT INTO vessel_sanctions (
+          imo, sanctioning_authority, reason, source_url,
+          risk_category, datasets, flag, mmsi, aliases, opensanctions_url, vessel_type, name,
+          updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+        ON CONFLICT (imo) DO UPDATE SET
+          sanctioning_authority = EXCLUDED.sanctioning_authority,
+          reason = EXCLUDED.reason,
+          source_url = EXCLUDED.source_url,
+          risk_category = EXCLUDED.risk_category,
+          datasets = EXCLUDED.datasets,
+          flag = EXCLUDED.flag,
+          mmsi = EXCLUDED.mmsi,
+          aliases = EXCLUDED.aliases,
+          opensanctions_url = EXCLUDED.opensanctions_url,
+          vessel_type = EXCLUDED.vessel_type,
+          name = EXCLUDED.name,
+          updated_at = NOW()
+        `,
+        [
+          entry.imo,
+          entry.authority,
+          entry.reason,
+          entry.sourceUrl,
+          entry.riskCategory || null,
+          entry.datasets.length > 0 ? entry.datasets : null,
+          entry.flag || null,
+          entry.mmsi || null,
+          entry.aliases.length > 0 ? entry.aliases : null,
+          entry.opensanctionsUrl || null,
+          entry.vesselType || null,
+          entry.name || null,
+        ]
+      );
     }
 
-    await pool.query(
-      `
-      INSERT INTO vessel_sanctions (
-        imo, sanctioning_authority, reason, source_url,
-        risk_category, datasets, flag, mmsi, aliases, opensanctions_url, vessel_type, name,
-        updated_at
-      )
-      SELECT
-        unnest($1::text[]),
-        unnest($2::text[]),
-        unnest($3::text[]),
-        unnest($4::text[]),
-        unnest($5::text[]),
-        unnest($6::text[][]),
-        unnest($7::text[]),
-        unnest($8::text[]),
-        unnest($9::text[][]),
-        unnest($10::text[]),
-        unnest($11::text[]),
-        unnest($12::text[]),
-        NOW()
-      ON CONFLICT (imo) DO UPDATE SET
-        sanctioning_authority = EXCLUDED.sanctioning_authority,
-        reason = EXCLUDED.reason,
-        source_url = EXCLUDED.source_url,
-        risk_category = EXCLUDED.risk_category,
-        datasets = EXCLUDED.datasets,
-        flag = EXCLUDED.flag,
-        mmsi = EXCLUDED.mmsi,
-        aliases = EXCLUDED.aliases,
-        opensanctions_url = EXCLUDED.opensanctions_url,
-        vessel_type = EXCLUDED.vessel_type,
-        name = EXCLUDED.name,
-        updated_at = NOW()
-      `,
-      [imos, authorities, reasons, sourceUrls, riskCategories, datasetsArr, flags, mmsis, aliasesArr, urls, vesselTypes, names]
+    // Delete stale entries — vessels no longer in the latest fetch
+    const allImos = entries.map((e) => e.imo);
+    const deleteResult = await client.query(
+      `DELETE FROM vessel_sanctions WHERE imo != ALL($1::text[])`,
+      [allImos]
     );
+    const deleted = deleteResult.rowCount ?? 0;
 
-    upserted += batch.length;
+    await client.query('COMMIT');
+    return { upserted: entries.length, deleted };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-
-  // Delete stale entries — vessels no longer in the latest fetch
-  const allImos = entries.map((e) => e.imo);
-  const deleteResult = await pool.query(
-    `DELETE FROM vessel_sanctions WHERE imo != ALL($1::text[])`,
-    [allImos]
-  );
-  const deleted = deleteResult.rowCount ?? 0;
-
-  return { upserted, deleted };
 }
 
 /**

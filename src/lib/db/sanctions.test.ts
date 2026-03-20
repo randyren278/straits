@@ -90,62 +90,71 @@ describe('Sanctions CRUD', () => {
   });
 
   describe('batchUpsertSanctions', () => {
-    it('batch inserts entries using unnest', async () => {
-      mockQuery
-        .mockResolvedValueOnce({ rows: [], rowCount: 2 } as never) // batch insert
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 } as never); // stale cleanup
+    // Mock pool.connect to return a client with query/release
+    const mockClient = {
+      query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+      release: vi.fn(),
+    };
 
+    beforeEach(() => {
+      // pool.connect returns the mock client
+      (pool as unknown as { connect: ReturnType<typeof vi.fn> }).connect = vi.fn().mockResolvedValue(mockClient);
+      mockClient.query.mockReset().mockResolvedValue({ rows: [], rowCount: 0 });
+      mockClient.release.mockReset();
+    });
+
+    it('wraps all upserts in a transaction', async () => {
       const entries = [
         makeSanctionEntry({ imo: '1111111' }),
         makeSanctionEntry({ imo: '2222222' }),
       ];
 
-      const result = await batchUpsertSanctions(entries);
+      await batchUpsertSanctions(entries);
 
-      expect(result.upserted).toBe(2);
-      expect(result.deleted).toBe(0);
-      // First call: batch insert, second call: stale delete
-      expect(mockQuery).toHaveBeenCalledTimes(2);
-      const [sql] = mockQuery.mock.calls[0];
-      expect(sql).toContain('unnest');
+      const calls = mockClient.query.mock.calls.map((c: unknown[]) => {
+        const sql = (c[0] as string).trim();
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') return sql;
+        if (sql.startsWith('INSERT')) return 'INSERT';
+        if (sql.startsWith('DELETE')) return 'DELETE';
+        return sql;
+      });
+      expect(calls[0]).toBe('BEGIN');
+      expect(calls[1]).toBe('INSERT');
+      expect(calls[2]).toBe('INSERT');
+      expect(calls[3]).toBe('DELETE');
+      expect(calls[4]).toBe('COMMIT');
     });
 
     it('deletes stale entries not in current fetch', async () => {
-      mockQuery
-        .mockResolvedValueOnce({ rows: [], rowCount: 1 } as never) // batch insert
-        .mockResolvedValueOnce({ rows: [], rowCount: 3 } as never); // stale cleanup
+      mockClient.query.mockImplementation((sql: string) => {
+        if (typeof sql === 'string' && sql.trim().startsWith('DELETE')) {
+          return { rows: [], rowCount: 3 };
+        }
+        return { rows: [], rowCount: 0 };
+      });
 
       const result = await batchUpsertSanctions([makeSanctionEntry()]);
 
+      expect(result.upserted).toBe(1);
       expect(result.deleted).toBe(3);
-      const [deleteSql] = mockQuery.mock.calls[1];
-      expect(deleteSql).toContain('DELETE FROM vessel_sanctions');
-      expect(deleteSql).toContain('WHERE imo != ALL');
     });
 
     it('returns zero counts for empty input', async () => {
       const result = await batchUpsertSanctions([]);
       expect(result).toEqual({ upserted: 0, deleted: 0 });
-      expect(mockQuery).not.toHaveBeenCalled();
     });
 
-    it('batches large inputs in chunks of 500', async () => {
-      // Create 1200 entries
-      const entries = Array.from({ length: 1200 }, (_, i) =>
-        makeSanctionEntry({ imo: String(i).padStart(7, '0') })
-      );
+    it('rolls back on error and releases client', async () => {
+      mockClient.query.mockImplementation((sql: string) => {
+        if (typeof sql === 'string' && sql.trim().startsWith('INSERT')) {
+          throw new Error('DB error');
+        }
+        return { rows: [], rowCount: 0 };
+      });
 
-      // 3 batch inserts + 1 stale delete = 4 calls
-      mockQuery
-        .mockResolvedValueOnce({ rows: [], rowCount: 500 } as never)
-        .mockResolvedValueOnce({ rows: [], rowCount: 500 } as never)
-        .mockResolvedValueOnce({ rows: [], rowCount: 200 } as never)
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 } as never);
-
-      const result = await batchUpsertSanctions(entries);
-
-      expect(result.upserted).toBe(1200);
-      expect(mockQuery).toHaveBeenCalledTimes(4); // 3 batches + 1 delete
+      await expect(batchUpsertSanctions([makeSanctionEntry()])).rejects.toThrow('DB error');
+      expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+      expect(mockClient.release).toHaveBeenCalled();
     });
   });
 
