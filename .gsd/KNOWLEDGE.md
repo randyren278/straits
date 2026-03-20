@@ -53,3 +53,15 @@
 **Also:** Use `getByRole` with a `name` filter (e.g. `{ name: /Going Dark anomalies/ }`) to make queries resilient even if cleanup issues resurface — it's good practice regardless.
 
 **File:** `src/components/fleet/__tests__/AnomalyTable.test.tsx` (pattern reference)
+
+## IMO deduplication with highest-risk-score-wins
+
+**Context:** When displaying sanctioned vessels, a single vessel (identified by IMO) may appear multiple times in the anomalies array if it has multiple anomaly types. The UI should show each vessel once with the most relevant (highest risk) data.
+
+**Pattern:** Use a `Map<string, Anomaly>` keyed by IMO. For each sanctioned anomaly, check if the IMO already exists in the map. If it does, keep the entry with the higher `riskScore`. This runs in O(n) time over the anomalies array.
+
+**Where it runs:** Client-side in `FleetPage` before passing data to `SanctionedVessels`. The component itself is a pure display — it receives already-deduplicated data.
+
+**Gotcha:** The deduplication discards anomaly-type-specific detail (e.g. which types triggered for that vessel). If future features need to show "vessel X has going_dark AND loitering," the dedup logic needs to merge rather than pick-one.
+
+**File:** `src/app/(protected)/fleet/page.tsx`

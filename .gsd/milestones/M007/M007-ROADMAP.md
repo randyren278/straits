@@ -44,7 +44,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Default-Collapsed Tables & Sanctions Priority List** `risk:low` `depends:[]`
+- [x] **S01: Default-Collapsed Tables & Sanctions Priority List** `risk:low` `depends:[]`
   > After this: Users visiting `/fleet` see anomaly tables collapsed by default and a new, highly visible section at the top listing all sanctioned vessels.
 
 - [ ] **S02: The Anomaly Matrix Visualizer** `risk:medium` `depends:[S01]`
