@@ -66,6 +66,12 @@ Add `shipCategory` to the `/api/anomalies` SQL query and the `Anomaly` TypeScrip
 - `grep -q '"shipCategory"' src/app/api/anomalies/route.ts` — SQL column alias present
 - `grep -q 'ANOMALY_TYPE_LABELS' src/types/anomaly.ts` — labels exported from shared location
 
+## Observability Impact
+
+- **New signal:** `/api/anomalies` responses now carry `shipCategory` on every anomaly row. Agents can verify via `curl localhost:3000/api/anomalies | jq '.anomalies[0].shipCategory'`.
+- **Inspection:** `grep -c 'shipCategory' src/app/api/anomalies/route.ts` confirms the SQL column alias is present. `grep 'ANOMALY_TYPE_LABELS' src/types/anomaly.ts` confirms shared labels are exported.
+- **Failure state:** If `v.ship_type` column doesn't exist in the `vessels` table, the SQL query will throw a Postgres error, surfaced as HTTP 500 with `"Failed to fetch anomalies"` in the JSON response body and full error in server stderr.
+
 ## Inputs
 
 - `src/types/anomaly.ts` — existing Anomaly interface to extend with shipCategory

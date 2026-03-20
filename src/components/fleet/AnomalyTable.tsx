@@ -10,20 +10,12 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { AnomalyBadge } from '@/components/ui/AnomalyBadge';
 import { FleetVesselDetail } from '@/components/fleet/FleetVesselDetail';
 import type { Anomaly, AnomalyType } from '@/types/anomaly';
+import { ANOMALY_TYPE_LABELS } from '@/types/anomaly';
 
 interface AnomalyTableProps {
   anomalyType: AnomalyType;
   anomalies: Anomaly[];
 }
-
-const ANOMALY_TYPE_LABELS: Record<AnomalyType, string> = {
-  going_dark: 'Going Dark',
-  loitering: 'Loitering',
-  deviation: 'Route Deviation',
-  speed: 'Speed Anomaly',
-  repeat_going_dark: 'Repeat Going Dark',
-  sts_transfer: 'STS Transfer',
-};
 
 function formatTimestamp(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;

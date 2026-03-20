@@ -7,6 +7,17 @@
 
 export type AnomalyType = 'going_dark' | 'loitering' | 'deviation' | 'speed' | 'repeat_going_dark' | 'sts_transfer';
 export type Confidence = 'confirmed' | 'suspected' | 'unknown';
+export type ShipCategory = 'tanker' | 'cargo' | 'other';
+
+/** Human-readable labels for each anomaly type, shared across components */
+export const ANOMALY_TYPE_LABELS: Record<AnomalyType, string> = {
+  going_dark: 'Going Dark',
+  loitering: 'Loitering',
+  deviation: 'Route Deviation',
+  speed: 'Speed Anomaly',
+  repeat_going_dark: 'Repeat Going Dark',
+  sts_transfer: 'STS Transfer',
+};
 
 /**
  * Going Dark Anomaly Details
@@ -92,6 +103,8 @@ export interface Anomaly {
   flag?: string;
   /** Risk score from vessel_risk_scores table (M006-S01) */
   riskScore?: number;
+  /** Ship category derived from vessel ship_type code (M007-S02) */
+  shipCategory?: ShipCategory;
 }
 
 /**

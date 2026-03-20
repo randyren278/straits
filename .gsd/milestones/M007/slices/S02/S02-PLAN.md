@@ -35,7 +35,7 @@
 
 ## Tasks
 
-- [ ] **T01: Enrich API with shipCategory and extract shared anomaly type labels** `est:20m`
+- [x] **T01: Enrich API with shipCategory and extract shared anomaly type labels** `est:20m`
   - Why: The frontend matrix needs `shipCategory` from the API, and both `AnomalyTable` and the new `AnomalyMatrix` need the same anomaly type labels. This retires the "API Data Completeness" risk.
   - Files: `src/app/api/anomalies/route.ts`, `src/types/anomaly.ts`, `src/components/fleet/AnomalyTable.tsx`
   - Do: Add a `CASE WHEN v.ship_type BETWEEN 80 AND 89 THEN 'tanker' WHEN v.ship_type BETWEEN 70 AND 79 THEN 'cargo' ELSE 'other' END AS "shipCategory"` to the SQL SELECT. Add `shipCategory?: 'tanker' | 'cargo' | 'other'` and `ShipCategory` type alias to the `Anomaly` interface. Export `ANOMALY_TYPE_LABELS` from `src/types/anomaly.ts` and update `AnomalyTable.tsx` to import from there instead of defining locally.
@@ -48,6 +48,13 @@
   - Do: Create `AnomalyMatrix` component receiving `anomalies: Anomaly[]`, aggregating into a count grid, rendering a `<table>` with 3 rows (Tanker/Cargo/Other) × 6 columns (anomaly types). Use pre-defined Tailwind opacity tiers for brightness scaling (never concatenate class names at runtime). Use abbreviated column headers (DARK, LOITER, ROUTE, DRIFT, REPEAT, STS). Return `null` for empty arrays. Treat missing `shipCategory` as `'other'`. Write tests covering: grid dimensions, count aggregation accuracy, brightness tier selection, empty state, missing-shipCategory fallback. Wire into FleetPage between `<SanctionedVessels>` and the anomaly groups `<div>`. Load skill: `react-best-practices`.
   - Verify: `npx vitest run src/components/fleet/__tests__/AnomalyMatrix.test.tsx`; `npx vitest run src/components/fleet/__tests__/`; `npx tsc --noEmit`
   - Done when: AnomalyMatrix renders 3×6 grid, tests pass, component appears between SanctionedVessels and anomaly tables in FleetPage, all existing tests still pass
+
+## Observability / Diagnostics
+
+- **Runtime signals:** The `/api/anomalies` response now includes `shipCategory` on every anomaly object — inspect any response payload to confirm the field is present. A missing `shipCategory` (null/undefined) means the vessel had no `ship_type` in the DB; the SQL CASE maps this to `'other'`.
+- **Inspection surfaces:** `curl localhost:3000/api/anomalies | jq '.anomalies[0].shipCategory'` should return `"tanker"`, `"cargo"`, or `"other"`. The `AnomalyMatrix` component renders `data-testid="anomaly-matrix"` for DOM inspection.
+- **Failure visibility:** If the `vessels` table JOIN fails or `ship_type` column is missing, the query will error and the API returns `{ error: 'Failed to fetch anomalies' }` with status 500 — logged to server stderr.
+- **Redaction constraints:** None — `shipCategory` is derived from AIS ship type codes (public data, no PII).
 
 ## Files Likely Touched
 

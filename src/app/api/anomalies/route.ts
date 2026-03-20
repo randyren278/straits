@@ -29,7 +29,11 @@ export async function GET(request: NextRequest) {
              CASE WHEN vs.imo IS NOT NULL THEN true ELSE false END AS "isSanctioned",
              vs.risk_category AS "sanctionRiskCategory",
              v.name AS "vesselName", v.flag,
-             vrs.score AS "riskScore"
+             vrs.score AS "riskScore",
+             CASE WHEN v.ship_type BETWEEN 80 AND 89 THEN 'tanker'
+                  WHEN v.ship_type BETWEEN 70 AND 79 THEN 'cargo'
+                  ELSE 'other'
+             END AS "shipCategory"
       FROM vessel_anomalies va
       LEFT JOIN vessels v ON v.imo = va.imo
       LEFT JOIN vessel_sanctions vs ON vs.imo = va.imo
