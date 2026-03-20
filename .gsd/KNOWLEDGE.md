@@ -75,3 +75,13 @@
 **Rule:** Never concatenate or interpolate Tailwind class names at runtime. Always use complete static string literals that the scanner can find.
 
 **File:** `src/components/fleet/AnomalyMatrix.tsx`
+
+## Extract shared display constants to type modules
+
+**Context:** When multiple components need the same display labels or mappings (e.g. anomaly type labels like `going_dark` → `"Going Dark"`), extract them to the shared types module rather than duplicating in each component.
+
+**Pattern:** `ANOMALY_TYPE_LABELS` was originally defined locally in `AnomalyTable.tsx`. When `AnomalyMatrix.tsx` needed the same labels, the constant was moved to `src/types/anomaly.ts` and both components import from there. This is the canonical location for anomaly-related display constants.
+
+**Rule:** Before adding a display constant to a component, check the relevant types file first. If it exists there, import it. If it doesn't and might be reused, add it to the types file from the start.
+
+**File:** `src/types/anomaly.ts` (`ANOMALY_TYPE_LABELS`, `ShipCategory`)
