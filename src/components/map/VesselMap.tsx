@@ -24,7 +24,7 @@ export function VesselMap() {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
 
-  const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack, mapCenter, setMapCenter, anomalyFilter } =
+  const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack, mapCenter, setMapCenter, anomalyFilter, targetVesselImo, setTargetVesselImo } =
     useVesselStore();
 
   // Initialize map
@@ -352,6 +352,22 @@ export function VesselMap() {
     // Clear the navigation request after flying
     setMapCenter(null);
   }, [mapCenter, mapLoaded, setMapCenter]);
+
+  // Hydrate pending target vessel from cross-route navigation (fleet → dashboard)
+  useEffect(() => {
+    if (!targetVesselImo || vessels.length === 0) return;
+
+    const match = vessels.find((v) => v.imo === targetVesselImo);
+    if (match) {
+      console.log(`[VesselMap] Hydrated target vessel: ${targetVesselImo}`);
+      setSelectedVessel(match);
+      setTargetVesselImo(null);
+    } else {
+      console.warn(
+        `[VesselMap] Target vessel IMO ${targetVesselImo} not found in ${vessels.length} loaded vessels`
+      );
+    }
+  }, [targetVesselImo, vessels, setSelectedVessel, setTargetVesselImo]);
 
   if (mapError) {
     return (

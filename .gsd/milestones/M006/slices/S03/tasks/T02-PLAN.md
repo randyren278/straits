@@ -37,3 +37,10 @@ The dashboard map must detect the pending target vessel, find its complete data 
 ## Expected Output
 
 - `src/components/map/VesselMap.tsx` — Updated to consume `targetVesselImo`
+
+## Observability Impact
+
+- **New console log:** `[VesselMap] Hydrated target vessel: {imo}` on successful match — confirms the cross-route bridge completed.
+- **New console warning:** `[VesselMap] Target vessel IMO {imo} not found in {count} loaded vessels` — surfaces when the target IMO doesn't match any vessel in the loaded array (e.g. vessel left the region).
+- **Store log pairing:** `[VesselStore] targetVesselImo set: {imo}` (from T01 producers) → `[VesselStore] targetVesselImo cleared` (from `setTargetVesselImo(null)` after hydration). A set without a subsequent clear indicates hydration failure.
+- **Inspection:** Zustand DevTools → `targetVesselImo` should be `null` after successful hydration. If it persists as a string, hydration never completed.

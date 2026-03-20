@@ -44,7 +44,7 @@
   - Verify: `npx tsc --noEmit` passes without errors.
   - Done when: Store typing is valid and producers successfully inject the target IMO before map fly-to commands.
 
-- [ ] **T02: Consume target IMO in VesselMap and hydrate selection** `est:15m`
+- [x] **T02: Consume target IMO in VesselMap and hydrate selection** `est:15m`
   - Why: The dashboard map must detect the pending target vessel, find its complete data in the local `vessels` array, and apply it to the main selection state to trigger the dossier panel.
   - Files: `src/components/map/VesselMap.tsx`
   - Do: Add a `useEffect` inside `VesselMap` that watches `targetVesselImo` and `vessels`. If `targetVesselImo` is present and `vessels.length > 0`, find the vessel in the list matching the target IMO. If found, call `setSelectedVessel` and clear the target IMO state to `null`.
