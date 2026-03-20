@@ -65,3 +65,13 @@
 **Gotcha:** The deduplication discards anomaly-type-specific detail (e.g. which types triggered for that vessel). If future features need to show "vessel X has going_dark AND loitering," the dedup logic needs to merge rather than pick-one.
 
 **File:** `src/app/(protected)/fleet/page.tsx`
+
+## Tailwind v4 requires static class strings for opacity/brightness tiers
+
+**Context:** When building count-based or intensity-based visual indicators (like the AnomalyMatrix heatmap), you might be tempted to dynamically construct Tailwind classes like `` `bg-amber-500/${opacity}` ``. This breaks in Tailwind v4 because the JIT scanner only detects statically-written class strings.
+
+**Pattern:** Define a constant array of tier objects with pre-written class name strings (`'bg-amber-500/5'`, `'bg-amber-500/15'`, etc.) and select the correct tier by count threshold at runtime. The `getBrightnessTier()` function in `AnomalyMatrix.tsx` demonstrates this.
+
+**Rule:** Never concatenate or interpolate Tailwind class names at runtime. Always use complete static string literals that the scanner can find.
+
+**File:** `src/components/fleet/AnomalyMatrix.tsx`
