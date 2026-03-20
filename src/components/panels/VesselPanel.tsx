@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useVesselStore } from '@/stores/vessel';
-import { AlertTriangle, Eye, EyeOff, ChevronDown, ChevronRight, Shield } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, ChevronDown, ChevronRight, Shield, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { AnomalyBadge } from '../ui/AnomalyBadge';
 import type { AnomalyType, Confidence } from '@/types/anomaly';
@@ -22,6 +22,11 @@ export function VesselPanel() {
   // Intelligence dossier state
   const [riskScore, setRiskScore] = useState<{ score: number; factors: RiskFactors; computedAt: string | null } | null>(null);
   const [riskError, setRiskError] = useState(false);
+  const [sanctionDetail, setSanctionDetail] = useState<{
+    authority: string; riskCategory: string | null; datasets: string[] | null;
+    flag: string | null; aliases: string[] | null; opensanctionsUrl: string | null;
+    vesselType: string | null; name: string | null;
+  } | null>(null);
   const [anomalyHistory, setAnomalyHistory] = useState<Array<{
     id: number; anomalyType: string; confidence: string;
     detectedAt: string; resolvedAt: string | null; details: Record<string, unknown>;
@@ -51,6 +56,7 @@ export function VesselPanel() {
     if (!vesselImo) {
       setRiskScore(null);
       setRiskError(false);
+      setSanctionDetail(null);
       setAnomalyHistory([]);
       setDestChanges([]);
       return;
@@ -63,7 +69,9 @@ export function VesselPanel() {
           fetch(`/api/vessels/${vesselImo}/history`),
         ]);
         if (riskRes.ok) {
-          setRiskScore(await riskRes.json());
+          const data = await riskRes.json();
+          setRiskScore({ score: data.score, factors: data.factors, computedAt: data.computedAt });
+          setSanctionDetail(data.sanction || null);
           setRiskError(false);
         } else {
           setRiskError(true);
@@ -230,11 +238,11 @@ export function VesselPanel() {
         </div>
       </div>
 
-      {/* Sanctions Alert Section */}
+      {/* Sanctions Alert Section (M005-S03) */}
       {'isSanctioned' in selectedVessel &&
         (selectedVessel as VesselWithSanctions).isSanctioned === true && (() => {
           const sv = selectedVessel as VesselWithSanctions;
-          const riskCat = sv.sanctionRiskCategory || '';
+          const riskCat = sv.sanctionRiskCategory || sanctionDetail?.riskCategory || '';
           const isShadow = riskCat === 'mare.shadow;poi';
           const isDetained = riskCat.startsWith('mare.detained');
           const isSanctionedRisk = riskCat === 'sanction';
@@ -242,17 +250,76 @@ export function VesselPanel() {
           const textColor = isShadow ? 'text-purple-400' : isDetained ? 'text-rose-400' : 'text-red-400';
           const subColor = isShadow ? 'text-purple-300' : isDetained ? 'text-rose-300' : 'text-red-300';
           const label = isShadow ? 'SHADOW FLEET' : isDetained ? 'DETAINED' : isSanctionedRisk ? 'SANCTIONED' : 'LISTED';
+
+          // Derive authorities from datasets if available
+          const datasets = sanctionDetail?.datasets || [];
+          const authorityLabels: Record<string, string> = {
+            us_ofac_sdn: 'OFAC SDN', us_ofac_cons: 'OFAC Non-SDN', us_trade_csl: 'US CSL',
+            eu_fsf: 'EU FSF', eu_sanctions_map: 'EU Sanctions', eu_journal_sanctions: 'EU Journal',
+            gb_fcdo_sanctions: 'UK FCDO', ca_dfatd_sema_sanctions: 'Canada SEMA',
+            ch_seco_sanctions: 'Swiss SECO', un_1718_vessels: 'UN 1718',
+            ua_war_sanctions: 'Ukraine War', fr_tresor_gels_avoir: 'France Trésor',
+            be_fod_sanctions: 'Belgium FOD', mc_fund_freezes: 'Monaco',
+            ae_local_terrorists: 'UAE',
+          };
+          const authorities = datasets
+            .map((d: string) => authorityLabels[d] || d.replace(/_/g, ' '))
+            .filter(Boolean);
+
           return (
             <div className={`mx-3 mb-2 px-3 py-2 ${bgColor}`}>
               <div className={`flex items-center gap-2 ${textColor}`}>
                 <AlertTriangle className="w-4 h-4" />
                 <span className="font-mono text-xs uppercase tracking-widest">{label}</span>
               </div>
-              <p className={`text-xs ${subColor} mt-1`}>
-                {sv.sanctioningAuthority}{' '}
-                {'\u2022'}{' '}
-                {riskCat || 'Listed entity'}
-              </p>
+
+              {/* Authorities */}
+              {authorities.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {authorities.map((auth: string) => (
+                    <span key={auth} className={`text-[10px] font-mono px-1.5 py-0.5 border ${
+                      isShadow ? 'border-purple-700 text-purple-300' : isDetained ? 'border-rose-700 text-rose-300' : 'border-red-700 text-red-300'
+                    }`}>
+                      {auth}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Sanctions flag (from sanctions data, may differ from AIS flag) */}
+              {sanctionDetail?.flag && (
+                <div className="mt-1.5 flex justify-between text-xs">
+                  <span className={subColor}>Sanctions Flag</span>
+                  <span className="font-mono text-white uppercase">{sanctionDetail.flag}</span>
+                </div>
+              )}
+
+              {/* Aliases */}
+              {sanctionDetail?.aliases && sanctionDetail.aliases.length > 0 && (
+                <div className="mt-1.5">
+                  <span className={`text-xs ${subColor}`}>Also known as:</span>
+                  <div className="mt-0.5 flex flex-wrap gap-1">
+                    {sanctionDetail.aliases.map((alias: string) => (
+                      <span key={alias} className="text-[10px] font-mono text-gray-400 bg-gray-800/50 px-1 py-0.5">
+                        {alias}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* OpenSanctions link */}
+              {sanctionDetail?.opensanctionsUrl && (
+                <a
+                  href={sanctionDetail.opensanctionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`mt-1.5 flex items-center gap-1 text-xs ${subColor} hover:underline`}
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  <span className="font-mono">OpenSanctions Profile</span>
+                </a>
+              )}
             </div>
           );
         })()}

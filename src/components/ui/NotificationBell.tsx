@@ -136,9 +136,24 @@ export function NotificationBell() {
                     className="p-3 border-b border-gray-800 cursor-pointer hover:bg-gray-900 transition-colors"
                   >
                     <div className="flex justify-between items-start">
-                      <span className="font-medium text-white">
-                        {anomaly.imo}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-white">
+                          {anomaly.imo}
+                        </span>
+                        {anomaly.isSanctioned && (
+                          <span className={`text-[10px] font-mono px-1 py-0.5 ${
+                            anomaly.sanctionRiskCategory === 'mare.shadow;poi'
+                              ? 'bg-purple-900/40 text-purple-400 border border-purple-700/50'
+                              : anomaly.sanctionRiskCategory?.startsWith('mare.detained')
+                                ? 'bg-rose-900/40 text-rose-400 border border-rose-700/50'
+                                : 'bg-red-900/40 text-red-400 border border-red-700/50'
+                          }`}>
+                            {anomaly.sanctionRiskCategory === 'mare.shadow;poi' ? 'SHADOW'
+                              : anomaly.sanctionRiskCategory?.startsWith('mare.detained') ? 'DETAINED'
+                              : 'SANCTIONED'}
+                          </span>
+                        )}
+                      </div>
                       {anomaly.anomalyType === 'sts_transfer' && anomaly.details && (
                         <span className="text-xs text-gray-400 font-mono ml-1">
                           + {(anomaly.details as { otherName?: string; otherImo?: string }).otherName

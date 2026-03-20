@@ -82,6 +82,10 @@ export interface Anomaly {
   detectedAt: Date;
   resolvedAt: Date | null;
   details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails | RepeatGoingDarkDetails | StsTransferDetails;
+  /** Whether the vessel is on a sanctions list (M005-S03) */
+  isSanctioned?: boolean;
+  /** Risk category from sanctions data (M005-S03) */
+  sanctionRiskCategory?: string | null;
 }
 
 /**

@@ -1,6 +1,7 @@
 /**
  * GET /api/anomalies - Returns active (unresolved) anomalies.
  * Supports optional ?shipType=tanker|cargo|other filter (server-side, display only).
+ * M005-S03: Includes sanctions status for each anomaly vessel.
  * Requirements: ANOM-01, ANOM-02, ANOM-06
  */
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,7 +13,6 @@ export async function GET(request: NextRequest) {
 
   // Determine ship type clause (safe: controlled switch, not raw user input)
   let shipTypeClause = '';
-  const needsJoin = shipType && shipType !== 'all';
   if (shipType === 'tanker') {
     shipTypeClause = 'AND v.ship_type BETWEEN 80 AND 89';
   } else if (shipType === 'cargo') {
@@ -22,34 +22,28 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    let query: string;
-    if (needsJoin) {
-      query = `
-        SELECT va.id, va.imo, va.anomaly_type as "anomalyType", va.confidence,
-               va.detected_at as "detectedAt", va.resolved_at as "resolvedAt", va.details
-        FROM vessel_anomalies va
-        LEFT JOIN vessels v ON v.imo = va.imo
-        WHERE va.resolved_at IS NULL
-        ${shipTypeClause}
-      `;
-    } else {
-      query = `
-        SELECT id, imo, anomaly_type as "anomalyType", confidence,
-               detected_at as "detectedAt", resolved_at as "resolvedAt", details
-        FROM vessel_anomalies
-        WHERE resolved_at IS NULL
-      `;
-    }
+    // Always JOIN vessels for sanctions data; ship type filter also requires the join
+    let query = `
+      SELECT va.id, va.imo, va.anomaly_type as "anomalyType", va.confidence,
+             va.detected_at as "detectedAt", va.resolved_at as "resolvedAt", va.details,
+             CASE WHEN vs.imo IS NOT NULL THEN true ELSE false END AS "isSanctioned",
+             vs.risk_category AS "sanctionRiskCategory"
+      FROM vessel_anomalies va
+      LEFT JOIN vessels v ON v.imo = va.imo
+      LEFT JOIN vessel_sanctions vs ON vs.imo = va.imo
+      WHERE va.resolved_at IS NULL
+      ${shipTypeClause}
+    `;
 
     const params: string[] = [];
 
     if (imo) {
       const paramNum = params.length + 1;
-      query += ` AND ${needsJoin ? 'va.' : ''}imo = $${paramNum}`;
+      query += ` AND va.imo = $${paramNum}`;
       params.push(imo);
     }
 
-    query += ` ORDER BY ${needsJoin ? 'va.' : ''}detected_at DESC`;
+    query += ` ORDER BY va.detected_at DESC`;
 
     const result = await pool.query(query, params);
     return NextResponse.json({ anomalies: result.rows });
