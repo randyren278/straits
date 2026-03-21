@@ -51,6 +51,7 @@ export function VesselMap() {
   // When a dense group is found near map center, auto-populate the sidebar.
   const detectProximityGroup = useCallback(() => {
     if (!map.current || !mapLoaded) return;
+    if (!map.current.isStyleLoaded()) return;
     if (map.current.getZoom() < PROXIMITY_MIN_ZOOM) {
       // Too zoomed out — clear any existing cluster panel
       useVesselStore.getState().setClusterVessels(null);
@@ -59,10 +60,16 @@ export function VesselMap() {
 
     // Query all rendered vessel features in the viewport
     const canvas = map.current.getCanvas();
-    const features = map.current.queryRenderedFeatures(
-      [[0, 0], [canvas.width, canvas.height]],
-      { layers: ['vessel-circles'] }
-    );
+    let features: mapboxgl.GeoJSONFeature[];
+    try {
+      features = map.current.queryRenderedFeatures(
+        [[0, 0], [canvas.width, canvas.height]],
+        { layers: ['vessel-circles'] }
+      );
+    } catch {
+      // Map style or layer not ready yet — skip this cycle
+      return;
+    }
 
     if (features.length < PROXIMITY_MIN_COUNT) {
       useVesselStore.getState().setClusterVessels(null);
