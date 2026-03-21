@@ -23,7 +23,7 @@ mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
  * Minimum zoom level before proximity detection kicks in.
  * Below this zoom the map is too zoomed out for grouping to be useful.
  */
-const PROXIMITY_MIN_ZOOM = 10;
+const PROXIMITY_MIN_ZOOM = 8;
 
 /**
  * Pixel radius for proximity grouping — when multiple vessels fall within
