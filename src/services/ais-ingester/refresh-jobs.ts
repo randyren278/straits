@@ -9,6 +9,9 @@
  * - News: every 30 minutes (48 req/day — within NewsAPI 100/day limit)
  * - Sanctions: daily at 2 AM (OpenSanctions CSV, no rate limit concern)
  *
+ * Guard: startRefreshJobs() is idempotent — subsequent calls are no-ops.
+ * This prevents duplicate cron registrations when the WebSocket reconnects.
+ *
  * CRITICAL: Uses relative imports only — no @/ alias. The ingester runs outside
  * Next.js and @/ won't resolve.
  *
@@ -21,6 +24,18 @@ import { fetchNews } from '../../lib/news/fetcher';
 import { insertNewsItem } from '../../lib/db/news';
 import { fetchSanctionsList } from '../../lib/external/opensanctions';
 import { batchUpsertSanctions, migrateSanctionsSchema } from '../../lib/db/sanctions';
+
+/** Guard flag — ensures cron jobs are only registered once per process. */
+let started = false;
+
+/**
+ * Reset the started guard. ONLY for unit tests — allows startRefreshJobs()
+ * to be called multiple times in isolated test cases.
+ * @internal
+ */
+export function _resetStartedForTesting(): void {
+  started = false;
+}
 
 /**
  * Eager startup fetch for oil prices.
@@ -74,10 +89,20 @@ async function eagerFetchSanctions(): Promise<void> {
  * Start all background refresh cron jobs.
  * Called after WebSocket connection to AISStream is established.
  *
+ * Idempotent: subsequent calls (e.g. after WebSocket reconnect) are no-ops
+ * to prevent duplicate cron schedules from stacking up and blocking the
+ * event loop.
+ *
  * Also performs an eager fetch of all data sources immediately on startup
  * to populate the DB before the first cron fires.
  */
 export function startRefreshJobs(): void {
+  if (started) {
+    console.log('Refresh cron jobs already running — skipping duplicate registration');
+    return;
+  }
+  started = true;
+
   console.log('Starting background refresh jobs...');
 
   // ── Eager startup fetch ──────────────────────────────────────────────────

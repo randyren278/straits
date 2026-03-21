@@ -39,7 +39,7 @@ vi.mock('../../lib/db/sanctions', () => ({
   migrateSanctionsSchema: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { startRefreshJobs } from './refresh-jobs';
+import { startRefreshJobs, _resetStartedForTesting } from './refresh-jobs';
 import { fetchOilPrices } from '../../lib/prices/fetcher';
 import { fetchNews } from '../../lib/news/fetcher';
 import { fetchSanctionsList } from '../../lib/external/opensanctions';
@@ -47,6 +47,7 @@ import { fetchSanctionsList } from '../../lib/external/opensanctions';
 describe('startRefreshJobs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    _resetStartedForTesting();
   });
 
   it('does not throw when called', () => {
