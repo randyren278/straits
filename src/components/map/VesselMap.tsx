@@ -303,11 +303,16 @@ export function VesselMap() {
         });
       });
 
-      // Clear spiderfy legs when clicking elsewhere on the map
+      // Clear spiderfy legs when clicking elsewhere on the map.
+      // Filter layer list to only those currently on the map — spider layers
+      // are ephemeral and only exist while a cluster is spiderfied.
       map.current.on('click', (e) => {
         if (!map.current) return;
+        const candidateLayers = ['cluster-circles', 'vessel-circles', ...SPIDER_LAYER_IDS];
+        const activeLayers = candidateLayers.filter((id) => map.current!.getLayer(id));
+        if (!activeLayers.length) return;
         const features = map.current.queryRenderedFeatures(e.point, {
-          layers: ['cluster-circles', 'vessel-circles', ...SPIDER_LAYER_IDS],
+          layers: activeLayers,
         });
         if (!features.length) {
           clearSpiderLegs(map.current);
