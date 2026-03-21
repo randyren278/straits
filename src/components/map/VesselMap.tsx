@@ -32,7 +32,7 @@ export function VesselMap() {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
 
-  const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack, mapCenter, setMapCenter, anomalyFilter, targetVesselImo, setTargetVesselImo } =
+  const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack, mapCenter, setMapCenter, anomalyFilter, targetVesselImo, setTargetVesselImo, setClusterVessels } =
     useVesselStore();
 
   // Initialize map
@@ -268,7 +268,7 @@ export function VesselMap() {
         paint: { 'text-color': '#f59e0b', 'text-opacity': 0.6 },
       });
 
-      // ─── Cluster click: zoom to expand ────────────────────────
+      // ─── Cluster click: zoom to expand, or show list at max zoom ─
       map.current.on('click', 'cluster-circles', (e) => {
         if (!map.current || !e.features?.length) return;
         const feature = e.features[0];
@@ -278,11 +278,44 @@ export function VesselMap() {
 
         source.getClusterExpansionZoom(clusterId, (err, zoom) => {
           if (err || !map.current) return;
-          map.current.easeTo({
-            center: clusterCoords,
-            zoom: zoom ?? (map.current.getZoom() + 2),
-            duration: 500,
-          });
+
+          // At max zoom, expanding further won't help — show vessel list panel
+          if (zoom != null && zoom > CLUSTER_MAX_ZOOM) {
+            const pointCount = feature.properties?.point_count ?? 100;
+            source.getClusterLeaves(clusterId, pointCount, 0, (err2, leaves) => {
+              if (err2 || !leaves) return;
+              const vessels = leaves.map((leaf) => {
+                const p = leaf.properties || {};
+                const coords = (leaf.geometry as GeoJSON.Point).coordinates;
+                return {
+                  imo: p.imo || null,
+                  mmsi: p.mmsi || '',
+                  name: p.name || null,
+                  flag: p.flag || null,
+                  shipType: p.shipType ?? null,
+                  speed: p.speed ?? null,
+                  course: p.course ?? null,
+                  heading: p.heading ?? null,
+                  latitude: coords[1],
+                  longitude: coords[0],
+                  isSanctioned: p.isSanctioned || false,
+                  anomalyType: p.anomalyType || null,
+                  anomalyConfidence: p.anomalyConfidence || null,
+                  sanctionRiskCategory: p.sanctionRiskCategory || null,
+                  destination: p.destination || null,
+                  lowConfidence: p.lowConfidence || false,
+                };
+              });
+              useVesselStore.getState().setClusterVessels(vessels);
+            });
+          } else {
+            // Zoom in to break the cluster apart
+            map.current.easeTo({
+              center: clusterCoords,
+              zoom: zoom ?? (map.current.getZoom() + 2),
+              duration: 500,
+            });
+          }
         });
       });
 

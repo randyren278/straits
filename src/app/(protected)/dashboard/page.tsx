@@ -7,6 +7,7 @@
 import { useCallback } from 'react';
 import { VesselMap } from '@/components/map/VesselMap';
 import { VesselPanel } from '@/components/panels/VesselPanel';
+import { ClusterPanel } from '@/components/panels/ClusterPanel';
 import { OilPricePanel } from '@/components/panels/OilPricePanel';
 import { NewsPanel } from '@/components/panels/NewsPanel';
 import { WatchlistPanel } from '@/components/panels/WatchlistPanel';
@@ -66,6 +67,7 @@ export default function DashboardPage() {
         </div>
         {/* Right column: stacked panels */}
         <div className="flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10">
+          <ClusterPanel />
           <VesselPanel />
           <WatchlistPanel />
           <OilPricePanel />

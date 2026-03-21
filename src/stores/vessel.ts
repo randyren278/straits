@@ -1,7 +1,7 @@
 /**
  * Zustand store for vessel state management.
  * Manages selected vessel, filter state, data freshness, map navigation,
- * watchlist, and alerts.
+ * watchlist, alerts, and cluster expansion.
  * Requirements: MAP-06, MAP-07, HIST-02
  */
 import { create } from 'zustand';
@@ -17,6 +17,26 @@ export interface MapCenter {
   lat: number;
   lon: number;
   zoom: number;
+}
+
+/** Vessel data extracted from a cluster leaf for display in the cluster panel */
+export interface ClusterVessel {
+  imo: string | null;
+  mmsi: string;
+  name: string | null;
+  flag: string | null;
+  shipType: number | null;
+  speed: number | null;
+  course: number | null;
+  heading: number | null;
+  latitude: number;
+  longitude: number;
+  isSanctioned: boolean;
+  anomalyType: string | null;
+  anomalyConfidence: string | null;
+  sanctionRiskCategory: string | null;
+  destination: string | null;
+  lowConfidence: boolean;
 }
 
 interface VesselStore {
@@ -40,7 +60,9 @@ interface VesselStore {
   anomalyFilter: boolean;
   /** Target vessel IMO for cross-route map jumps (null = no pending target) */
   targetVesselImo: string | null;
-  /** Set the selected vessel (clears track state) */
+  /** Expanded cluster vessels for the cluster panel (null = no cluster open) */
+  clusterVessels: ClusterVessel[] | null;
+  /** Set the selected vessel (clears track state and cluster panel) */
   setSelectedVessel: (vessel: SelectableVessel | null) => void;
   /** Toggle tanker-only filter */
   setTankersOnly: (value: boolean) => void;
@@ -60,6 +82,8 @@ interface VesselStore {
   setAnomalyFilter: (value: boolean) => void;
   /** Set target vessel IMO for cross-route navigation (e.g. fleet → dashboard) */
   setTargetVesselImo: (imo: string | null) => void;
+  /** Set expanded cluster vessels for cluster panel */
+  setClusterVessels: (vessels: ClusterVessel[] | null) => void;
   /** Add vessel to watchlist (optimistic update) */
   addToWatchlist: (entry: WatchlistEntry) => void;
   /** Remove vessel from watchlist (optimistic update) */
@@ -82,9 +106,10 @@ export const useVesselStore = create<VesselStore>((set) => ({
   unreadCount: 0,
   anomalyFilter: false,
   targetVesselImo: null,
+  clusterVessels: null,
 
   // Existing setters
-  setSelectedVessel: (vessel) => set({ selectedVessel: vessel, showTrack: false }),
+  setSelectedVessel: (vessel) => set({ selectedVessel: vessel, showTrack: false, clusterVessels: null }),
   setTankersOnly: (tankersOnly) => set({ tankersOnly }),
   setShowTrack: (showTrack) => set({ showTrack }),
   setLastUpdate: (lastUpdate) => set({ lastUpdate }),
@@ -98,6 +123,7 @@ export const useVesselStore = create<VesselStore>((set) => ({
   }),
   setUnreadCount: (unreadCount) => set({ unreadCount }),
   setAnomalyFilter: (anomalyFilter) => set({ anomalyFilter }),
+  setClusterVessels: (clusterVessels) => set({ clusterVessels }),
   setTargetVesselImo: (targetVesselImo) => {
     if (targetVesselImo) {
       console.log(`[VesselStore] targetVesselImo set: ${targetVesselImo}`);
