@@ -2,9 +2,9 @@
 
 /**
  * Main map component using Mapbox GL JS.
- * Renders vessel positions as GeoJSON points on a dark-themed map.
- * Uses Mapbox GL clustering to handle co-located vessels at ports,
- * anchorages, and chokepoints. Clusters expand on click to zoom in.
+ * Renders ALL vessel positions as individual GeoJSON dots — no visual clustering.
+ * When zoomed in close to a group of co-located vessels, the sidebar panel
+ * auto-populates with the nearby vessels for easy browsing.
  * Requirements: MAP-01, MAP-02, MAP-03, MAP-06, MAP-07, INTL-01, ANOM-01
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -13,30 +13,134 @@ import { useVesselStore } from '@/stores/vessel';
 import { vesselsToGeoJSON } from '@/lib/map/geojson';
 import { filterTankers } from '@/lib/map/filter';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
-import type { VesselWithPosition } from '@/types/vessel';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
+import type { ClusterVessel } from '@/stores/vessel';
 
 // Set Mapbox token from environment
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
-/** Zoom level at which clusters stop merging and individual points show */
-const CLUSTER_MAX_ZOOM = 16;
-/** Pixel radius for clustering — kept tight so clusters only form when
- *  vessels are genuinely on top of each other (same port/berth). */
-const CLUSTER_RADIUS = 15;
-/** Minimum zoom to show cluster badges — below this, individual dots show */
-const CLUSTER_MIN_ZOOM = 8;
+/**
+ * Minimum zoom level before proximity detection kicks in.
+ * Below this zoom the map is too zoomed out for grouping to be useful.
+ */
+const PROXIMITY_MIN_ZOOM = 10;
+
+/**
+ * Pixel radius for proximity grouping — when multiple vessels fall within
+ * this many pixels of each other at the current zoom, they're considered
+ * co-located and the sidebar panel shows the group.
+ */
+const PROXIMITY_PIXEL_RADIUS = 25;
+
+/** Minimum number of vessels in a pixel cluster to trigger the sidebar */
+const PROXIMITY_MIN_COUNT = 2;
 
 export function VesselMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const popup = useRef<mapboxgl.Popup | null>(null);
   const [vessels, setVessels] = useState<VesselWithSanctions[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
 
-  const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack, mapCenter, setMapCenter, anomalyFilter, targetVesselImo, setTargetVesselImo, setClusterVessels } =
+  const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack, mapCenter, setMapCenter, anomalyFilter, targetVesselImo, setTargetVesselImo } =
     useVesselStore();
+
+  // ─── Proximity detection ────────────────────────────────────────
+  // After zooming/panning, find groups of vessels that overlap on screen.
+  // When a dense group is found near map center, auto-populate the sidebar.
+  const detectProximityGroup = useCallback(() => {
+    if (!map.current || !mapLoaded) return;
+    if (map.current.getZoom() < PROXIMITY_MIN_ZOOM) {
+      // Too zoomed out — clear any existing cluster panel
+      useVesselStore.getState().setClusterVessels(null);
+      return;
+    }
+
+    // Query all rendered vessel features in the viewport
+    const canvas = map.current.getCanvas();
+    const features = map.current.queryRenderedFeatures(
+      [[0, 0], [canvas.width, canvas.height]],
+      { layers: ['vessel-circles'] }
+    );
+
+    if (features.length < PROXIMITY_MIN_COUNT) {
+      useVesselStore.getState().setClusterVessels(null);
+      return;
+    }
+
+    // Project each vessel to screen pixels and find dense groups
+    const projected = features.map((f) => {
+      const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number];
+      const pixel = map.current!.project(coords);
+      return { feature: f, px: pixel.x, py: pixel.y };
+    });
+
+    // Simple grid-based grouping: bucket by pixel grid cells
+    const cellSize = PROXIMITY_PIXEL_RADIUS * 2;
+    const buckets = new Map<string, typeof projected>();
+
+    for (const item of projected) {
+      const cellX = Math.floor(item.px / cellSize);
+      const cellY = Math.floor(item.py / cellSize);
+      const key = `${cellX},${cellY}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key)!.push(item);
+    }
+
+    // Find the densest bucket with 2+ vessels
+    let densest: typeof projected | null = null;
+    for (const group of buckets.values()) {
+      if (group.length >= PROXIMITY_MIN_COUNT) {
+        if (!densest || group.length > densest.length) {
+          densest = group;
+        }
+      }
+    }
+
+    if (!densest) {
+      useVesselStore.getState().setClusterVessels(null);
+      return;
+    }
+
+    // Convert to ClusterVessel format for the sidebar
+    const clusterVessels: ClusterVessel[] = densest.map(({ feature }) => {
+      const p = feature.properties || {};
+      const coords = (feature.geometry as GeoJSON.Point).coordinates;
+      return {
+        imo: p.imo || null,
+        mmsi: p.mmsi || '',
+        name: p.name || null,
+        flag: p.flag || null,
+        shipType: p.shipType ?? null,
+        speed: p.speed ?? null,
+        course: p.course ?? null,
+        heading: p.heading ?? null,
+        latitude: coords[1],
+        longitude: coords[0],
+        isSanctioned: p.isSanctioned || false,
+        anomalyType: p.anomalyType || null,
+        anomalyConfidence: p.anomalyConfidence || null,
+        sanctionRiskCategory: p.sanctionRiskCategory || null,
+        destination: p.destination || null,
+        lowConfidence: p.lowConfidence || false,
+      };
+    });
+
+    // Deduplicate by IMO/MMSI (queryRenderedFeatures can return dupes across tiles)
+    const seen = new Set<string>();
+    const deduped = clusterVessels.filter((v) => {
+      const key = v.imo || v.mmsi;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    if (deduped.length >= PROXIMITY_MIN_COUNT) {
+      useVesselStore.getState().setClusterVessels(deduped);
+    } else {
+      useVesselStore.getState().setClusterVessels(null);
+    }
+  }, [mapLoaded]);
 
   // Initialize map
   useEffect(() => {
@@ -61,106 +165,18 @@ export function VesselMap() {
     map.current.on('load', () => {
       if (!map.current) return;
 
-      // ─── Vessel source with clustering enabled ───────────────────
-      // Mapbox GL clusters co-located points server-side in vector tiles,
-      // dramatically improving rendering performance and visual clarity.
-      // Cluster properties aggregate key attributes so we can color/label
-      // clusters by their composition (tankers, anomalies, sanctions).
+      // ─── Vessel source — NO clustering ─────────────────────────
+      // Every vessel renders as its own dot at all zoom levels.
       map.current.addSource('vessels', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
-        cluster: true,
-        clusterMaxZoom: CLUSTER_MAX_ZOOM,
-        clusterRadius: CLUSTER_RADIUS,
-        clusterProperties: {
-          // Count tankers (shipType 80-89) via mapbox expression accumulator
-          tankerCount: [
-            ['+', ['accumulated'], ['get', 'tankerCount']],
-            ['case', ['all', ['>=', ['get', 'shipType'], 80], ['<=', ['get', 'shipType'], 89]], 1, 0],
-          ],
-          // Count vessels with any anomaly
-          anomalyCount: [
-            ['+', ['accumulated'], ['get', 'anomalyCount']],
-            ['case', ['==', ['get', 'hasAnomaly'], true], 1, 0],
-          ],
-          // Count sanctioned vessels
-          sanctionedCount: [
-            ['+', ['accumulated'], ['get', 'sanctionedCount']],
-            ['case', ['==', ['get', 'isSanctioned'], true], 1, 0],
-          ],
-        },
       });
 
-      // ─── Cluster circle layer ──────────────────────────────────
-      // Only visible at higher zoom levels where co-located vessels
-      // would physically overlap. Below CLUSTER_MIN_ZOOM individual
-      // dots are small enough that overlap isn't a problem.
-      map.current.addLayer({
-        id: 'cluster-circles',
-        type: 'circle',
-        source: 'vessels',
-        filter: ['has', 'point_count'],
-        minzoom: CLUSTER_MIN_ZOOM,
-        paint: {
-          'circle-radius': [
-            'interpolate', ['linear'], ['get', 'point_count'],
-            2, 12,
-            10, 16,
-            50, 20,
-            200, 26,
-          ],
-          'circle-color': [
-            'case',
-            // Red ring if cluster contains anomalies or sanctioned vessels
-            ['>', ['get', 'anomalyCount'], 0],
-            '#dc2626',
-            ['>', ['get', 'sanctionedCount'], 0],
-            '#ef4444',
-            // Amber if majority are tankers
-            ['>=', ['/', ['get', 'tankerCount'], ['get', 'point_count']], 0.5],
-            '#d97706',
-            // Default: neutral dark
-            '#374151',
-          ],
-          'circle-opacity': 0.85,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': [
-            'case',
-            ['>', ['get', 'anomalyCount'], 0],
-            '#fca5a5',
-            ['>', ['get', 'sanctionedCount'], 0],
-            '#fca5a5',
-            '#f59e0b',
-          ],
-          'circle-stroke-opacity': 0.6,
-        },
-      });
-
-      // ─── Cluster count label ───────────────────────────────────
-      map.current.addLayer({
-        id: 'cluster-count',
-        type: 'symbol',
-        source: 'vessels',
-        filter: ['has', 'point_count'],
-        minzoom: CLUSTER_MIN_ZOOM,
-        layout: {
-          'text-field': ['get', 'point_count_abbreviated'],
-          'text-font': ['DIN Offc Pro Bold', 'Arial Unicode MS Bold'],
-          'text-size': 13,
-          'text-allow-overlap': true,
-        },
-        paint: {
-          'text-color': '#ffffff',
-        },
-      });
-
-      // ─── Unclustered individual vessel circles ─────────────────
-      // Same color logic as before, only renders for non-clustered features.
+      // ─── Vessel circles — always visible ───────────────────────
       map.current.addLayer({
         id: 'vessel-circles',
         type: 'circle',
         source: 'vessels',
-        filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 10, 8],
           'circle-color': [
@@ -251,14 +267,14 @@ export function VesselMap() {
         type: 'fill',
         source: 'chokepoints',
         paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.04 },
-      }, 'cluster-circles');
+      }, 'vessel-circles');
 
       map.current.addLayer({
         id: 'chokepoint-outline',
         type: 'line',
         source: 'chokepoints',
         paint: { 'line-color': '#f59e0b', 'line-width': 1, 'line-opacity': 0.4, 'line-dasharray': [4, 3] },
-      }, 'cluster-circles');
+      }, 'vessel-circles');
 
       map.current.addLayer({
         id: 'chokepoint-labels',
@@ -274,111 +290,12 @@ export function VesselMap() {
         paint: { 'text-color': '#f59e0b', 'text-opacity': 0.6 },
       });
 
-      // ─── Cluster click: zoom to expand, or show list at max zoom ─
-      map.current.on('click', 'cluster-circles', (e) => {
-        if (!map.current || !e.features?.length) return;
-        const feature = e.features[0];
-        const clusterId = feature.properties?.cluster_id;
-        const clusterCoords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
-        const source = map.current.getSource('vessels') as mapboxgl.GeoJSONSource;
-
-        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-          if (err || !map.current) return;
-
-          // At max zoom, expanding further won't help — show vessel list panel
-          if (zoom != null && zoom > CLUSTER_MAX_ZOOM) {
-            const pointCount = feature.properties?.point_count ?? 100;
-            source.getClusterLeaves(clusterId, pointCount, 0, (err2, leaves) => {
-              if (err2 || !leaves) return;
-              const vessels = leaves.map((leaf) => {
-                const p = leaf.properties || {};
-                const coords = (leaf.geometry as GeoJSON.Point).coordinates;
-                return {
-                  imo: p.imo || null,
-                  mmsi: p.mmsi || '',
-                  name: p.name || null,
-                  flag: p.flag || null,
-                  shipType: p.shipType ?? null,
-                  speed: p.speed ?? null,
-                  course: p.course ?? null,
-                  heading: p.heading ?? null,
-                  latitude: coords[1],
-                  longitude: coords[0],
-                  isSanctioned: p.isSanctioned || false,
-                  anomalyType: p.anomalyType || null,
-                  anomalyConfidence: p.anomalyConfidence || null,
-                  sanctionRiskCategory: p.sanctionRiskCategory || null,
-                  destination: p.destination || null,
-                  lowConfidence: p.lowConfidence || false,
-                };
-              });
-              useVesselStore.getState().setClusterVessels(vessels);
-            });
-          } else {
-            // Zoom in to break the cluster apart
-            map.current.easeTo({
-              center: clusterCoords,
-              zoom: zoom ?? (map.current.getZoom() + 2),
-              duration: 500,
-            });
-          }
-        });
-      });
-
-      // ─── Cluster hover: show composition tooltip ──────────────
-      map.current.on('mouseenter', 'cluster-circles', (e) => {
-        if (!map.current || !e.features?.length) return;
-        map.current.getCanvas().style.cursor = 'pointer';
-
-        const props = e.features[0].properties;
-        if (!props) return;
-
-        const total = props.point_count || 0;
-        const tankers = props.tankerCount || 0;
-        const anomalies = props.anomalyCount || 0;
-        const sanctioned = props.sanctionedCount || 0;
-        const coords = (e.features[0].geometry as GeoJSON.Point).coordinates.slice() as [number, number];
-
-        // Build Bloomberg-style tooltip content
-        const lines: string[] = [
-          `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#d1d5db;line-height:1.5">`,
-          `<div style="color:#f59e0b;font-weight:700;margin-bottom:2px">${total} VESSELS</div>`,
-        ];
-        if (tankers > 0) lines.push(`<div>⬤ <span style="color:#f59e0b">${tankers}</span> tankers</div>`);
-        if (anomalies > 0) lines.push(`<div>⬤ <span style="color:#ef4444">${anomalies}</span> anomalies</div>`);
-        if (sanctioned > 0) lines.push(`<div>⬤ <span style="color:#ef4444">${sanctioned}</span> sanctioned</div>`);
-        const other = total - tankers;
-        if (other > 0 && tankers > 0) lines.push(`<div>⬤ <span style="color:#6b7280">${other}</span> other</div>`);
-        lines.push(`<div style="color:#6b7280;margin-top:4px;font-size:10px">Click to expand</div>`);
-        lines.push('</div>');
-
-        popup.current?.remove();
-        popup.current = new mapboxgl.Popup({
-          closeButton: false,
-          closeOnClick: false,
-          className: 'vessel-cluster-popup',
-          offset: 15,
-        })
-          .setLngLat(coords)
-          .setHTML(lines.join(''))
-          .addTo(map.current);
-      });
-
-      map.current.on('mouseleave', 'cluster-circles', () => {
-        if (map.current) {
-          map.current.getCanvas().style.cursor = '';
-        }
-        popup.current?.remove();
-        popup.current = null;
-      });
-
       // ─── Individual vessel click handler ──────────────────────
       map.current.on('click', 'vessel-circles', (e) => {
         if (!e.features?.length) return;
         const props = e.features[0].properties;
         const coords = (e.features[0].geometry as GeoJSON.Point).coordinates;
 
-        // Reconstruct VesselWithSanctions from feature properties (including anomaly)
         const vessel: VesselWithSanctions = {
           imo: props?.imo || null,
           mmsi: props?.mmsi || '',
@@ -389,7 +306,7 @@ export function VesselMap() {
           lastSeen: new Date(),
           isSanctioned: props?.isSanctioned || false,
           sanctioningAuthority: props?.sanctioningAuthority || null,
-          sanctionReason: null, // Not stored in GeoJSON properties
+          sanctionReason: null,
           sanctionRiskCategory: props?.sanctionRiskCategory || null,
           anomalyType: props?.anomalyType || null,
           anomalyConfidence: props?.anomalyConfidence || null,
@@ -409,29 +326,28 @@ export function VesselMap() {
         setSelectedVessel(vessel);
       });
 
-      // Cursor change on hover for vessel circles
+      // Cursor change on hover
       map.current.on('mouseenter', 'vessel-circles', () => {
-        if (map.current) {
-          map.current.getCanvas().style.cursor = 'pointer';
-        }
+        if (map.current) map.current.getCanvas().style.cursor = 'pointer';
       });
       map.current.on('mouseleave', 'vessel-circles', () => {
-        if (map.current) {
-          map.current.getCanvas().style.cursor = '';
-        }
+        if (map.current) map.current.getCanvas().style.cursor = '';
       });
+
+      // ─── Proximity detection on zoom/pan ──────────────────────
+      // After the map settles, detect dense vessel groups and auto-
+      // populate the sidebar panel.
+      map.current.on('moveend', () => detectProximityGroup());
 
       setMapLoaded(true);
     });
 
     // Cleanup
     return () => {
-      popup.current?.remove();
-      popup.current = null;
       map.current?.remove();
       map.current = null;
     };
-  }, [setSelectedVessel]);
+  }, [setSelectedVessel, detectProximityGroup]);
 
   // Fetch vessels periodically
   useEffect(() => {
@@ -450,7 +366,7 @@ export function VesselMap() {
     }
 
     fetchVessels();
-    const interval = setInterval(fetchVessels, 30000); // Every 30 seconds
+    const interval = setInterval(fetchVessels, 30000);
     return () => clearInterval(interval);
   }, [tankersOnly, setLastUpdate]);
 
@@ -460,7 +376,6 @@ export function VesselMap() {
 
     let filtered = filterTankers(vessels, tankersOnly);
 
-    // Apply anomaly filter if enabled
     if (anomalyFilter) {
       filtered = filtered.filter((v) => v.anomalyType !== null && v.anomalyType !== undefined);
     }
@@ -471,13 +386,15 @@ export function VesselMap() {
     if (source) {
       source.setData(geojson);
     }
-  }, [vessels, tankersOnly, anomalyFilter, mapLoaded]);
+
+    // Re-run proximity detection after data update
+    detectProximityGroup();
+  }, [vessels, tankersOnly, anomalyFilter, mapLoaded, detectProximityGroup]);
 
   // Handle track layer for selected vessel
   const updateTrackLayer = useCallback(async () => {
     if (!map.current || !mapLoaded) return;
 
-    // Remove existing track layer if present
     if (map.current.getLayer('vessel-track')) {
       map.current.removeLayer('vessel-track');
     }
@@ -485,7 +402,6 @@ export function VesselMap() {
       map.current.removeSource('vessel-track');
     }
 
-    // If no vessel selected or track not enabled, we're done
     if (!selectedVessel || !showTrack) return;
 
     try {
@@ -495,7 +411,6 @@ export function VesselMap() {
 
       if (positions.length < 2) return;
 
-      // Sort and build LineString
       const sorted = [...positions].sort(
         (a: { time: string }, b: { time: string }) =>
           new Date(a.time).getTime() - new Date(b.time).getTime()
@@ -510,9 +425,7 @@ export function VesselMap() {
             p.latitude,
           ]),
         },
-        properties: {
-          mmsi: selectedVessel.mmsi,
-        },
+        properties: { mmsi: selectedVessel.mmsi },
       };
 
       map.current.addSource('vessel-track', {
@@ -549,7 +462,6 @@ export function VesselMap() {
       duration: 1500,
     });
 
-    // Clear the navigation request after flying
     setMapCenter(null);
   }, [mapCenter, mapLoaded, setMapCenter]);
 
