@@ -109,7 +109,7 @@ export const useVesselStore = create<VesselStore>((set) => ({
   clusterVessels: null,
 
   // Existing setters
-  setSelectedVessel: (vessel) => set({ selectedVessel: vessel, showTrack: false, clusterVessels: null }),
+  setSelectedVessel: (vessel) => set({ selectedVessel: vessel, showTrack: false }),
   setTankersOnly: (tankersOnly) => set({ tankersOnly }),
   setShowTrack: (showTrack) => set({ showTrack }),
   setLastUpdate: (lastUpdate) => set({ lastUpdate }),

@@ -21,8 +21,11 @@ mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
 /** Zoom level at which clusters stop merging and individual points show */
 const CLUSTER_MAX_ZOOM = 16;
-/** Pixel radius for clustering — tuned for maritime density */
-const CLUSTER_RADIUS = 50;
+/** Pixel radius for clustering — kept tight so clusters only form when
+ *  vessels are genuinely on top of each other (same port/berth). */
+const CLUSTER_RADIUS = 15;
+/** Minimum zoom to show cluster badges — below this, individual dots show */
+const CLUSTER_MIN_ZOOM = 8;
 
 export function VesselMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -89,20 +92,22 @@ export function VesselMap() {
       });
 
       // ─── Cluster circle layer ──────────────────────────────────
-      // Graduated sizes by point_count, colored by cluster composition:
-      // Red if any anomaly/sanction, amber if mostly tankers, gray for mixed.
+      // Only visible at higher zoom levels where co-located vessels
+      // would physically overlap. Below CLUSTER_MIN_ZOOM individual
+      // dots are small enough that overlap isn't a problem.
       map.current.addLayer({
         id: 'cluster-circles',
         type: 'circle',
         source: 'vessels',
         filter: ['has', 'point_count'],
+        minzoom: CLUSTER_MIN_ZOOM,
         paint: {
           'circle-radius': [
             'interpolate', ['linear'], ['get', 'point_count'],
-            2, 16,
-            10, 22,
-            50, 30,
-            200, 40,
+            2, 12,
+            10, 16,
+            50, 20,
+            200, 26,
           ],
           'circle-color': [
             'case',
@@ -137,6 +142,7 @@ export function VesselMap() {
         type: 'symbol',
         source: 'vessels',
         filter: ['has', 'point_count'],
+        minzoom: CLUSTER_MIN_ZOOM,
         layout: {
           'text-field': ['get', 'point_count_abbreviated'],
           'text-font': ['DIN Offc Pro Bold', 'Arial Unicode MS Bold'],
