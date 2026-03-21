@@ -4,8 +4,7 @@
  * Main map component using Mapbox GL JS.
  * Renders vessel positions as GeoJSON points on a dark-themed map.
  * Uses Mapbox GL clustering to handle co-located vessels at ports,
- * anchorages, and chokepoints. Clusters expand on click and spiderfy
- * at maximum zoom to reveal individual vessels.
+ * anchorages, and chokepoints. Clusters expand on click to zoom in.
  * Requirements: MAP-01, MAP-02, MAP-03, MAP-06, MAP-07, INTL-01, ANOM-01
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -14,7 +13,6 @@ import { useVesselStore } from '@/stores/vessel';
 import { vesselsToGeoJSON } from '@/lib/map/geojson';
 import { filterTankers } from '@/lib/map/filter';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
-import { spiderfyCluster, clearSpiderLegs, SPIDER_LAYER_IDS } from '@/lib/map/spiderfy';
 import type { VesselWithPosition } from '@/types/vessel';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
 
@@ -270,11 +268,7 @@ export function VesselMap() {
         paint: { 'text-color': '#f59e0b', 'text-opacity': 0.6 },
       });
 
-      // ─── Cluster click: expand or spiderfy ────────────────────
-      // At lower zoom, clicking a cluster zooms in to expand it.
-      // At max cluster zoom or when all points share the same location,
-      // the cluster "spiderfies" — fanning out individual points in a
-      // circle so every vessel is clickable.
+      // ─── Cluster click: zoom to expand ────────────────────────
       map.current.on('click', 'cluster-circles', (e) => {
         if (!map.current || !e.features?.length) return;
         const feature = e.features[0];
@@ -284,39 +278,12 @@ export function VesselMap() {
 
         source.getClusterExpansionZoom(clusterId, (err, zoom) => {
           if (err || !map.current) return;
-
-          // If we'd zoom past max or are already at/near max, spiderfy instead
-          if (zoom != null && zoom > CLUSTER_MAX_ZOOM) {
-            source.getClusterLeaves(clusterId, 100, 0, (err2, leaves) => {
-              if (err2 || !map.current || !leaves) return;
-              clearSpiderLegs(map.current);
-              spiderfyCluster(map.current, clusterCoords, leaves);
-            });
-          } else {
-            // Zoom in to break the cluster apart
-            map.current.easeTo({
-              center: clusterCoords,
-              zoom: zoom ?? (map.current.getZoom() + 2),
-              duration: 500,
-            });
-          }
+          map.current.easeTo({
+            center: clusterCoords,
+            zoom: zoom ?? (map.current.getZoom() + 2),
+            duration: 500,
+          });
         });
-      });
-
-      // Clear spiderfy legs when clicking elsewhere on the map.
-      // Filter layer list to only those currently on the map — spider layers
-      // are ephemeral and only exist while a cluster is spiderfied.
-      map.current.on('click', (e) => {
-        if (!map.current) return;
-        const candidateLayers = ['cluster-circles', 'vessel-circles', ...SPIDER_LAYER_IDS];
-        const activeLayers = candidateLayers.filter((id) => map.current!.getLayer(id));
-        if (!activeLayers.length) return;
-        const features = map.current.queryRenderedFeatures(e.point, {
-          layers: activeLayers,
-        });
-        if (!features.length) {
-          clearSpiderLegs(map.current);
-        }
       });
 
       // ─── Cluster hover: show composition tooltip ──────────────
@@ -403,44 +370,7 @@ export function VesselMap() {
         setSelectedVessel(vessel);
       });
 
-      // ─── Spider leg vessel click handler ──────────────────────
-      // Spider circles are rendered as a separate layer — wire up selection.
-      map.current.on('click', 'spider-circles', (e) => {
-        if (!e.features?.length) return;
-        const props = e.features[0].properties;
-        const coords = (e.features[0].geometry as GeoJSON.Point).coordinates;
-
-        const vessel: VesselWithSanctions = {
-          imo: props?.imo || null,
-          mmsi: props?.mmsi || '',
-          name: props?.name || null,
-          flag: props?.flag || null,
-          shipType: props?.shipType ?? null,
-          destination: props?.destination || null,
-          lastSeen: new Date(),
-          isSanctioned: props?.isSanctioned || false,
-          sanctioningAuthority: props?.sanctioningAuthority || null,
-          sanctionReason: null,
-          sanctionRiskCategory: props?.sanctionRiskCategory || null,
-          anomalyType: props?.anomalyType || null,
-          anomalyConfidence: props?.anomalyConfidence || null,
-          position: {
-            time: new Date(),
-            mmsi: props?.mmsi || '',
-            imo: props?.imo || null,
-            latitude: coords[1],
-            longitude: coords[0],
-            speed: props?.speed ?? null,
-            course: props?.course ?? null,
-            heading: props?.heading ?? null,
-            navStatus: null,
-            lowConfidence: props?.lowConfidence || false,
-          },
-        };
-        setSelectedVessel(vessel);
-      });
-
-      // Cursor change on hover for vessel circles + spider circles
+      // Cursor change on hover for vessel circles
       map.current.on('mouseenter', 'vessel-circles', () => {
         if (map.current) {
           map.current.getCanvas().style.cursor = 'pointer';
@@ -451,23 +381,8 @@ export function VesselMap() {
           map.current.getCanvas().style.cursor = '';
         }
       });
-      map.current.on('mouseenter', 'spider-circles', () => {
-        if (map.current) {
-          map.current.getCanvas().style.cursor = 'pointer';
-        }
-      });
-      map.current.on('mouseleave', 'spider-circles', () => {
-        if (map.current) {
-          map.current.getCanvas().style.cursor = '';
-        }
-      });
 
       setMapLoaded(true);
-    });
-
-    // Clear spider legs on zoom change (clusters reform)
-    map.current.on('zoomstart', () => {
-      if (map.current) clearSpiderLegs(map.current);
     });
 
     // Cleanup
@@ -503,9 +418,6 @@ export function VesselMap() {
   // Update map data when vessels change (or anomaly filter changes)
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
-
-    // Clear spider legs since data is refreshing (cluster IDs may change)
-    clearSpiderLegs(map.current);
 
     let filtered = filterTankers(vessels, tankersOnly);
 
