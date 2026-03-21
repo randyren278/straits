@@ -11,3 +11,17 @@
      maps the Tailwind font-mono utility to it. */
   --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
 }
+
+/* ─── Cluster popup (Bloomberg terminal aesthetic) ────────────────── */
+.vessel-cluster-popup .mapboxgl-popup-content {
+  background: #111111;
+  border: 1px solid #f59e0b40;
+  border-radius: 0;
+  padding: 8px 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.vessel-cluster-popup .mapboxgl-popup-tip {
+  border-top-color: #111111;
+  border-bottom-color: #111111;
+}

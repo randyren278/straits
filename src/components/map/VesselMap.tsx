@@ -3,6 +3,9 @@
 /**
  * Main map component using Mapbox GL JS.
  * Renders vessel positions as GeoJSON points on a dark-themed map.
+ * Uses Mapbox GL clustering to handle co-located vessels at ports,
+ * anchorages, and chokepoints. Clusters expand on click and spiderfy
+ * at maximum zoom to reveal individual vessels.
  * Requirements: MAP-01, MAP-02, MAP-03, MAP-06, MAP-07, INTL-01, ANOM-01
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -11,15 +14,22 @@ import { useVesselStore } from '@/stores/vessel';
 import { vesselsToGeoJSON } from '@/lib/map/geojson';
 import { filterTankers } from '@/lib/map/filter';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
+import { spiderfyCluster, clearSpiderLegs, SPIDER_LAYER_IDS } from '@/lib/map/spiderfy';
 import type { VesselWithPosition } from '@/types/vessel';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
 
 // Set Mapbox token from environment
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
+/** Zoom level at which clusters stop merging and individual points show */
+const CLUSTER_MAX_ZOOM = 16;
+/** Pixel radius for clustering — tuned for maritime density */
+const CLUSTER_RADIUS = 50;
+
 export function VesselMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const popup = useRef<mapboxgl.Popup | null>(null);
   const [vessels, setVessels] = useState<VesselWithSanctions[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -50,17 +60,103 @@ export function VesselMap() {
     map.current.on('load', () => {
       if (!map.current) return;
 
-      // Add vessel source (empty initially)
+      // ─── Vessel source with clustering enabled ───────────────────
+      // Mapbox GL clusters co-located points server-side in vector tiles,
+      // dramatically improving rendering performance and visual clarity.
+      // Cluster properties aggregate key attributes so we can color/label
+      // clusters by their composition (tankers, anomalies, sanctions).
       map.current.addSource('vessels', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
+        cluster: true,
+        clusterMaxZoom: CLUSTER_MAX_ZOOM,
+        clusterRadius: CLUSTER_RADIUS,
+        clusterProperties: {
+          // Count tankers (shipType 80-89) via mapbox expression accumulator
+          tankerCount: [
+            ['+', ['accumulated'], ['get', 'tankerCount']],
+            ['case', ['all', ['>=', ['get', 'shipType'], 80], ['<=', ['get', 'shipType'], 89]], 1, 0],
+          ],
+          // Count vessels with any anomaly
+          anomalyCount: [
+            ['+', ['accumulated'], ['get', 'anomalyCount']],
+            ['case', ['==', ['get', 'hasAnomaly'], true], 1, 0],
+          ],
+          // Count sanctioned vessels
+          sanctionedCount: [
+            ['+', ['accumulated'], ['get', 'sanctionedCount']],
+            ['case', ['==', ['get', 'isSanctioned'], true], 1, 0],
+          ],
+        },
       });
 
-      // Vessel circle layer - anomaly colors take priority, then sanctions, then tankers
+      // ─── Cluster circle layer ──────────────────────────────────
+      // Graduated sizes by point_count, colored by cluster composition:
+      // Red if any anomaly/sanction, amber if mostly tankers, gray for mixed.
+      map.current.addLayer({
+        id: 'cluster-circles',
+        type: 'circle',
+        source: 'vessels',
+        filter: ['has', 'point_count'],
+        paint: {
+          'circle-radius': [
+            'interpolate', ['linear'], ['get', 'point_count'],
+            2, 16,
+            10, 22,
+            50, 30,
+            200, 40,
+          ],
+          'circle-color': [
+            'case',
+            // Red ring if cluster contains anomalies or sanctioned vessels
+            ['>', ['get', 'anomalyCount'], 0],
+            '#dc2626',
+            ['>', ['get', 'sanctionedCount'], 0],
+            '#ef4444',
+            // Amber if majority are tankers
+            ['>=', ['/', ['get', 'tankerCount'], ['get', 'point_count']], 0.5],
+            '#d97706',
+            // Default: neutral dark
+            '#374151',
+          ],
+          'circle-opacity': 0.85,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': [
+            'case',
+            ['>', ['get', 'anomalyCount'], 0],
+            '#fca5a5',
+            ['>', ['get', 'sanctionedCount'], 0],
+            '#fca5a5',
+            '#f59e0b',
+          ],
+          'circle-stroke-opacity': 0.6,
+        },
+      });
+
+      // ─── Cluster count label ───────────────────────────────────
+      map.current.addLayer({
+        id: 'cluster-count',
+        type: 'symbol',
+        source: 'vessels',
+        filter: ['has', 'point_count'],
+        layout: {
+          'text-field': ['get', 'point_count_abbreviated'],
+          'text-font': ['DIN Offc Pro Bold', 'Arial Unicode MS Bold'],
+          'text-size': 13,
+          'text-allow-overlap': true,
+        },
+        paint: {
+          'text-color': '#ffffff',
+        },
+      });
+
+      // ─── Unclustered individual vessel circles ─────────────────
+      // Same color logic as before, only renders for non-clustered features.
       map.current.addLayer({
         id: 'vessel-circles',
         type: 'circle',
         source: 'vessels',
+        filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 10, 8],
           'circle-color': [
@@ -110,7 +206,7 @@ export function VesselMap() {
             // Priority 9: Other sanctioned/listed vessels (red fallback)
             ['==', ['get', 'isSanctioned'], true],
             '#ef4444',
-            // Priority 7: Tankers (amber)
+            // Priority 10: Tankers (amber)
             [
               'all',
               ['>=', ['get', 'shipType'], 80],
@@ -125,7 +221,7 @@ export function VesselMap() {
         },
       });
 
-      // Chokepoint bounding box overlays
+      // ─── Chokepoint bounding box overlays ──────────────────────
       const chokepointFeatures: GeoJSON.Feature<GeoJSON.Polygon>[] = Object.values(CHOKEPOINTS).map((cp) => ({
         type: 'Feature',
         geometry: {
@@ -151,14 +247,14 @@ export function VesselMap() {
         type: 'fill',
         source: 'chokepoints',
         paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.04 },
-      }, 'vessel-circles');
+      }, 'cluster-circles');
 
       map.current.addLayer({
         id: 'chokepoint-outline',
         type: 'line',
         source: 'chokepoints',
         paint: { 'line-color': '#f59e0b', 'line-width': 1, 'line-opacity': 0.4, 'line-dasharray': [4, 3] },
-      }, 'vessel-circles');
+      }, 'cluster-circles');
 
       map.current.addLayer({
         id: 'chokepoint-labels',
@@ -174,7 +270,98 @@ export function VesselMap() {
         paint: { 'text-color': '#f59e0b', 'text-opacity': 0.6 },
       });
 
-      // Click handler for vessel selection
+      // ─── Cluster click: expand or spiderfy ────────────────────
+      // At lower zoom, clicking a cluster zooms in to expand it.
+      // At max cluster zoom or when all points share the same location,
+      // the cluster "spiderfies" — fanning out individual points in a
+      // circle so every vessel is clickable.
+      map.current.on('click', 'cluster-circles', (e) => {
+        if (!map.current || !e.features?.length) return;
+        const feature = e.features[0];
+        const clusterId = feature.properties?.cluster_id;
+        const clusterCoords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+        const source = map.current.getSource('vessels') as mapboxgl.GeoJSONSource;
+
+        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+          if (err || !map.current) return;
+
+          // If we'd zoom past max or are already at/near max, spiderfy instead
+          if (zoom != null && zoom > CLUSTER_MAX_ZOOM) {
+            source.getClusterLeaves(clusterId, 100, 0, (err2, leaves) => {
+              if (err2 || !map.current || !leaves) return;
+              clearSpiderLegs(map.current);
+              spiderfyCluster(map.current, clusterCoords, leaves);
+            });
+          } else {
+            // Zoom in to break the cluster apart
+            map.current.easeTo({
+              center: clusterCoords,
+              zoom: zoom ?? (map.current.getZoom() + 2),
+              duration: 500,
+            });
+          }
+        });
+      });
+
+      // Clear spiderfy legs when clicking elsewhere on the map
+      map.current.on('click', (e) => {
+        if (!map.current) return;
+        const features = map.current.queryRenderedFeatures(e.point, {
+          layers: ['cluster-circles', 'vessel-circles', ...SPIDER_LAYER_IDS],
+        });
+        if (!features.length) {
+          clearSpiderLegs(map.current);
+        }
+      });
+
+      // ─── Cluster hover: show composition tooltip ──────────────
+      map.current.on('mouseenter', 'cluster-circles', (e) => {
+        if (!map.current || !e.features?.length) return;
+        map.current.getCanvas().style.cursor = 'pointer';
+
+        const props = e.features[0].properties;
+        if (!props) return;
+
+        const total = props.point_count || 0;
+        const tankers = props.tankerCount || 0;
+        const anomalies = props.anomalyCount || 0;
+        const sanctioned = props.sanctionedCount || 0;
+        const coords = (e.features[0].geometry as GeoJSON.Point).coordinates.slice() as [number, number];
+
+        // Build Bloomberg-style tooltip content
+        const lines: string[] = [
+          `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#d1d5db;line-height:1.5">`,
+          `<div style="color:#f59e0b;font-weight:700;margin-bottom:2px">${total} VESSELS</div>`,
+        ];
+        if (tankers > 0) lines.push(`<div>⬤ <span style="color:#f59e0b">${tankers}</span> tankers</div>`);
+        if (anomalies > 0) lines.push(`<div>⬤ <span style="color:#ef4444">${anomalies}</span> anomalies</div>`);
+        if (sanctioned > 0) lines.push(`<div>⬤ <span style="color:#ef4444">${sanctioned}</span> sanctioned</div>`);
+        const other = total - tankers;
+        if (other > 0 && tankers > 0) lines.push(`<div>⬤ <span style="color:#6b7280">${other}</span> other</div>`);
+        lines.push(`<div style="color:#6b7280;margin-top:4px;font-size:10px">Click to expand</div>`);
+        lines.push('</div>');
+
+        popup.current?.remove();
+        popup.current = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          className: 'vessel-cluster-popup',
+          offset: 15,
+        })
+          .setLngLat(coords)
+          .setHTML(lines.join(''))
+          .addTo(map.current);
+      });
+
+      map.current.on('mouseleave', 'cluster-circles', () => {
+        if (map.current) {
+          map.current.getCanvas().style.cursor = '';
+        }
+        popup.current?.remove();
+        popup.current = null;
+      });
+
+      // ─── Individual vessel click handler ──────────────────────
       map.current.on('click', 'vessel-circles', (e) => {
         if (!e.features?.length) return;
         const props = e.features[0].properties;
@@ -211,7 +398,44 @@ export function VesselMap() {
         setSelectedVessel(vessel);
       });
 
-      // Cursor change on hover
+      // ─── Spider leg vessel click handler ──────────────────────
+      // Spider circles are rendered as a separate layer — wire up selection.
+      map.current.on('click', 'spider-circles', (e) => {
+        if (!e.features?.length) return;
+        const props = e.features[0].properties;
+        const coords = (e.features[0].geometry as GeoJSON.Point).coordinates;
+
+        const vessel: VesselWithSanctions = {
+          imo: props?.imo || null,
+          mmsi: props?.mmsi || '',
+          name: props?.name || null,
+          flag: props?.flag || null,
+          shipType: props?.shipType ?? null,
+          destination: props?.destination || null,
+          lastSeen: new Date(),
+          isSanctioned: props?.isSanctioned || false,
+          sanctioningAuthority: props?.sanctioningAuthority || null,
+          sanctionReason: null,
+          sanctionRiskCategory: props?.sanctionRiskCategory || null,
+          anomalyType: props?.anomalyType || null,
+          anomalyConfidence: props?.anomalyConfidence || null,
+          position: {
+            time: new Date(),
+            mmsi: props?.mmsi || '',
+            imo: props?.imo || null,
+            latitude: coords[1],
+            longitude: coords[0],
+            speed: props?.speed ?? null,
+            course: props?.course ?? null,
+            heading: props?.heading ?? null,
+            navStatus: null,
+            lowConfidence: props?.lowConfidence || false,
+          },
+        };
+        setSelectedVessel(vessel);
+      });
+
+      // Cursor change on hover for vessel circles + spider circles
       map.current.on('mouseenter', 'vessel-circles', () => {
         if (map.current) {
           map.current.getCanvas().style.cursor = 'pointer';
@@ -222,12 +446,29 @@ export function VesselMap() {
           map.current.getCanvas().style.cursor = '';
         }
       });
+      map.current.on('mouseenter', 'spider-circles', () => {
+        if (map.current) {
+          map.current.getCanvas().style.cursor = 'pointer';
+        }
+      });
+      map.current.on('mouseleave', 'spider-circles', () => {
+        if (map.current) {
+          map.current.getCanvas().style.cursor = '';
+        }
+      });
 
       setMapLoaded(true);
     });
 
+    // Clear spider legs on zoom change (clusters reform)
+    map.current.on('zoomstart', () => {
+      if (map.current) clearSpiderLegs(map.current);
+    });
+
     // Cleanup
     return () => {
+      popup.current?.remove();
+      popup.current = null;
       map.current?.remove();
       map.current = null;
     };
@@ -257,6 +498,9 @@ export function VesselMap() {
   // Update map data when vessels change (or anomaly filter changes)
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
+
+    // Clear spider legs since data is refreshing (cluster IDs may change)
+    clearSpiderLegs(map.current);
 
     let filtered = filterTankers(vessels, tankersOnly);
 
