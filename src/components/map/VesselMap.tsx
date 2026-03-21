@@ -38,6 +38,7 @@ const PROXIMITY_MIN_COUNT = 2;
 export function VesselMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const vesselsRef = useRef<VesselWithSanctions[]>([]);
   const [vessels, setVessels] = useState<VesselWithSanctions[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -340,6 +341,20 @@ export function VesselMap() {
       map.current.on('moveend', () => detectProximityGroup());
 
       setMapLoaded(true);
+
+      // Eagerly push any vessels that arrived before the map loaded.
+      // The data-update effect will also fire when mapLoaded flips,
+      // but this guarantees the source gets data immediately.
+      const currentVessels = vesselsRef.current;
+      if (currentVessels.length > 0) {
+        const source = mapInstance.getSource('vessels') as mapboxgl.GeoJSONSource;
+        if (source) {
+          const { tankersOnly: t, anomalyFilter: af } = useVesselStore.getState();
+          let filtered = filterTankers(currentVessels, t);
+          if (af) filtered = filtered.filter((v) => v.anomalyType !== null && v.anomalyType !== undefined);
+          source.setData(vesselsToGeoJSON(filtered));
+        }
+      }
     });
 
     // Cleanup
@@ -372,6 +387,9 @@ export function VesselMap() {
 
   // Update map data when vessels change (or anomaly filter changes)
   useEffect(() => {
+    // Keep ref in sync so the map-load callback can access latest data
+    vesselsRef.current = vessels;
+
     if (!map.current || !mapLoaded) return;
 
     let filtered = filterTankers(vessels, tankersOnly);

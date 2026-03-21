@@ -16,7 +16,7 @@ export function TankerFilter() {
       className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
         tankersOnly
           ? 'border-amber-500 text-amber-500 bg-amber-500/10'
-          : 'border-gray-700 text-gray-400 hover:text-gray-300 hover:border-gray-600'
+          : 'border-gray-600 text-gray-300 hover:text-white hover:border-gray-500'
       }`}
     >
       {tankersOnly ? 'Tankers Only' : 'All Vessels'}
