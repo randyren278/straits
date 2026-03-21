@@ -6,6 +6,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { DataFreshness } from './DataFreshness';
 import { TankerFilter } from './TankerFilter';
@@ -44,7 +45,17 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
     <header className="bg-black border-b border-amber-500/20">
       <div className="h-14 flex items-center justify-between px-4">
         <div className="flex items-center">
-          <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">Tanker Tracker</h1>
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <Image
+              src="/logo-header.png"
+              alt="Tanker Tracker"
+              width={28}
+              height={28}
+              className="opacity-90"
+              priority
+            />
+            <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">Tanker Tracker</h1>
+          </Link>
           <nav className="flex gap-1 ml-6">
             <Link
               href="/dashboard"
