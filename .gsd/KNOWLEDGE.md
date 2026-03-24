@@ -85,3 +85,35 @@
 **Rule:** Before adding a display constant to a component, check the relevant types file first. If it exists there, import it. If it doesn't and might be reused, add it to the types file from the start.
 
 **File:** `src/types/anomaly.ts` (`ANOMALY_TYPE_LABELS`, `ShipCategory`)
+
+## Display staleness vs detection intervals vs analytics windows
+
+**Context:** The codebase has three categories of time-based SQL intervals that serve different purposes and must not be conflated:
+
+1. **Display staleness** — controls which vessels appear in current-state views (map, fleet, chokepoints, anomalies). Defined in `src/lib/constants/staleness.ts`. Vessel display = 7 days, chokepoint display = 24 hours.
+2. **Detection intervals** — calibrated windows for anomaly detection algorithms in `src/lib/detection/`. Going-dark (2h), loitering (6h), STS (30min), deviation (1-2h). These are domain-specific and independently tuned.
+3. **Analytics windows** — historical aggregation ranges in `src/lib/db/analytics.ts`. User-selected (7d/30d/90d). Must include all vessels that existed during the period, even if now stale.
+
+**Rule:** New display queries should import from `src/lib/constants/staleness.ts`. Never use staleness constants in detection or analytics files. Run `rg "STALENESS_INTERVAL" src/` to audit — any new query file with a hardcoded interval should be conspicuously absent.
+
+**Gotcha:** The staleness constants module has JSDoc warning comments, but the real protection is the `rg` audit pattern — it shows which files consume the constants, making drift visible.
+
+**Files:** `src/lib/constants/staleness.ts` (source of truth), `src/lib/detection/` (do not touch), `src/lib/db/analytics.ts` (do not touch)
+
+## IMO→MMSI bridge join for cross-table vessel correlation
+
+**Context:** `vessel_anomalies` is keyed by IMO, but `vessel_positions` is keyed by MMSI. To correlate anomalies with position recency, you need a bridge join through the `vessels` table: `vessel_anomalies.imo → vessels.imo → vessels.mmsi → vessel_positions.mmsi`.
+
+**Pattern:** Use an EXISTS subquery (not IN) to avoid row multiplication:
+```sql
+AND EXISTS (
+  SELECT 1 FROM vessel_positions vp2
+  JOIN vessels v2 ON v2.mmsi = vp2.mmsi
+  WHERE v2.imo = va.imo AND v2.imo IS NOT NULL
+  AND vp2.time > NOW() - INTERVAL '${VESSEL_STALENESS_INTERVAL}'
+)
+```
+
+**Gotcha:** Include `AND v2.imo IS NOT NULL` — some vessels have NULL IMO and can't be correlated. These are conservatively excluded.
+
+**File:** `src/app/api/anomalies/route.ts`
