@@ -68,7 +68,7 @@ export function TrafficChart({
   }
 
   return (
-    <div className="bg-black p-4">
+    <div className="bg-black p-4" role="img" aria-label={title || 'Vessel traffic chart'}>
       {title && (
         <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
       )}

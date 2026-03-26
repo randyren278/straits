@@ -108,6 +108,8 @@ export function WatchlistPanel() {
                 <div
                   className="flex-1 cursor-pointer"
                   onClick={() => handleVesselClick(entry)}
+                  role="button"
+                  aria-label={`Show ${entry.vesselName || entry.imo} on map`}
                 >
                   <span className="font-mono text-white text-xs">
                     {entry.vesselName || entry.imo}
@@ -128,6 +130,7 @@ export function WatchlistPanel() {
                     handleRemove(entry.imo);
                   }}
                   className="text-gray-600 hover:text-red-400 transition-colors p-1"
+                  aria-label={`Remove ${entry.vesselName || entry.imo} from watchlist`}
                   title="Remove from watchlist"
                 >
                   <Trash2 className="w-3 h-3" />

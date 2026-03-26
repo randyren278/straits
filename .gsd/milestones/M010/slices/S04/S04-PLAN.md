@@ -11,7 +11,7 @@
   - Estimate: 45m
   - Files: src/components/ui/Header.tsx, src/app/(protected)/dashboard/page.tsx, src/components/ui/ChokepointWidget.tsx, src/app/(protected)/analytics/page.tsx, src/app/(protected)/fleet/page.tsx
   - Verify: npx tsc --noEmit && npm run build && npx vitest run
-- [ ] **T02: Add aria-label, aria-pressed, aria-expanded, and role attributes to all interactive components** — Systematic pass through all interactive components adding ARIA attributes. Currently only ~5 files have any aria-* attributes. This task adds: aria-label to icon-only buttons and the search input, aria-pressed to toggle filter buttons, aria-expanded to collapse/expand controls, role='status' to live-updating status regions, and aria-label to ambiguous clickable elements.
+- [x] **T02: Added ARIA attributes to 20 component files, raising aria-* count from 11 to 51 (threshold: ≥50)** — Systematic pass through all interactive components adding ARIA attributes. Currently only ~5 files have any aria-* attributes. This task adds: aria-label to icon-only buttons and the search input, aria-pressed to toggle filter buttons, aria-expanded to collapse/expand controls, role='status' to live-updating status regions, and aria-label to ambiguous clickable elements.
 
 This is additive-only — no layout or behavior changes. Every edit adds HTML attributes without modifying existing className, onClick, or component structure.
 

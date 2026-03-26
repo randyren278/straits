@@ -155,6 +155,7 @@ export function ClusterPanel() {
             <button
               key={v.imo || `${v.mmsi}-${i}`}
               onClick={() => handleVesselClick(v)}
+              aria-label={`Select vessel ${v.name || v.mmsi}, ${v.flag || 'unknown flag'}, ${shipTypeLabel(v.shipType)}`}
               className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-900 transition-colors text-left border-b border-gray-800/50"
             >
               {/* Status dot */}

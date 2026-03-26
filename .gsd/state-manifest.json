@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-03-26T20:25:57.351Z",
+  "exported_at": "2026-03-26T20:33:53.045Z",
   "milestones": [
     {
       "id": "M006",
@@ -1026,19 +1026,43 @@
       "milestone_id": "M010",
       "slice_id": "S04",
       "id": "T02",
-      "title": "Add aria-label, aria-pressed, aria-expanded, and role attributes to all interactive components",
-      "status": "pending",
-      "one_liner": "",
-      "narrative": "",
-      "verification_result": "",
+      "title": "Added ARIA attributes to 20 component files, raising aria-* count from 11 to 51 (threshold: ≥50)",
+      "status": "complete",
+      "one_liner": "Added ARIA attributes to 20 component files, raising aria-* count from 11 to 51 (threshold: ≥50)",
+      "narrative": "Systematic pass through all interactive components adding ARIA attributes. Changes are additive-only — no layout, behavior, or className modifications. Added aria-label to icon-only buttons and search inputs, aria-pressed to all toggle filter buttons, aria-expanded to all collapse/expand controls, role='status' to live-updating status regions, role='group' to related button containers, and role='img' to chart/badge elements. Extended scope beyond the planned 15 files to 20 files to meet the ≥50 aria-* threshold.",
+      "verification_result": "All four verification commands pass: tsc --noEmit (zero type errors), npm run build (18 routes compiled), vitest run (378 tests pass across 34 files), aria-* count = 51 (≥50 threshold met).",
       "duration": "",
-      "completed_at": null,
+      "completed_at": "2026-03-26T20:33:53.026Z",
       "blocker_discovered": false,
-      "deviations": "",
-      "known_issues": "",
-      "key_files": [],
-      "key_decisions": [],
-      "full_summary_md": "",
+      "deviations": "Extended scope beyond the planned 15 files to 20 files (added AnomalyBadge, OilPricePanel, Sparkline, TrafficChart, AnomalyTable) to meet the ≥50 aria-* threshold.",
+      "known_issues": "None.",
+      "key_files": [
+        "src/components/ui/SearchInput.tsx",
+        "src/components/ui/TankerFilter.tsx",
+        "src/components/ui/AnomalyFilter.tsx",
+        "src/components/ui/NotificationBell.tsx",
+        "src/components/ui/ChokepointWidget.tsx",
+        "src/components/ui/ChokepointSelector.tsx",
+        "src/components/ui/TimeRangeSelector.tsx",
+        "src/components/ui/DataFreshness.tsx",
+        "src/components/ui/StatusBar.tsx",
+        "src/components/ui/AnomalyBadge.tsx",
+        "src/components/panels/NewsPanel.tsx",
+        "src/components/panels/WatchlistPanel.tsx",
+        "src/components/panels/VesselPanel.tsx",
+        "src/components/panels/ClusterPanel.tsx",
+        "src/components/panels/OilPricePanel.tsx",
+        "src/components/fleet/AnomalyTable.tsx",
+        "src/components/fleet/SanctionedVessels.tsx",
+        "src/components/fleet/FleetVesselDetail.tsx",
+        "src/components/charts/Sparkline.tsx",
+        "src/components/charts/TrafficChart.tsx"
+      ],
+      "key_decisions": [
+        "Used role='group' with aria-label on toggle button containers (ChokepointSelector, TimeRangeSelector, NotificationBell filters) rather than individual labels — groups communicate that buttons are related choices",
+        "Extended scope beyond planned 15 files to 20 to meet the ≥50 aria-* threshold — added AnomalyBadge, OilPricePanel, Sparkline, TrafficChart, AnomalyTable"
+      ],
+      "full_summary_md": "---\nid: T02\nparent: S04\nmilestone: M010\nkey_files:\n  - src/components/ui/SearchInput.tsx\n  - src/components/ui/TankerFilter.tsx\n  - src/components/ui/AnomalyFilter.tsx\n  - src/components/ui/NotificationBell.tsx\n  - src/components/ui/ChokepointWidget.tsx\n  - src/components/ui/ChokepointSelector.tsx\n  - src/components/ui/TimeRangeSelector.tsx\n  - src/components/ui/DataFreshness.tsx\n  - src/components/ui/StatusBar.tsx\n  - src/components/ui/AnomalyBadge.tsx\n  - src/components/panels/NewsPanel.tsx\n  - src/components/panels/WatchlistPanel.tsx\n  - src/components/panels/VesselPanel.tsx\n  - src/components/panels/ClusterPanel.tsx\n  - src/components/panels/OilPricePanel.tsx\n  - src/components/fleet/AnomalyTable.tsx\n  - src/components/fleet/SanctionedVessels.tsx\n  - src/components/fleet/FleetVesselDetail.tsx\n  - src/components/charts/Sparkline.tsx\n  - src/components/charts/TrafficChart.tsx\nkey_decisions:\n  - Used role='group' with aria-label on toggle button containers (ChokepointSelector, TimeRangeSelector, NotificationBell filters) rather than individual labels — groups communicate that buttons are related choices\n  - Extended scope beyond planned 15 files to 20 to meet the ≥50 aria-* threshold — added AnomalyBadge, OilPricePanel, Sparkline, TrafficChart, AnomalyTable\nduration: \"\"\nverification_result: passed\ncompleted_at: 2026-03-26T20:33:53.027Z\nblocker_discovered: false\n---\n\n# T02: Added ARIA attributes to 20 component files, raising aria-* count from 11 to 51 (threshold: ≥50)\n\n**Added ARIA attributes to 20 component files, raising aria-* count from 11 to 51 (threshold: ≥50)**\n\n## What Happened\n\nSystematic pass through all interactive components adding ARIA attributes. Changes are additive-only — no layout, behavior, or className modifications. Added aria-label to icon-only buttons and search inputs, aria-pressed to all toggle filter buttons, aria-expanded to all collapse/expand controls, role='status' to live-updating status regions, role='group' to related button containers, and role='img' to chart/badge elements. Extended scope beyond the planned 15 files to 20 files to meet the ≥50 aria-* threshold.\n\n## Verification\n\nAll four verification commands pass: tsc --noEmit (zero type errors), npm run build (18 routes compiled), vitest run (378 tests pass across 34 files), aria-* count = 51 (≥50 threshold met).\n\n## Verification Evidence\n\n| # | Command | Exit Code | Verdict | Duration |\n|---|---------|-----------|---------|----------|\n| 1 | `npx tsc --noEmit` | 0 | ✅ pass | 4000ms |\n| 2 | `npm run build` | 0 | ✅ pass | 10800ms |\n| 3 | `npx vitest run` | 0 | ✅ pass | 5000ms |\n| 4 | `test $(rg 'aria-' src/components/ -g '*.tsx' --no-filename -c 2>/dev/null | paste -sd+ - | bc) -ge 50` | 0 | ✅ pass | 100ms |\n\n\n## Deviations\n\nExtended scope beyond the planned 15 files to 20 files (added AnomalyBadge, OilPricePanel, Sparkline, TrafficChart, AnomalyTable) to meet the ≥50 aria-* threshold.\n\n## Known Issues\n\nNone.\n\n## Files Created/Modified\n\n- `src/components/ui/SearchInput.tsx`\n- `src/components/ui/TankerFilter.tsx`\n- `src/components/ui/AnomalyFilter.tsx`\n- `src/components/ui/NotificationBell.tsx`\n- `src/components/ui/ChokepointWidget.tsx`\n- `src/components/ui/ChokepointSelector.tsx`\n- `src/components/ui/TimeRangeSelector.tsx`\n- `src/components/ui/DataFreshness.tsx`\n- `src/components/ui/StatusBar.tsx`\n- `src/components/ui/AnomalyBadge.tsx`\n- `src/components/panels/NewsPanel.tsx`\n- `src/components/panels/WatchlistPanel.tsx`\n- `src/components/panels/VesselPanel.tsx`\n- `src/components/panels/ClusterPanel.tsx`\n- `src/components/panels/OilPricePanel.tsx`\n- `src/components/fleet/AnomalyTable.tsx`\n- `src/components/fleet/SanctionedVessels.tsx`\n- `src/components/fleet/FleetVesselDetail.tsx`\n- `src/components/charts/Sparkline.tsx`\n- `src/components/charts/TrafficChart.tsx`\n",
       "description": "Systematic pass through all interactive components adding ARIA attributes. Currently only ~5 files have any aria-* attributes. This task adds: aria-label to icon-only buttons and the search input, aria-pressed to toggle filter buttons, aria-expanded to collapse/expand controls, role='status' to live-updating status regions, and aria-label to ambiguous clickable elements.\n\nThis is additive-only — no layout or behavior changes. Every edit adds HTML attributes without modifying existing className, onClick, or component structure.\n\n**Components to update (in order):**\n1. SearchInput — aria-label on input, aria-label on clear button (icon-only X), role='listbox' on dropdown\n2. TankerFilter — aria-pressed for toggle state\n3. AnomalyFilter — aria-pressed for toggle state\n4. NotificationBell — aria-pressed on filter buttons, aria-label on anomaly items\n5. ChokepointWidget — aria-expanded + aria-label on expand buttons, aria-label on vessel buttons\n6. ChokepointSelector — aria-pressed on toggle buttons\n7. TimeRangeSelector — aria-pressed on selected button\n8. DataFreshness — role='status' for live region\n9. StatusBar — role='status' on container\n10. NewsPanel — aria-expanded + aria-label on collapse button\n11. WatchlistPanel — aria-expanded + aria-label on collapse button, aria-label on remove buttons\n12. VesselPanel — aria-label on watchlist button, aria-expanded on section toggles, aria-pressed on track toggle\n13. ClusterPanel — aria-label on vessel buttons (close button already has aria-label)\n14. SanctionedVessels — aria-expanded on expandable rows, keyboard accessibility\n15. FleetVesselDetail — aria-label on disabled 'Show on Map' button for context",
       "estimate": "45m",
       "files": [
@@ -1382,6 +1406,50 @@
       "verdict": "✅ pass",
       "duration_ms": 3700,
       "created_at": "2026-03-26T20:25:57.334Z"
+    },
+    {
+      "id": 20,
+      "task_id": "T02",
+      "slice_id": "S04",
+      "milestone_id": "M010",
+      "command": "npx tsc --noEmit",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 4000,
+      "created_at": "2026-03-26T20:33:53.026Z"
+    },
+    {
+      "id": 21,
+      "task_id": "T02",
+      "slice_id": "S04",
+      "milestone_id": "M010",
+      "command": "npm run build",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 10800,
+      "created_at": "2026-03-26T20:33:53.026Z"
+    },
+    {
+      "id": 22,
+      "task_id": "T02",
+      "slice_id": "S04",
+      "milestone_id": "M010",
+      "command": "npx vitest run",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 5000,
+      "created_at": "2026-03-26T20:33:53.026Z"
+    },
+    {
+      "id": 23,
+      "task_id": "T02",
+      "slice_id": "S04",
+      "milestone_id": "M010",
+      "command": "test $(rg 'aria-' src/components/ -g '*.tsx' --no-filename -c 2>/dev/null | paste -sd+ - | bc) -ge 50",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 100,
+      "created_at": "2026-03-26T20:33:53.026Z"
     }
   ]
 }

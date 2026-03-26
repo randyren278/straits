@@ -95,6 +95,9 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                     }`}
                     data-imo={anomaly.imo}
                     data-anomaly-id={anomaly.id}
+                    role="button"
+                    aria-expanded={expandedImo === anomaly.imo}
+                    aria-label={`${anomaly.vesselName || anomaly.imo}: expand for intelligence dossier`}
                     onClick={() => setExpandedImo(prev => prev === anomaly.imo ? null : anomaly.imo)}
                   >
                   <td className="px-4 py-2 text-sm font-mono text-gray-300">

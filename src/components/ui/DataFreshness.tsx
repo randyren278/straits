@@ -43,7 +43,7 @@ export function DataFreshness() {
   }
 
   return (
-    <span className={`text-sm ${colorClass} flex items-center gap-1`}>
+    <span className={`text-sm ${colorClass} flex items-center gap-1`} role="status" aria-label={`Data freshness: last updated ${formatDistanceToNow(lastUpdate, { addSuffix: true })}`}>
       <span className={`w-2 h-2 rounded-full ${dotColor}`} />
       {formatDistanceToNow(lastUpdate, { addSuffix: true })}
     </span>

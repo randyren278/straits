@@ -354,6 +354,7 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
           <button
             onClick={handleShowOnMap}
             disabled={!canShowOnMap}
+            aria-label={canShowOnMap ? `Show vessel ${imo} on map` : 'Position data not available for this anomaly type'}
             className={`flex items-center justify-center gap-2 px-4 py-2.5 font-mono text-xs uppercase tracking-widest border transition-colors
               ${canShowOnMap
                 ? 'border-amber-500/60 text-amber-500 hover:bg-amber-500/10 hover:border-amber-500'

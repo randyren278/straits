@@ -125,6 +125,8 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
               setExpandedId(prev => prev === cp.id ? null : cp.id);
               onSelect?.(cp.bounds, cp.name);
             }}
+            aria-expanded={expandedId === cp.id}
+            aria-label={`${cp.name}: ${cp.tankerCount} tankers, ${cp.totalVessels} total vessels`}
             className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-900 transition-colors"
           >
             <Anchor className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />

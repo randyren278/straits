@@ -67,7 +67,7 @@ export function StatusBar() {
   }, []);
 
   return (
-    <div className="flex items-center gap-3 px-2 border-l border-amber-500/20">
+    <div className="flex items-center gap-3 px-2 border-l border-amber-500/20" role="status" aria-label="System status indicators">
       <Indicator label="AIS" status={status.ais} />
       <Indicator label="Prices" status={status.prices} />
       <Indicator label="News" status={status.news} />

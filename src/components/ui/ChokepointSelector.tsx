@@ -25,11 +25,12 @@ export function ChokepointSelector({ selected, onChange }: ChokepointSelectorPro
   };
 
   return (
-    <div className="flex gap-2 flex-wrap">
+    <div className="flex gap-2 flex-wrap" role="group" aria-label="Chokepoint selection">
       {Object.values(CHOKEPOINTS).map((cp) => (
         <button
           key={cp.id}
           onClick={() => toggle(cp.id)}
+          aria-pressed={selected.includes(cp.id)}
           className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider border transition-colors ${
             selected.includes(cp.id)
               ? 'bg-amber-500 text-black border-amber-500'

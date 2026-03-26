@@ -51,10 +51,12 @@ export function NewsPanel() {
   if (loading) return null;
 
   return (
-    <div className="bg-black">
+    <div className="bg-black" role="region" aria-label="Intel feed">
       {/* Terminal panel header */}
       <button
         onClick={() => setCollapsed(!collapsed)}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? 'Expand intel feed' : 'Collapse intel feed'}
         className="w-full px-3 py-1.5 border-b border-amber-500/20 flex items-center justify-between hover:bg-white/5 transition-colors"
       >
         <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">INTEL FEED</span>
@@ -72,6 +74,7 @@ export function NewsPanel() {
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label={`${item.title} — ${item.source}`}
                 className="block px-3 py-2 border-b border-amber-500/10 hover:bg-white/5 transition-colors"
               >
                 <p className="text-xs text-gray-200 leading-tight line-clamp-2">{item.title}</p>

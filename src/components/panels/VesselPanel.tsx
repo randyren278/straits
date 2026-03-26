@@ -147,6 +147,7 @@ export function VesselPanel() {
             className={`p-1 ${
               isWatched ? 'text-amber-500' : 'text-gray-500 hover:text-white'
             }`}
+            aria-label={isWatched ? 'Remove from watchlist' : 'Add to watchlist'}
             title={isWatched ? 'Remove from watchlist' : 'Add to watchlist'}
           >
             {isWatched ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
@@ -178,7 +179,7 @@ export function VesselPanel() {
       </div>
 
       {/* Data rows */}
-      <div className="px-3 py-2 space-y-1.5 text-xs">
+      <div className="px-3 py-2 space-y-1.5 text-xs" role="region" aria-label="Vessel details">
         <div className="flex justify-between">
           <span className="text-gray-500">IMO</span>
           <span className="font-mono text-white">{selectedVessel.imo || 'N/A'}</span>
@@ -362,6 +363,7 @@ export function VesselPanel() {
         <div className="mx-3 mb-2 border border-amber-500/20">
           <button
             onClick={() => toggleSection('risk')}
+            aria-expanded={expandedSections.risk}
             className="w-full px-3 py-1.5 flex items-center justify-between border-b border-amber-500/20"
           >
             <div className="flex items-center gap-2">
@@ -412,6 +414,7 @@ export function VesselPanel() {
         <div className="mx-3 mb-2 border border-amber-500/20">
           <button
             onClick={() => toggleSection('anomalies')}
+            aria-expanded={expandedSections.anomalies}
             className="w-full px-3 py-1.5 flex items-center justify-between border-b border-amber-500/20"
           >
             <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">ANOMALY HISTORY</span>
@@ -453,6 +456,7 @@ export function VesselPanel() {
         <div className="mx-3 mb-2 border border-amber-500/20">
           <button
             onClick={() => toggleSection('destinations')}
+            aria-expanded={expandedSections.destinations}
             className="w-full px-3 py-1.5 flex items-center justify-between border-b border-amber-500/20"
           >
             <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">DESTINATION LOG</span>
@@ -486,6 +490,7 @@ export function VesselPanel() {
       <div className="px-3 py-2">
         <button
           onClick={() => setShowTrack(!showTrack)}
+          aria-pressed={showTrack}
           className={`w-full py-1.5 font-mono text-xs uppercase tracking-widest transition-colors border
             ${
               showTrack

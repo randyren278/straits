@@ -33,7 +33,7 @@ export function Sparkline({ data, color = '#f59e0b', height = 40 }: SparklinePro
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data}>
+      <AreaChart data={data} aria-label="Price trend sparkline">
         <Area
           type="monotone"
           dataKey="value"

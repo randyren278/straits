@@ -20,11 +20,12 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
 
 export function TimeRangeSelector({ value, onChange }: TimeRangeSelectorProps) {
   return (
-    <div className="flex gap-1 bg-black border border-gray-800 p-1">
+    <div className="flex gap-1 bg-black border border-gray-800 p-1" role="group" aria-label="Time range selection">
       {TIME_RANGES.map(({ value: rangeValue, label }) => (
         <button
           key={rangeValue}
           onClick={() => onChange(rangeValue)}
+          aria-pressed={value === rangeValue}
           className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider border transition-colors ${
             value === rangeValue
               ? 'bg-amber-500 text-black border-amber-500'

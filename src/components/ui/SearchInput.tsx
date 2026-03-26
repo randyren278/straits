@@ -90,6 +90,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setIsOpen(true)}
           placeholder="Search vessel..."
+          aria-label="Search vessels by name, IMO, or MMSI"
           className="w-48 pl-9 pr-8 py-1.5 bg-black border border-gray-700 text-sm font-mono text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
         />
         {query && (
@@ -110,6 +111,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
           {results.map((result) => (
             <button
               key={result.imo}
+              role="option"
               onClick={() => handleSelect(result)}
               className="w-full px-3 py-2 text-left hover:bg-gray-900 transition-colors border-b border-gray-800 last:border-b-0"
             >

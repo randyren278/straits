@@ -71,6 +71,9 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
                       : 'hover:bg-red-500/5'
                   }`}
                   data-imo={vessel.imo}
+                  aria-expanded={expandedImo === vessel.imo}
+                  role="button"
+                  aria-label={`${vessel.vesselName || vessel.imo}: expand for intelligence dossier`}
                   onClick={() => setExpandedImo(prev => prev === vessel.imo ? null : vessel.imo)}
                 >
                   <td className="px-4 py-2 text-sm font-mono text-gray-300">

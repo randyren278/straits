@@ -50,16 +50,16 @@ export function OilPricePanel() {
   if (!prices.length) return null;
 
   return (
-    <div className="bg-black">
+    <div className="bg-black" role="region" aria-label="Oil prices">
       {/* Terminal panel header */}
       <div className="px-3 py-1.5 border-b border-amber-500/20 flex items-center justify-between">
         <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">OIL PRICES</span>
       </div>
 
       {/* Price data */}
-      <div className="px-3 py-2 space-y-1.5 text-xs">
+      <div className="px-3 py-2 space-y-1.5 text-xs" role="status" aria-live="polite">
         {prices.map((p) => (
-          <div key={p.symbol} className="flex flex-col">
+          <div key={p.symbol} className="flex flex-col" aria-label={`${p.symbol}: $${p.price.toFixed(2)}, ${p.change >= 0 ? '+' : ''}${p.changePercent.toFixed(2)}%`}>
             <div className="flex justify-between items-baseline mb-1">
               <span className="text-gray-500">{p.symbol}</span>
               <div className="flex items-baseline gap-2">

@@ -14,6 +14,7 @@ export function AnomalyFilter() {
   return (
     <button
       onClick={() => setAnomalyFilter(!anomalyFilter)}
+      aria-pressed={anomalyFilter}
       className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono uppercase tracking-wider border transition-colors ${
         anomalyFilter
           ? 'border-amber-500 text-amber-500 bg-amber-500/10'

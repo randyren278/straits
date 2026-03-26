@@ -84,6 +84,7 @@ export function NotificationBell() {
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-400 hover:text-white transition-colors"
         aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} active)` : ''}`}
+        aria-expanded={isOpen}
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
@@ -99,17 +100,23 @@ export function NotificationBell() {
           <div
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
+            role="presentation"
+            aria-hidden="true"
           />
 
           {/* Dropdown */}
-          <div className="absolute right-0 top-full mt-2 w-80 bg-black border border-amber-500/20 shadow-xl z-50 max-h-96 overflow-hidden">
+          <div
+            className="absolute right-0 top-full mt-2 w-80 bg-black border border-amber-500/20 shadow-xl z-50 max-h-96 overflow-hidden"
+            role="region"
+            aria-label="Anomaly alerts"
+          >
             <div className="p-3 border-b border-gray-700 flex justify-between items-center">
               <span className="font-semibold text-white">Alerts</span>
               <span className="text-xs text-gray-500">{unreadCount} active</span>
             </div>
 
             {/* Ship type filter buttons */}
-            <div className="flex gap-1 px-3 py-2 border-b border-gray-700">
+            <div className="flex gap-1 px-3 py-2 border-b border-gray-700" role="group" aria-label="Filter by ship type">
               {FILTER_BUTTONS.map(({ value, label }) => (
                 <button
                   key={value}
@@ -134,6 +141,8 @@ export function NotificationBell() {
                     key={anomaly.id}
                     onClick={() => handleAnomalyClick(anomaly)}
                     className="p-3 border-b border-gray-800 cursor-pointer hover:bg-gray-900 transition-colors"
+                    role="button"
+                    aria-label={`Anomaly alert for vessel ${anomaly.imo}: ${anomaly.anomalyType}`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-1.5">
