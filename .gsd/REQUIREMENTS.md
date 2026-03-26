@@ -26,17 +26,6 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: partial — `chokepoints.ts` fixed in audit commit (was hardcoded '1 hour'), needs re-validation
 - Notes: Previously validated under M008/S01 but audit found the fix was never actually applied. Updated from 24h to 7d to match vessel display.
 
-### R010 — Dashboard, fleet, and analytics pages must be usable on tablet (768px) and mobile (375px) viewports.
-- Class: quality-attribute
-- Status: active
-- Description: Dashboard, fleet, and analytics pages must be usable on tablet (768px) and mobile (375px) viewports.
-- Why it matters: The dashboard grid is fixed at grid-cols-[1fr_320px] which breaks on smaller screens.
-- Source: inferred
-- Primary owning slice: M010/S04
-- Supporting slices: none
-- Validation: unmapped
-- Notes: Currently only one max-md breakpoint in the entire codebase.
-
 ### R011 — All buttons, inputs, and interactive elements must have accessible names via aria-label, aria-labelledby, or visible text content.
 - Class: quality-attribute
 - Status: active
@@ -127,6 +116,17 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: Created (protected)/loading.tsx with Bloomberg-styled pulse animation and (protected)/layout.tsx as pass-through Suspense host. Production build succeeds confirming Next.js route integration. All route transitions within the (protected) group show the loading indicator.
 - Notes: No loading.tsx or Suspense boundaries found in the codebase.
 
+### R010 — Dashboard, fleet, and analytics pages must be usable on tablet (768px) and mobile (375px) viewports.
+- Class: quality-attribute
+- Status: validated
+- Description: Dashboard, fleet, and analytics pages must be usable on tablet (768px) and mobile (375px) viewports.
+- Why it matters: The dashboard grid is fixed at grid-cols-[1fr_320px] which breaks on smaller screens.
+- Source: inferred
+- Primary owning slice: M010/S04
+- Supporting slices: none
+- Validation: T01 added responsive breakpoints to Header, dashboard map, ChokepointWidgets, fleet/analytics pages. Build + 378 tests pass. Desktop layout unchanged.
+- Notes: Currently only one max-md breakpoint in the entire codebase.
+
 ## Traceability
 
 | ID | Class | Status | Primary owner | Supporting | Proof |
@@ -140,12 +140,12 @@ This file is the explicit capability and coverage contract for the project.
 | R007 | quality-attribute | validated | M010/S02 | none | All 14 files deleted, 4 empty directories removed, npx tsc --noEmit clean, rg scan shows zero real references to deleted symbols. See D005. |
 | R008 | failure-visibility | validated | M010/S03 | none | ErrorBoundary class component with 5 passing tests (including crash→fallback rendering, retry reset). Wired into dashboard (map + panels as separate boundaries), fleet (anomaly tables), analytics (charts section). Build succeeds. Route-level error.tsx covers About page. |
 | R009 | quality-attribute | validated | M010/S03 | none | Created (protected)/loading.tsx with Bloomberg-styled pulse animation and (protected)/layout.tsx as pass-through Suspense host. Production build succeeds confirming Next.js route integration. All route transitions within the (protected) group show the loading indicator. |
-| R010 | quality-attribute | active | M010/S04 | none | unmapped |
+| R010 | quality-attribute | validated | M010/S04 | none | T01 added responsive breakpoints to Header, dashboard map, ChokepointWidgets, fleet/analytics pages. Build + 378 tests pass. Desktop layout unchanged. |
 | R011 | quality-attribute | active | M010/S04 | none | unmapped |
 
 ## Coverage Summary
 
-- Active requirements: 4
-- Mapped to slices: 4
-- Validated: 7 (R003, R004, R005, R006, R007, R008, R009)
+- Active requirements: 3
+- Mapped to slices: 3
+- Validated: 8 (R003, R004, R005, R006, R007, R008, R009, R010)
 - Unmapped active requirements: 0

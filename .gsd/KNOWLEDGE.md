@@ -115,3 +115,30 @@ AND EXISTS (
 **Gotcha:** Include `AND v2.imo IS NOT NULL` — some vessels have NULL IMO and can't be correlated. These are conservatively excluded.
 
 **File:** `src/app/api/anomalies/route.ts`
+
+## Use role='group' for related toggle button sets
+
+**Context:** When a set of buttons act as a group of related choices (e.g. chokepoint selector, time range selector, notification filter tabs), wrap them in a container with `role='group'` and `aria-label` describing the group purpose. Individual buttons get `aria-pressed` for their toggle state.
+
+**Pattern:**
+```tsx
+<div role="group" aria-label="Time range">
+  {options.map(opt => (
+    <button aria-pressed={opt === selected} ...>{opt}</button>
+  ))}
+</div>
+```
+
+**Why not individual labels:** Grouping communicates that buttons are related choices, not independent actions. Screen readers announce "Time range, group" then individual buttons within it — more navigable than 4 unlabeled buttons in a row.
+
+**Files:** `src/components/ui/ChokepointSelector.tsx`, `src/components/ui/TimeRangeSelector.tsx`, `src/components/ui/NotificationBell.tsx`
+
+## Responsive breakpoints are additive-only (D004)
+
+**Context:** The Bloomberg desktop aesthetic (true black + amber, fixed grid, sharp corners) is established and intentional. Responsive changes use `max-md:` and `max-sm:` prefixes exclusively — never modify the default (desktop) classes.
+
+**Pattern:** Header stacks logo+nav row above controls row at `max-md:`. Dashboard map gets `max-md:min-h-[50vh]`. ChokepointWidgets get `max-md:overflow-x-auto` with `max-md:flex-shrink-0` children. Fleet/analytics pages get reduced padding at `max-sm:`.
+
+**Rule:** When adding responsive styles, add new `max-md:` or `max-sm:` classes. Never change the base (desktop) class values. Run visual check at both 1440px and 375px after edits.
+
+**Files:** `src/components/ui/Header.tsx`, `src/app/(protected)/dashboard/page.tsx`, `src/components/ui/ChokepointWidget.tsx`
