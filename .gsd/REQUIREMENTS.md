@@ -4,42 +4,95 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Active
 
-(none — all requirements validated by M008/S01)
-
-## Validated
-
 ### R001 — 7-day vessel staleness threshold for map and fleet views
 - Class: core-capability
-- Status: validated
+- Status: active
 - Description: Vessels not seen in 7 days must not appear on the live map, fleet page, or any current-state vessel list.
 - Why it matters: Prevents stale vessels from polluting live views and giving a false picture of current activity.
 - Source: user
-- Primary owning slice: M008/S01
+- Primary owning slice: M010/S01
 - Supporting slices: none
-- Validation: `sanctions.ts` and `positions.ts` import `VESSEL_STALENESS_INTERVAL` ('7 days') from shared constants. Build passes, all tests pass, `rg` confirms no hardcoded `'48 hours'` or `'1 hour'` in target files.
-- Notes: Previously map used 48 hours, positions used 1 hour. Now unified at 7 days.
+- Validation: partial — `sanctions.ts` fixed in audit commit (was hardcoded '48 hours'), needs re-validation
+- Notes: Previously validated under M008/S01 but audit found the fix was never actually applied to the SQL string.
 
-### R002 — 24-hour chokepoint transit window
+### R002 — 7-day chokepoint transit window
 - Class: core-capability
-- Status: validated
-- Description: Chokepoint vessel counts and vessel lists must use a 24-hour position recency window.
-- Why it matters: Chokepoints should show today's transits, not vessels from days ago, but 1 hour was too tight.
+- Status: active
+- Description: Chokepoint vessel counts and vessel lists must use a 7-day position recency window matching vessel display.
+- Why it matters: Chokepoint counts should be consistent with what's shown on the map.
 - Source: user
-- Primary owning slice: M008/S01
+- Primary owning slice: M010/S01
 - Supporting slices: none
-- Validation: Both `countVesselsInChokepoint()` and `getVesselsInChokepoint()` in `chokepoints.ts` import `CHOKEPOINT_STALENESS_INTERVAL` ('24 hours'). Build passes, all tests pass.
-- Notes: Previously used 1 hour. Now 24 hours per user decision.
+- Validation: partial — `chokepoints.ts` fixed in audit commit (was hardcoded '1 hour'), needs re-validation
+- Notes: Previously validated under M008/S01 but audit found the fix was never actually applied. Updated from 24h to 7d to match vessel display.
 
 ### R003 — Anomalies filtered by vessel recency (7 days)
 - Class: core-capability
-- Status: validated
+- Status: active
 - Description: The anomalies API and fleet anomaly views must exclude anomalies for vessels not seen in 7 days.
-- Why it matters: Showing anomalies for vessels that have long since left the coverage area is misleading.
+- Why it matters: Showing anomalies for vessels that have long since left the coverage area is misleading. Fleet tab should only show vessels also visible on the map.
 - Source: user
-- Primary owning slice: M008/S01
+- Primary owning slice: M010/S01
 - Supporting slices: none
-- Validation: `anomalies/route.ts` imports `VESSEL_STALENESS_INTERVAL` and uses an EXISTS subquery with IMO→MMSI bridge join. Build passes, all tests pass.
-- Notes: EXISTS subquery chosen over IN for performance (no row multiplication).
+- Validation: unmapped — anomalies route lost its EXISTS staleness subquery entirely
+- Notes: 97 anomaly vessels currently have no position in the 7-day window but still appear in fleet.
+
+### R007 — Dead code removed
+- Class: quality-attribute
+- Status: active
+- Description: Orphaned components (VesselLayer, AnomalyMatrix, TrackLayer), dead lib modules (tracks.ts, proxy.ts, sanctions/matcher.ts), and unwired auth scaffolding must be deleted.
+- Why it matters: Dead code misleads future developers and agents, increases maintenance surface, and creates false import chains.
+- Source: inferred
+- Primary owning slice: M010/S02
+- Supporting slices: none
+- Validation: unmapped
+- Notes: Auth scaffolding (auth.ts, login page, login API route) has no middleware enforcement — the (protected) route group has no guard.
+
+### R008 — Error boundaries on all pages
+- Class: failure-visibility
+- Status: active
+- Description: Each major page section (map, panels, fleet tables, analytics charts) must be wrapped in a React error boundary so a single component crash doesn't white-screen the entire page.
+- Why it matters: A crash in the news panel should not take down the map. Users need to see what still works.
+- Source: inferred
+- Primary owning slice: M010/S03
+- Supporting slices: none
+- Validation: unmapped
+- Notes: Currently zero error boundaries in the codebase.
+
+### R009 — Loading states for route transitions
+- Class: quality-attribute
+- Status: active
+- Description: Route transitions between dashboard, fleet, analytics, and about must show a loading indicator rather than a blank flash.
+- Why it matters: Without loading states, navigation feels broken — the user sees nothing while the new page loads.
+- Source: inferred
+- Primary owning slice: M010/S03
+- Supporting slices: none
+- Validation: unmapped
+- Notes: No loading.tsx or Suspense boundaries found in the codebase.
+
+### R010 — Responsive layout for dashboard, fleet, analytics
+- Class: quality-attribute
+- Status: active
+- Description: Dashboard, fleet, and analytics pages must be usable on tablet (768px) and mobile (375px) viewports.
+- Why it matters: The dashboard grid is fixed at grid-cols-[1fr_320px] which breaks on smaller screens.
+- Source: inferred
+- Primary owning slice: M010/S04
+- Supporting slices: none
+- Validation: unmapped
+- Notes: Currently only one max-md breakpoint in the entire codebase.
+
+### R011 — ARIA attributes on interactive elements
+- Class: quality-attribute
+- Status: active
+- Description: All buttons, inputs, and interactive elements must have accessible names via aria-label, aria-labelledby, or visible text content.
+- Why it matters: Screen readers cannot identify unlabeled controls. Basic accessibility is table stakes.
+- Source: inferred
+- Primary owning slice: M010/S04
+- Supporting slices: none
+- Validation: unmapped
+- Notes: Currently zero aria-* or role= attributes found across components (one aria-label on NotificationBell button).
+
+## Validated
 
 ### R004 — Shared staleness constants
 - Class: quality-attribute
@@ -48,31 +101,31 @@ This file is the explicit capability and coverage contract for the project.
 - Why it matters: Prevents future drift where different queries use different intervals.
 - Source: inferred
 - Primary owning slice: M008/S01
-- Supporting slices: none
-- Validation: `src/lib/constants/staleness.ts` exports 4 constants. 4 consuming files import from it. `rg "STALENESS_INTERVAL" src/` confirms coverage. Missing imports cause build-time TypeScript errors.
-- Notes: Module includes warning comments against misuse in detection/analytics contexts.
+- Supporting slices: M010/S01
+- Validation: validated
+- Notes: `src/lib/constants/staleness.ts` exports constants. Audit commit f702c9f fixed the last two hardcoded intervals.
 
 ### R005 — Detection intervals unchanged
 - Class: constraint
 - Status: validated
 - Description: Anomaly detection windows (going-dark 2h, loitering 6h, STS 30min, deviation 1-2h) must not be modified by staleness changes.
-- Why it matters: Detection intervals are calibrated for their specific domain; conflating them with display staleness would break detection accuracy.
+- Why it matters: Detection intervals are calibrated for their specific domain.
 - Source: inferred
 - Primary owning slice: M008/S01
 - Supporting slices: none
-- Validation: `rg "INTERVAL" src/lib/detection/` confirms all detection intervals unchanged. `rg "STALENESS" src/lib/detection/` returns zero matches.
-- Notes: Detection files were explicitly excluded from modification.
+- Validation: validated
+- Notes: Detection files have zero staleness imports.
 
 ### R006 — Analytics historical aggregations unchanged
 - Class: constraint
 - Status: validated
-- Description: Analytics traffic queries (daily vessel counts by chokepoint/route over 7d/30d/90d) must not be modified — they are historical aggregations, not current-state views.
+- Description: Analytics traffic queries must not be modified — they are historical aggregations, not current-state views.
 - Why it matters: Historical charts should show what happened on each day, including vessels that are now stale.
 - Source: inferred
 - Primary owning slice: M008/S01
 - Supporting slices: none
-- Validation: `rg "STALENESS" src/lib/db/analytics.ts` returns zero matches. Analytics file was not modified.
-- Notes: Analytics queries correctly remain unfiltered — they aggregate historical data per user-selected time range.
+- Validation: validated
+- Notes: Analytics file was not modified.
 
 ## Deferred
 
@@ -86,16 +139,21 @@ This file is the explicit capability and coverage contract for the project.
 
 | ID | Class | Status | Primary owner | Supporting | Proof |
 |---|---|---|---|---|---|
-| R001 | core-capability | validated | M008/S01 | none | sanctions.ts + positions.ts use 7-day constant |
-| R002 | core-capability | validated | M008/S01 | none | chokepoints.ts uses 24-hour constant |
-| R003 | core-capability | validated | M008/S01 | none | anomalies/route.ts EXISTS subquery with 7-day constant |
-| R004 | quality-attribute | validated | M008/S01 | none | shared constants module + 4 consumers + build-time enforcement |
-| R005 | constraint | validated | M008/S01 | none | detection/ has no staleness imports, intervals unchanged |
-| R006 | constraint | validated | M008/S01 | none | analytics.ts has no staleness imports, unmodified |
+| R001 | core-capability | active | M010/S01 | none | partial — audit fix applied, needs re-validation |
+| R002 | core-capability | active | M010/S01 | none | partial — audit fix applied, needs re-validation |
+| R003 | core-capability | active | M010/S01 | none | unmapped — EXISTS subquery missing from anomalies route |
+| R004 | quality-attribute | validated | M008/S01 | M010/S01 | staleness.ts + consumers confirmed |
+| R005 | constraint | validated | M008/S01 | none | detection/ unchanged |
+| R006 | constraint | validated | M008/S01 | none | analytics.ts unchanged |
+| R007 | quality-attribute | active | M010/S02 | none | unmapped |
+| R008 | failure-visibility | active | M010/S03 | none | unmapped |
+| R009 | quality-attribute | active | M010/S03 | none | unmapped |
+| R010 | quality-attribute | active | M010/S04 | none | unmapped |
+| R011 | quality-attribute | active | M010/S04 | none | unmapped |
 
 ## Coverage Summary
 
-- Active requirements: 0
-- Mapped to slices: 0
-- Validated: 6
+- Active requirements: 8
+- Mapped to slices: 8
+- Validated: 3
 - Unmapped active requirements: 0

@@ -33,3 +33,14 @@
 - **Rationale:** Prevents hardcoded intervals drifting across queries. Single source of truth for display staleness thresholds.
 - **Made by:** agent
 - **Revisable:** Yes
+
+---
+
+## Decisions Table
+
+| # | When | Scope | Decision | Choice | Rationale | Revisable? | Made By |
+|---|------|-------|----------|--------|-----------|------------|---------|
+| D001 | M010/S01 | data | How to filter anomalies by vessel position recency | Anomalies route gets EXISTS subquery with VESSEL_STALENESS_INTERVAL, same pattern as the original M009 version that was lost | Fleet tab must only show anomalies for vessels visible on the map. EXISTS with IMO→MMSI bridge join avoids row multiplication. | No | collaborative |
+| D002 | M010/S02 | arch | What to do with unwired auth scaffolding | Delete entirely — no middleware, no guard, no layout. Auth needs a design discussion before reimplementation. | Auth exists but is never enforced. Dead scaffolding misleads future agents into thinking auth works. Clean delete is safer than half-wired auth. | Yes — when auth is actually needed | collaborative |
+| D003 | M010 | scope | Notification bell behavior — anomalies vs alerts | Keep showing anomalies as global activity feed. Alerts system stays intact but unused until users populate watchlists. | Watchlist has 0 entries so alerts table is empty. Anomalies feed is useful as a global "what's happening now" view. No change needed. | Yes — if watchlist gets usage | collaborative |
+| D004 | M010/S04 | pattern | Responsive layout strategy | Mobile-first additive breakpoints — desktop layout must not change. Add responsive rules at sm/md breakpoints only. | Bloomberg aesthetic on desktop is established and intentional. Responsive changes must be additive — stacking panels below the map on smaller screens, not rearranging desktop. | No | collaborative |

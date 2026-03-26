@@ -1,36 +1,32 @@
-# Tanker Tracker
+# Project
 
 ## What This Is
 
-A geopolitical intelligence dashboard tracking all vessels across the Middle East in near real-time. Bloomberg-terminal aesthetic (true black + amber, JetBrains Mono, sharp corners). AIS data + oil prices + sanctions + news + anomaly detection.
+A geopolitical intelligence dashboard tracking all vessels across the Middle East in near real-time. Bloomberg-terminal aesthetic (true black + amber, JetBrains Mono, sharp corners). AIS data from AISStream.io, oil prices, sanctions from OpenSanctions, news feeds, and anomaly detection — all rendered on a Mapbox GL map with supporting panels.
 
 ## Core Value
 
-Real-time vessel awareness with intelligence layers — sanctions, anomaly detection, risk scoring — presented in a dense, information-rich interface.
+Real-time vessel tracking with anomaly detection and sanctions intelligence on a single map view. If scope must shrink, the map with live vessel positions and anomaly color-coding must survive.
 
 ## Current State
 
-Shipped through M008 (Unified Vessel Staleness Policy). Working features:
-- Live AIS ingestion via aisstream.io WebSocket (standalone ingester process)
-- MapLibre GL + deck.gl map with vessel positions, chokepoint widgets, track history
-- Fleet overview with anomaly tables, anomaly matrix, sanctioned vessels panel
-- Analytics page with traffic/oil-price correlation charts, time range + ship type filters
-- Anomaly detection: going dark, loitering, STS transfer, route deviation, repeat going dark
-- Evasion intelligence: route deviation, behavioral patterns, risk scoring
-- Sanctions enrichment from OpenSanctions
-- News panel, watchlist, alert system with notification bell
-- Unified vessel staleness policy: 7-day display threshold across map/fleet/anomalies, 24-hour chokepoint window
+- **AIS pipeline**: Standalone ingester service consuming AISStream.io WebSocket, writing to TimescaleDB. 6 detection algorithms running on cron (going dark, loitering, speed, deviation, STS transfer, repeat going dark). Risk scoring.
+- **Map**: Mapbox GL rendering ~400 vessels with anomaly/sanction color coding, proximity clustering sidebar, track trails, chokepoint overlays.
+- **Fleet**: Anomaly tables grouped by type, sanctioned vessel highlighting, vessel detail with risk factors.
+- **Analytics**: Chokepoint traffic correlation charts with oil price overlay.
+- **Data enrichment**: OpenSanctions (10.7k entries), oil prices (Alpha Vantage + FRED), news (NewsAPI).
+- **Known issues**: Anomalies route missing staleness filter (fleet shows vessels not on map). Dead code from refactoring iterations. No error boundaries, loading states, responsive layout, or ARIA attributes.
 
 ## Architecture / Key Patterns
 
-- **Stack:** Next.js 16 (Turbopack), React 19, TypeScript 5, Tailwind CSS v4, MapLibre GL JS + deck.gl, PostgreSQL + TimescaleDB, Zustand, Recharts
-- **AIS ingester** runs as a separate process (`npm run ingester`) — not inside Next.js
-- **IMO number** is the primary vessel identity key (not MMSI)
-- **Anomaly detection** via cron jobs in the ingester process
-- **Status** derived from DB freshness timestamps (no API pings)
-- Pending target pattern for cross-route vessel selection (Zustand store)
-- SQL JOINs for API endpoint enrichment (not N+1 client fetches)
-- Shared staleness constants module (`src/lib/constants/staleness.ts`) — single source of truth for display query time windows
+- Next.js 16 (Turbopack), React 19, TypeScript 5, Tailwind CSS v4
+- MapLibre GL JS / Mapbox GL for WebGL map rendering
+- PostgreSQL + TimescaleDB for time-series position data
+- Zustand for state, Recharts for analytics charts
+- Standalone AIS ingester service (aisstream.io WebSocket) — runs as separate process
+- IMO number is primary vessel identity key (not MMSI)
+- Display staleness constants in `src/lib/constants/staleness.ts` — single source of truth for display query time windows
+- Bloomberg aesthetic: true black + amber, JetBrains Mono, sharp corners
 
 ## Capability Contract
 
@@ -38,11 +34,11 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 
 ## Milestone Sequence
 
-- [x] M001: v1.0 MVP — AIS pipeline, map, intelligence layers, anomaly detection, analytics
-- [x] M002: v1.1 Polish — Bloomberg UI, data wiring, documentation
-- [x] M003: v1.2 All-Vessels — Expanded to all ship types, chokepoint live lists
-- [x] M004: v1.3 Evasion Intelligence — Route deviation, behavioral patterns, risk scoring
-- [x] M005: Sanctions & Risk Intelligence
+- [x] M001: MVP — AIS pipeline, map, intelligence layers, anomaly detection, analytics
+- [x] M002: Polish — Bloomberg UI, data wiring, documentation
+- [x] M003: All-Vessels — Expanded to all ship types, chokepoint live lists
+- [x] M004: Evasion Intelligence — Route deviation, behavioral patterns, risk scoring, panel intelligence
 - [x] M006: Fleet Overview
 - [x] M007: Fleet Status Matrix & Sanctions Priority
-- [x] M008: Unified Vessel Staleness Policy — Consistent 7-day staleness across all views
+- [x] M009: 7-Day Staleness Sync & Map Rendering Fix
+- [ ] M010: Quality & Consistency — Data parity, dead code removal, error boundaries, responsive layout, accessibility
