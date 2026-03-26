@@ -15,7 +15,7 @@ Real-time vessel tracking with anomaly detection and sanctions intelligence on a
 - **Fleet**: Anomaly tables grouped by type, sanctioned vessel highlighting, vessel detail with risk factors.
 - **Analytics**: Chokepoint traffic correlation charts with oil price overlay.
 - **Data enrichment**: OpenSanctions (10.7k entries), oil prices (Alpha Vantage + FRED), news (NewsAPI).
-- **Known issues**: Anomalies route missing staleness filter (fleet shows vessels not on map). Dead code from refactoring iterations. No error boundaries, loading states, responsive layout, or ARIA attributes.
+- **Known issues**: Dead code from refactoring iterations. No error boundaries, loading states, responsive layout, or ARIA attributes.
 
 ## Architecture / Key Patterns
 

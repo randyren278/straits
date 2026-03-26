@@ -4,7 +4,7 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Active
 
-### R001 — 7-day vessel staleness threshold for map and fleet views
+### R001 — Vessels not seen in 7 days must not appear on the live map, fleet page, or any current-state vessel list.
 - Class: core-capability
 - Status: active
 - Description: Vessels not seen in 7 days must not appear on the live map, fleet page, or any current-state vessel list.
@@ -15,7 +15,7 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: partial — `sanctions.ts` fixed in audit commit (was hardcoded '48 hours'), needs re-validation
 - Notes: Previously validated under M008/S01 but audit found the fix was never actually applied to the SQL string.
 
-### R002 — 7-day chokepoint transit window
+### R002 — Chokepoint vessel counts and vessel lists must use a 7-day position recency window matching vessel display.
 - Class: core-capability
 - Status: active
 - Description: Chokepoint vessel counts and vessel lists must use a 7-day position recency window matching vessel display.
@@ -26,18 +26,7 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: partial — `chokepoints.ts` fixed in audit commit (was hardcoded '1 hour'), needs re-validation
 - Notes: Previously validated under M008/S01 but audit found the fix was never actually applied. Updated from 24h to 7d to match vessel display.
 
-### R003 — Anomalies filtered by vessel recency (7 days)
-- Class: core-capability
-- Status: active
-- Description: The anomalies API and fleet anomaly views must exclude anomalies for vessels not seen in 7 days.
-- Why it matters: Showing anomalies for vessels that have long since left the coverage area is misleading. Fleet tab should only show vessels also visible on the map.
-- Source: user
-- Primary owning slice: M010/S01
-- Supporting slices: none
-- Validation: unmapped — anomalies route lost its EXISTS staleness subquery entirely
-- Notes: 97 anomaly vessels currently have no position in the 7-day window but still appear in fleet.
-
-### R007 — Dead code removed
+### R007 — Orphaned components (VesselLayer, AnomalyMatrix, TrackLayer), dead lib modules (tracks.ts, proxy.ts, sanctions/matcher.ts), and unwired auth scaffolding must be deleted.
 - Class: quality-attribute
 - Status: active
 - Description: Orphaned components (VesselLayer, AnomalyMatrix, TrackLayer), dead lib modules (tracks.ts, proxy.ts, sanctions/matcher.ts), and unwired auth scaffolding must be deleted.
@@ -48,7 +37,7 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: unmapped
 - Notes: Auth scaffolding (auth.ts, login page, login API route) has no middleware enforcement — the (protected) route group has no guard.
 
-### R008 — Error boundaries on all pages
+### R008 — Each major page section (map, panels, fleet tables, analytics charts) must be wrapped in a React error boundary so a single component crash doesn't white-screen the entire page.
 - Class: failure-visibility
 - Status: active
 - Description: Each major page section (map, panels, fleet tables, analytics charts) must be wrapped in a React error boundary so a single component crash doesn't white-screen the entire page.
@@ -59,7 +48,7 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: unmapped
 - Notes: Currently zero error boundaries in the codebase.
 
-### R009 — Loading states for route transitions
+### R009 — Route transitions between dashboard, fleet, analytics, and about must show a loading indicator rather than a blank flash.
 - Class: quality-attribute
 - Status: active
 - Description: Route transitions between dashboard, fleet, analytics, and about must show a loading indicator rather than a blank flash.
@@ -70,7 +59,7 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: unmapped
 - Notes: No loading.tsx or Suspense boundaries found in the codebase.
 
-### R010 — Responsive layout for dashboard, fleet, analytics
+### R010 — Dashboard, fleet, and analytics pages must be usable on tablet (768px) and mobile (375px) viewports.
 - Class: quality-attribute
 - Status: active
 - Description: Dashboard, fleet, and analytics pages must be usable on tablet (768px) and mobile (375px) viewports.
@@ -81,7 +70,7 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: unmapped
 - Notes: Currently only one max-md breakpoint in the entire codebase.
 
-### R011 — ARIA attributes on interactive elements
+### R011 — All buttons, inputs, and interactive elements must have accessible names via aria-label, aria-labelledby, or visible text content.
 - Class: quality-attribute
 - Status: active
 - Description: All buttons, inputs, and interactive elements must have accessible names via aria-label, aria-labelledby, or visible text content.
@@ -94,7 +83,18 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Validated
 
-### R004 — Shared staleness constants
+### R003 — The anomalies API and fleet anomaly views must exclude anomalies for vessels not seen in 7 days.
+- Class: core-capability
+- Status: validated
+- Description: The anomalies API and fleet anomaly views must exclude anomalies for vessels not seen in 7 days.
+- Why it matters: Showing anomalies for vessels that have long since left the coverage area is misleading. Fleet tab should only show vessels also visible on the map.
+- Source: user
+- Primary owning slice: M010/S01
+- Supporting slices: none
+- Validation: validated — EXISTS staleness subquery added to /api/anomalies using VESSEL_STALENESS_INTERVAL with IMO→MMSI bridge join. TypeScript compiles clean. Staleness audit confirms anomalies/route.ts consumes the shared constant.
+- Notes: 97 anomaly vessels currently have no position in the 7-day window but still appear in fleet.
+
+### R004 — Staleness thresholds must be defined as shared constants, not hardcoded intervals scattered across individual queries.
 - Class: quality-attribute
 - Status: validated
 - Description: Staleness thresholds must be defined as shared constants, not hardcoded intervals scattered across individual queries.
@@ -105,7 +105,7 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: validated
 - Notes: `src/lib/constants/staleness.ts` exports constants. Audit commit f702c9f fixed the last two hardcoded intervals.
 
-### R005 — Detection intervals unchanged
+### R005 — Anomaly detection windows (going-dark 2h, loitering 6h, STS 30min, deviation 1-2h) must not be modified by staleness changes.
 - Class: constraint
 - Status: validated
 - Description: Anomaly detection windows (going-dark 2h, loitering 6h, STS 30min, deviation 1-2h) must not be modified by staleness changes.
@@ -116,7 +116,7 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: validated
 - Notes: Detection files have zero staleness imports.
 
-### R006 — Analytics historical aggregations unchanged
+### R006 — Analytics traffic queries must not be modified — they are historical aggregations, not current-state views.
 - Class: constraint
 - Status: validated
 - Description: Analytics traffic queries must not be modified — they are historical aggregations, not current-state views.
@@ -127,24 +127,16 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: validated
 - Notes: Analytics file was not modified.
 
-## Deferred
-
-(none)
-
-## Out of Scope
-
-(none)
-
 ## Traceability
 
 | ID | Class | Status | Primary owner | Supporting | Proof |
 |---|---|---|---|---|---|
-| R001 | core-capability | active | M010/S01 | none | partial — audit fix applied, needs re-validation |
-| R002 | core-capability | active | M010/S01 | none | partial — audit fix applied, needs re-validation |
-| R003 | core-capability | active | M010/S01 | none | unmapped — EXISTS subquery missing from anomalies route |
-| R004 | quality-attribute | validated | M008/S01 | M010/S01 | staleness.ts + consumers confirmed |
-| R005 | constraint | validated | M008/S01 | none | detection/ unchanged |
-| R006 | constraint | validated | M008/S01 | none | analytics.ts unchanged |
+| R001 | core-capability | active | M010/S01 | none | partial — `sanctions.ts` fixed in audit commit (was hardcoded '48 hours'), needs re-validation |
+| R002 | core-capability | active | M010/S01 | none | partial — `chokepoints.ts` fixed in audit commit (was hardcoded '1 hour'), needs re-validation |
+| R003 | core-capability | validated | M010/S01 | none | validated — EXISTS staleness subquery added to /api/anomalies using VESSEL_STALENESS_INTERVAL with IMO→MMSI bridge join. TypeScript compiles clean. Staleness audit confirms anomalies/route.ts consumes the shared constant. |
+| R004 | quality-attribute | validated | M008/S01 | M010/S01 | validated |
+| R005 | constraint | validated | M008/S01 | none | validated |
+| R006 | constraint | validated | M008/S01 | none | validated |
 | R007 | quality-attribute | active | M010/S02 | none | unmapped |
 | R008 | failure-visibility | active | M010/S03 | none | unmapped |
 | R009 | quality-attribute | active | M010/S03 | none | unmapped |
@@ -153,7 +145,7 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Coverage Summary
 
-- Active requirements: 8
-- Mapped to slices: 8
-- Validated: 3
+- Active requirements: 7
+- Mapped to slices: 7
+- Validated: 4 (R003, R004, R005, R006)
 - Unmapped active requirements: 0
