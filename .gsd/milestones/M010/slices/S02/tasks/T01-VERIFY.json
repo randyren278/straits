@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "taskId": "T01",
+  "unitId": "M010/S02/T01",
+  "timestamp": 1774555581712,
+  "passed": true,
+  "discoverySource": "task-plan",
+  "checks": [
+    {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "durationMs": 2151,
+      "verdict": "pass"
+    },
+    {
+      "command": "echo 'tsc clean'",
+      "exitCode": 0,
+      "durationMs": 122,
+      "verdict": "pass"
+    }
+  ]
+}

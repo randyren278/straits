@@ -68,19 +68,17 @@
 
 ## Tailwind v4 requires static class strings for opacity/brightness tiers
 
-**Context:** When building count-based or intensity-based visual indicators (like the AnomalyMatrix heatmap), you might be tempted to dynamically construct Tailwind classes like `` `bg-amber-500/${opacity}` ``. This breaks in Tailwind v4 because the JIT scanner only detects statically-written class strings.
+**Context:** When building count-based or intensity-based visual indicators, you might be tempted to dynamically construct Tailwind classes like `` `bg-amber-500/${opacity}` ``. This breaks in Tailwind v4 because the JIT scanner only detects statically-written class strings.
 
-**Pattern:** Define a constant array of tier objects with pre-written class name strings (`'bg-amber-500/5'`, `'bg-amber-500/15'`, etc.) and select the correct tier by count threshold at runtime. The `getBrightnessTier()` function in `AnomalyMatrix.tsx` demonstrates this.
+**Pattern:** Define a constant array of tier objects with pre-written class name strings (`'bg-amber-500/5'`, `'bg-amber-500/15'`, etc.) and select the correct tier by count threshold at runtime.
 
 **Rule:** Never concatenate or interpolate Tailwind class names at runtime. Always use complete static string literals that the scanner can find.
-
-**File:** `src/components/fleet/AnomalyMatrix.tsx`
 
 ## Extract shared display constants to type modules
 
 **Context:** When multiple components need the same display labels or mappings (e.g. anomaly type labels like `going_dark` → `"Going Dark"`), extract them to the shared types module rather than duplicating in each component.
 
-**Pattern:** `ANOMALY_TYPE_LABELS` was originally defined locally in `AnomalyTable.tsx`. When `AnomalyMatrix.tsx` needed the same labels, the constant was moved to `src/types/anomaly.ts` and both components import from there. This is the canonical location for anomaly-related display constants.
+**Pattern:** Display constants like `ANOMALY_TYPE_LABELS` live in `src/types/anomaly.ts`. All components import from there rather than defining local copies.
 
 **Rule:** Before adding a display constant to a component, check the relevant types file first. If it exists there, import it. If it doesn't and might be reused, add it to the types file from the start.
 

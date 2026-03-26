@@ -26,17 +26,6 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: partial — `chokepoints.ts` fixed in audit commit (was hardcoded '1 hour'), needs re-validation
 - Notes: Previously validated under M008/S01 but audit found the fix was never actually applied. Updated from 24h to 7d to match vessel display.
 
-### R007 — Orphaned components (VesselLayer, AnomalyMatrix, TrackLayer), dead lib modules (tracks.ts, proxy.ts, sanctions/matcher.ts), and unwired auth scaffolding must be deleted.
-- Class: quality-attribute
-- Status: active
-- Description: Orphaned components (VesselLayer, AnomalyMatrix, TrackLayer), dead lib modules (tracks.ts, proxy.ts, sanctions/matcher.ts), and unwired auth scaffolding must be deleted.
-- Why it matters: Dead code misleads future developers and agents, increases maintenance surface, and creates false import chains.
-- Source: inferred
-- Primary owning slice: M010/S02
-- Supporting slices: none
-- Validation: unmapped
-- Notes: Auth scaffolding (auth.ts, login page, login API route) has no middleware enforcement — the (protected) route group has no guard.
-
 ### R008 — Each major page section (map, panels, fleet tables, analytics charts) must be wrapped in a React error boundary so a single component crash doesn't white-screen the entire page.
 - Class: failure-visibility
 - Status: active
@@ -127,6 +116,17 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: validated
 - Notes: Analytics file was not modified.
 
+### R007 — Orphaned components (VesselLayer, AnomalyMatrix, TrackLayer), dead lib modules (tracks.ts, proxy.ts, sanctions/matcher.ts), and unwired auth scaffolding must be deleted.
+- Class: quality-attribute
+- Status: validated
+- Description: Orphaned components (VesselLayer, AnomalyMatrix, TrackLayer), dead lib modules (tracks.ts, proxy.ts, sanctions/matcher.ts), and unwired auth scaffolding must be deleted.
+- Why it matters: Dead code misleads future developers and agents, increases maintenance surface, and creates false import chains.
+- Source: inferred
+- Primary owning slice: M010/S02
+- Supporting slices: none
+- Validation: All 14 files deleted, 4 empty directories removed, npx tsc --noEmit clean, rg scan shows zero real references to deleted symbols. See D005.
+- Notes: Auth scaffolding (auth.ts, login page, login API route) has no middleware enforcement — the (protected) route group has no guard.
+
 ## Traceability
 
 | ID | Class | Status | Primary owner | Supporting | Proof |
@@ -137,7 +137,7 @@ This file is the explicit capability and coverage contract for the project.
 | R004 | quality-attribute | validated | M008/S01 | M010/S01 | validated |
 | R005 | constraint | validated | M008/S01 | none | validated |
 | R006 | constraint | validated | M008/S01 | none | validated |
-| R007 | quality-attribute | active | M010/S02 | none | unmapped |
+| R007 | quality-attribute | validated | M010/S02 | none | All 14 files deleted, 4 empty directories removed, npx tsc --noEmit clean, rg scan shows zero real references to deleted symbols. See D005. |
 | R008 | failure-visibility | active | M010/S03 | none | unmapped |
 | R009 | quality-attribute | active | M010/S03 | none | unmapped |
 | R010 | quality-attribute | active | M010/S04 | none | unmapped |
@@ -145,7 +145,7 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Coverage Summary
 
-- Active requirements: 7
-- Mapped to slices: 7
-- Validated: 4 (R003, R004, R005, R006)
+- Active requirements: 6
+- Mapped to slices: 6
+- Validated: 5 (R003, R004, R005, R006, R007)
 - Unmapped active requirements: 0
