@@ -1,10 +1,12 @@
-# S01: Anomalies Staleness Filter & Data Parity
+---
+estimated_steps: 23
+estimated_files: 2
+skills_used: []
+---
 
-**Goal:** Fleet tab only shows anomalies for vessels with recent position data (within VESSEL_STALENESS_INTERVAL), matching the map's vessel visibility window.
-**Demo:** After this: Fleet tab only shows anomalies for vessels visible on the map. curl comparison confirms anomaly IMOs ⊆ vessel IMOs.
+# T01: Add EXISTS staleness subquery to anomalies API route
 
-## Tasks
-- [ ] **T01: Add EXISTS staleness subquery to anomalies API route** — The anomalies API route (`/api/anomalies`) returns all unresolved anomalies regardless of vessel position recency. The map filters to vessels seen within 7 days (`VESSEL_STALENESS_INTERVAL`), creating a data parity gap: the fleet tab shows anomalies for vessels that don't appear on the map.
+The anomalies API route (`/api/anomalies`) returns all unresolved anomalies regardless of vessel position recency. The map filters to vessels seen within 7 days (`VESSEL_STALENESS_INTERVAL`), creating a data parity gap: the fleet tab shows anomalies for vessels that don't appear on the map.
 
 This task adds an EXISTS subquery to the anomalies route SQL using the IMO→MMSI bridge join pattern documented in KNOWLEDGE.md and already implemented in `sanctions.ts`, `positions.ts`, and `chokepoints.ts`.
 
@@ -30,6 +32,17 @@ This task adds an EXISTS subquery to the anomalies route SQL using the IMO→MMS
 - Include `AND v2.imo IS NOT NULL` guard for vessels with NULL IMO.
 - Use template literal interpolation `'${VESSEL_STALENESS_INTERVAL}'` — safe because the constant is a compile-time string.
 - Do NOT modify any files in `src/lib/detection/` or `src/lib/db/analytics.ts`.
-  - Estimate: 20m
-  - Files: src/app/api/anomalies/route.ts, src/lib/constants/staleness.ts
-  - Verify: npx tsc --noEmit && rg 'STALENESS_INTERVAL' src/ | grep -q 'anomalies/route.ts'
+
+## Inputs
+
+- ``src/app/api/anomalies/route.ts` — current anomalies route, missing staleness filter`
+- ``src/lib/constants/staleness.ts` — source of truth for VESSEL_STALENESS_INTERVAL constant`
+- ``src/lib/db/sanctions.ts` — reference implementation of EXISTS staleness subquery pattern`
+
+## Expected Output
+
+- ``src/app/api/anomalies/route.ts` — modified to import VESSEL_STALENESS_INTERVAL and include EXISTS subquery`
+
+## Verification
+
+npx tsc --noEmit && rg 'STALENESS_INTERVAL' src/ | grep -q 'anomalies/route.ts'
