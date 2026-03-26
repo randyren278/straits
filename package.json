@@ -1,6 +1,7 @@
 {
   "name": "tanker-tracker",
   "version": "1.0.0",
+  "type": "module",
   "description": "Real-time tanker tracking application",
   "private": true,
   "scripts": {
