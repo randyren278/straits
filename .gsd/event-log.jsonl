@@ -13,3 +13,4 @@
 {"cmd":"complete-task","params":{"milestoneId":"M010","sliceId":"S04","taskId":"T01"},"ts":"2026-03-26T20:25:57.352Z","actor":"agent","hash":"a692373b2ebb4214","session_id":"b4e65349-6060-426d-874c-af892759eea0"}
 {"cmd":"complete-task","params":{"milestoneId":"M010","sliceId":"S04","taskId":"T02"},"ts":"2026-03-26T20:33:53.046Z","actor":"agent","hash":"91cb6e90d2eace5d","session_id":"b4e65349-6060-426d-874c-af892759eea0"}
 {"cmd":"complete-slice","params":{"milestoneId":"M010","sliceId":"S04"},"ts":"2026-03-26T20:37:32.686Z","actor":"agent","hash":"6cb30d63634da64a","session_id":"b4e65349-6060-426d-874c-af892759eea0"}
+{"cmd":"complete-milestone","params":{"milestoneId":"M010"},"ts":"2026-03-26T20:43:24.211Z","actor":"agent","hash":"d46813b3d02af93c","session_id":"b4e65349-6060-426d-874c-af892759eea0"}

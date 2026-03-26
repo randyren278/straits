@@ -26,17 +26,6 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: partial — `chokepoints.ts` fixed in audit commit (was hardcoded '1 hour'), needs re-validation
 - Notes: Previously validated under M008/S01 but audit found the fix was never actually applied. Updated from 24h to 7d to match vessel display.
 
-### R011 — All buttons, inputs, and interactive elements must have accessible names via aria-label, aria-labelledby, or visible text content.
-- Class: quality-attribute
-- Status: active
-- Description: All buttons, inputs, and interactive elements must have accessible names via aria-label, aria-labelledby, or visible text content.
-- Why it matters: Screen readers cannot identify unlabeled controls. Basic accessibility is table stakes.
-- Source: inferred
-- Primary owning slice: M010/S04
-- Supporting slices: none
-- Validation: unmapped
-- Notes: Currently zero aria-* or role= attributes found across components (one aria-label on NotificationBell button).
-
 ## Validated
 
 ### R003 — The anomalies API and fleet anomaly views must exclude anomalies for vessels not seen in 7 days.
@@ -127,6 +116,17 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: T01 added responsive breakpoints to Header, dashboard map, ChokepointWidgets, fleet/analytics pages. Build + 378 tests pass. Desktop layout unchanged.
 - Notes: Currently only one max-md breakpoint in the entire codebase.
 
+### R011 — All buttons, inputs, and interactive elements must have accessible names via aria-label, aria-labelledby, or visible text content.
+- Class: quality-attribute
+- Status: validated
+- Description: All buttons, inputs, and interactive elements must have accessible names via aria-label, aria-labelledby, or visible text content.
+- Why it matters: Screen readers cannot identify unlabeled controls. Basic accessibility is table stakes.
+- Source: inferred
+- Primary owning slice: M010/S04
+- Supporting slices: none
+- Validation: T02 added 51 ARIA attributes across 20 component files (threshold ≥50). aria-label on icon-only buttons and inputs, aria-pressed on toggle buttons, aria-expanded on collapsible sections, role='status' on live regions (DataFreshness, StatusBar), role='group' on toggle containers. Build + 378 tests pass.
+- Notes: Currently zero aria-* or role= attributes found across components (one aria-label on NotificationBell button).
+
 ## Traceability
 
 | ID | Class | Status | Primary owner | Supporting | Proof |
@@ -141,11 +141,11 @@ This file is the explicit capability and coverage contract for the project.
 | R008 | failure-visibility | validated | M010/S03 | none | ErrorBoundary class component with 5 passing tests (including crash→fallback rendering, retry reset). Wired into dashboard (map + panels as separate boundaries), fleet (anomaly tables), analytics (charts section). Build succeeds. Route-level error.tsx covers About page. |
 | R009 | quality-attribute | validated | M010/S03 | none | Created (protected)/loading.tsx with Bloomberg-styled pulse animation and (protected)/layout.tsx as pass-through Suspense host. Production build succeeds confirming Next.js route integration. All route transitions within the (protected) group show the loading indicator. |
 | R010 | quality-attribute | validated | M010/S04 | none | T01 added responsive breakpoints to Header, dashboard map, ChokepointWidgets, fleet/analytics pages. Build + 378 tests pass. Desktop layout unchanged. |
-| R011 | quality-attribute | active | M010/S04 | none | unmapped |
+| R011 | quality-attribute | validated | M010/S04 | none | T02 added 51 ARIA attributes across 20 component files (threshold ≥50). aria-label on icon-only buttons and inputs, aria-pressed on toggle buttons, aria-expanded on collapsible sections, role='status' on live regions (DataFreshness, StatusBar), role='group' on toggle containers. Build + 378 tests pass. |
 
 ## Coverage Summary
 
-- Active requirements: 3
-- Mapped to slices: 3
-- Validated: 8 (R003, R004, R005, R006, R007, R008, R009, R010)
+- Active requirements: 2
+- Mapped to slices: 2
+- Validated: 9 (R003, R004, R005, R006, R007, R008, R009, R010, R011)
 - Unmapped active requirements: 0

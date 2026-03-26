@@ -142,3 +142,21 @@ AND EXISTS (
 **Rule:** When adding responsive styles, add new `max-md:` or `max-sm:` classes. Never change the base (desktop) class values. Run visual check at both 1440px and 375px after edits.
 
 **Files:** `src/components/ui/Header.tsx`, `src/app/(protected)/dashboard/page.tsx`, `src/components/ui/ChokepointWidget.tsx`
+
+## Clear .next cache after deleting App Router pages
+
+**Context:** When deleting Next.js App Router pages (files under `src/app/`), the `.next/types/` directory retains generated type declarations for the deleted routes. This causes TypeScript compilation to fail with "Cannot find module" errors pointing at the stale route types.
+
+**Fix:** Run `rm -rf .next` after deleting any App Router page or API route files, then rebuild. The `.next/types/app/` directory contains auto-generated `route.ts` and `page.ts` type stubs that Next.js doesn't clean up when source files are removed.
+
+**Gotcha:** This only affects App Router pages/routes (`src/app/`), not components or lib modules. Regular file deletions don't need cache clearing.
+
+## ErrorBoundary is a class component (React 19)
+
+**Context:** React 19 still requires class components for error boundaries — `getDerivedStateFromError` and `componentDidCatch` have no hooks equivalent. The project's ErrorBoundary lives at `src/components/ui/ErrorBoundary.tsx`.
+
+**Pattern:** Uses render prop for fallback: `fallback={(error, reset) => <YourCustomUI />}`. The default fallback uses Bloomberg styling (bg-black, text-amber-500, font-mono, uppercase). Accepts optional `onError` callback for logging.
+
+**Usage:** Dashboard wraps map and panels in separate ErrorBoundary instances so one crash doesn't kill the other. Fleet wraps anomaly tables. Analytics wraps charts. The About page relies on route-level `error.tsx`.
+
+**File:** `src/components/ui/ErrorBoundary.tsx`

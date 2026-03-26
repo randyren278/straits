@@ -43,4 +43,4 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - [x] M006: Fleet Overview
 - [x] M007: Fleet Status Matrix & Sanctions Priority
 - [x] M009: 7-Day Staleness Sync & Map Rendering Fix
-- [ ] M010: Quality & Consistency — Data parity, dead code removal, error boundaries, responsive layout, accessibility
+- [x] M010: Quality & Consistency — Data parity, dead code removal, error boundaries, responsive layout, accessibility
