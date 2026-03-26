@@ -26,28 +26,6 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: partial — `chokepoints.ts` fixed in audit commit (was hardcoded '1 hour'), needs re-validation
 - Notes: Previously validated under M008/S01 but audit found the fix was never actually applied. Updated from 24h to 7d to match vessel display.
 
-### R008 — Each major page section (map, panels, fleet tables, analytics charts) must be wrapped in a React error boundary so a single component crash doesn't white-screen the entire page.
-- Class: failure-visibility
-- Status: active
-- Description: Each major page section (map, panels, fleet tables, analytics charts) must be wrapped in a React error boundary so a single component crash doesn't white-screen the entire page.
-- Why it matters: A crash in the news panel should not take down the map. Users need to see what still works.
-- Source: inferred
-- Primary owning slice: M010/S03
-- Supporting slices: none
-- Validation: T01 builds ErrorBoundary component; T02 wires it into dashboard (map + panels), fleet (tables), and analytics (charts). Test file verifies crash → fallback rendering.
-- Notes: Currently zero error boundaries in the codebase.
-
-### R009 — Route transitions between dashboard, fleet, analytics, and about must show a loading indicator rather than a blank flash.
-- Class: quality-attribute
-- Status: active
-- Description: Route transitions between dashboard, fleet, analytics, and about must show a loading indicator rather than a blank flash.
-- Why it matters: Without loading states, navigation feels broken — the user sees nothing while the new page loads.
-- Source: inferred
-- Primary owning slice: M010/S03
-- Supporting slices: none
-- Validation: T01 creates (protected)/loading.tsx with Bloomberg-styled indicator and (protected)/layout.tsx as pass-through Suspense host. Build verification confirms Next.js route integration.
-- Notes: No loading.tsx or Suspense boundaries found in the codebase.
-
 ### R010 — Dashboard, fleet, and analytics pages must be usable on tablet (768px) and mobile (375px) viewports.
 - Class: quality-attribute
 - Status: active
@@ -127,6 +105,28 @@ This file is the explicit capability and coverage contract for the project.
 - Validation: All 14 files deleted, 4 empty directories removed, npx tsc --noEmit clean, rg scan shows zero real references to deleted symbols. See D005.
 - Notes: Auth scaffolding (auth.ts, login page, login API route) has no middleware enforcement — the (protected) route group has no guard.
 
+### R008 — Each major page section (map, panels, fleet tables, analytics charts) must be wrapped in a React error boundary so a single component crash doesn't white-screen the entire page.
+- Class: failure-visibility
+- Status: validated
+- Description: Each major page section (map, panels, fleet tables, analytics charts) must be wrapped in a React error boundary so a single component crash doesn't white-screen the entire page.
+- Why it matters: A crash in the news panel should not take down the map. Users need to see what still works.
+- Source: inferred
+- Primary owning slice: M010/S03
+- Supporting slices: none
+- Validation: ErrorBoundary class component with 5 passing tests (including crash→fallback rendering, retry reset). Wired into dashboard (map + panels as separate boundaries), fleet (anomaly tables), analytics (charts section). Build succeeds. Route-level error.tsx covers About page.
+- Notes: Currently zero error boundaries in the codebase.
+
+### R009 — Route transitions between dashboard, fleet, analytics, and about must show a loading indicator rather than a blank flash.
+- Class: quality-attribute
+- Status: validated
+- Description: Route transitions between dashboard, fleet, analytics, and about must show a loading indicator rather than a blank flash.
+- Why it matters: Without loading states, navigation feels broken — the user sees nothing while the new page loads.
+- Source: inferred
+- Primary owning slice: M010/S03
+- Supporting slices: none
+- Validation: Created (protected)/loading.tsx with Bloomberg-styled pulse animation and (protected)/layout.tsx as pass-through Suspense host. Production build succeeds confirming Next.js route integration. All route transitions within the (protected) group show the loading indicator.
+- Notes: No loading.tsx or Suspense boundaries found in the codebase.
+
 ## Traceability
 
 | ID | Class | Status | Primary owner | Supporting | Proof |
@@ -138,14 +138,14 @@ This file is the explicit capability and coverage contract for the project.
 | R005 | constraint | validated | M008/S01 | none | validated |
 | R006 | constraint | validated | M008/S01 | none | validated |
 | R007 | quality-attribute | validated | M010/S02 | none | All 14 files deleted, 4 empty directories removed, npx tsc --noEmit clean, rg scan shows zero real references to deleted symbols. See D005. |
-| R008 | failure-visibility | active | M010/S03 | none | T01 builds ErrorBoundary component; T02 wires it into dashboard (map + panels), fleet (tables), and analytics (charts). Test file verifies crash → fallback rendering. |
-| R009 | quality-attribute | active | M010/S03 | none | T01 creates (protected)/loading.tsx with Bloomberg-styled indicator and (protected)/layout.tsx as pass-through Suspense host. Build verification confirms Next.js route integration. |
+| R008 | failure-visibility | validated | M010/S03 | none | ErrorBoundary class component with 5 passing tests (including crash→fallback rendering, retry reset). Wired into dashboard (map + panels as separate boundaries), fleet (anomaly tables), analytics (charts section). Build succeeds. Route-level error.tsx covers About page. |
+| R009 | quality-attribute | validated | M010/S03 | none | Created (protected)/loading.tsx with Bloomberg-styled pulse animation and (protected)/layout.tsx as pass-through Suspense host. Production build succeeds confirming Next.js route integration. All route transitions within the (protected) group show the loading indicator. |
 | R010 | quality-attribute | active | M010/S04 | none | unmapped |
 | R011 | quality-attribute | active | M010/S04 | none | unmapped |
 
 ## Coverage Summary
 
-- Active requirements: 6
-- Mapped to slices: 6
-- Validated: 5 (R003, R004, R005, R006, R007)
+- Active requirements: 4
+- Mapped to slices: 4
+- Validated: 7 (R003, R004, R005, R006, R007, R008, R009)
 - Unmapped active requirements: 0

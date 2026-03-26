@@ -15,7 +15,8 @@ Real-time vessel tracking with anomaly detection and sanctions intelligence on a
 - **Fleet**: Anomaly tables grouped by type, sanctioned vessel highlighting, vessel detail with risk factors.
 - **Analytics**: Chokepoint traffic correlation charts with oil price overlay.
 - **Data enrichment**: OpenSanctions (10.7k entries), oil prices (Alpha Vantage + FRED), news (NewsAPI).
-- **Known issues**: Dead code from refactoring iterations. No error boundaries, loading states, responsive layout, or ARIA attributes.
+- **Error boundaries**: Reusable ErrorBoundary class component with Bloomberg-styled fallback. Wired into dashboard (map + panels isolated), fleet (tables), analytics (charts). Route-level loading.tsx and error.tsx for the (protected) route group.
+- **Known issues**: No responsive layout or ARIA attributes yet (M010/S04).
 
 ## Architecture / Key Patterns
 
