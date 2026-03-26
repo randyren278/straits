@@ -4,7 +4,7 @@
 **Demo:** After this: A simulated component crash shows fallback UI instead of white screen. Route transitions show loading spinner.
 
 ## Tasks
-- [ ] **T01: Build ErrorBoundary component, loading/error/layout route files, and ErrorBoundary tests** — Create the reusable ErrorBoundary class component, the (protected) route group's layout.tsx, loading.tsx, and error.tsx, and a test file that verifies the ErrorBoundary catches render errors and shows fallback UI.
+- [x] **T01: Built reusable ErrorBoundary class component with Bloomberg-styled fallback, route-level loading/error/layout files, and 5 passing tests** — Create the reusable ErrorBoundary class component, the (protected) route group's layout.tsx, loading.tsx, and error.tsx, and a test file that verifies the ErrorBoundary catches render errors and shows fallback UI.
 
 The ErrorBoundary must be a 'use client' class component (React 19 still requires class components for componentDidCatch). Default fallback uses Bloomberg terminal aesthetic: bg-black, text-amber-500, font-mono, uppercase tracking-widest, sharp corners, border-amber-500/20. Includes a 'RETRY' button that resets the boundary's error state.
 

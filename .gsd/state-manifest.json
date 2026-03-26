@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-03-26T20:11:58.719Z",
+  "exported_at": "2026-03-26T20:14:19.332Z",
   "milestones": [
     {
       "id": "M006",
@@ -877,19 +877,27 @@
       "milestone_id": "M010",
       "slice_id": "S03",
       "id": "T01",
-      "title": "Build ErrorBoundary component, loading/error/layout route files, and ErrorBoundary tests",
-      "status": "pending",
-      "one_liner": "",
-      "narrative": "",
-      "verification_result": "",
+      "title": "Built reusable ErrorBoundary class component with Bloomberg-styled fallback, route-level loading/error/layout files, and 5 passing tests",
+      "status": "complete",
+      "one_liner": "Built reusable ErrorBoundary class component with Bloomberg-styled fallback, route-level loading/error/layout files, and 5 passing tests",
+      "narrative": "Created ErrorBoundary.tsx as a 'use client' class component with getDerivedStateFromError + componentDidCatch. Default fallback renders Bloomberg terminal aesthetic. Accepts optional fallback render prop and onError callback. Created three route files: pass-through layout.tsx, pulse-animated loading.tsx, and page-level error.tsx. Test suite covers normal render, error catch, retry reset, custom fallback, and onError callback.",
+      "verification_result": "Ran vitest (5/5 tests pass) and tsc --noEmit (zero errors). Both verification commands exit 0.",
       "duration": "",
-      "completed_at": null,
+      "completed_at": "2026-03-26T20:14:19.306Z",
       "blocker_discovered": false,
-      "deviations": "",
-      "known_issues": "",
-      "key_files": [],
-      "key_decisions": [],
-      "full_summary_md": "",
+      "deviations": "Added React.ReactNode return type annotation to test helper ThrowingChild to satisfy tsc — a function that throws before returning doesn't satisfy JSX component type constraints without it.",
+      "known_issues": "None.",
+      "key_files": [
+        "src/components/ui/ErrorBoundary.tsx",
+        "src/components/ui/__tests__/ErrorBoundary.test.tsx",
+        "src/app/(protected)/layout.tsx",
+        "src/app/(protected)/loading.tsx",
+        "src/app/(protected)/error.tsx"
+      ],
+      "key_decisions": [
+        "ErrorBoundary uses optional fallback render prop pattern for composability rather than a static fallback component prop"
+      ],
+      "full_summary_md": "---\nid: T01\nparent: S03\nmilestone: M010\nkey_files:\n  - src/components/ui/ErrorBoundary.tsx\n  - src/components/ui/__tests__/ErrorBoundary.test.tsx\n  - src/app/(protected)/layout.tsx\n  - src/app/(protected)/loading.tsx\n  - src/app/(protected)/error.tsx\nkey_decisions:\n  - ErrorBoundary uses optional fallback render prop pattern for composability rather than a static fallback component prop\nduration: \"\"\nverification_result: passed\ncompleted_at: 2026-03-26T20:14:19.308Z\nblocker_discovered: false\n---\n\n# T01: Built reusable ErrorBoundary class component with Bloomberg-styled fallback, route-level loading/error/layout files, and 5 passing tests\n\n**Built reusable ErrorBoundary class component with Bloomberg-styled fallback, route-level loading/error/layout files, and 5 passing tests**\n\n## What Happened\n\nCreated ErrorBoundary.tsx as a 'use client' class component with getDerivedStateFromError + componentDidCatch. Default fallback renders Bloomberg terminal aesthetic. Accepts optional fallback render prop and onError callback. Created three route files: pass-through layout.tsx, pulse-animated loading.tsx, and page-level error.tsx. Test suite covers normal render, error catch, retry reset, custom fallback, and onError callback.\n\n## Verification\n\nRan vitest (5/5 tests pass) and tsc --noEmit (zero errors). Both verification commands exit 0.\n\n## Verification Evidence\n\n| # | Command | Exit Code | Verdict | Duration |\n|---|---------|-----------|---------|----------|\n| 1 | `npx vitest run src/components/ui/__tests__/ErrorBoundary.test.tsx` | 0 | ✅ pass | 1226ms |\n| 2 | `npx tsc --noEmit` | 0 | ✅ pass | 3600ms |\n\n\n## Deviations\n\nAdded React.ReactNode return type annotation to test helper ThrowingChild to satisfy tsc — a function that throws before returning doesn't satisfy JSX component type constraints without it.\n\n## Known Issues\n\nNone.\n\n## Files Created/Modified\n\n- `src/components/ui/ErrorBoundary.tsx`\n- `src/components/ui/__tests__/ErrorBoundary.test.tsx`\n- `src/app/(protected)/layout.tsx`\n- `src/app/(protected)/loading.tsx`\n- `src/app/(protected)/error.tsx`\n",
       "description": "Create the reusable ErrorBoundary class component, the (protected) route group's layout.tsx, loading.tsx, and error.tsx, and a test file that verifies the ErrorBoundary catches render errors and shows fallback UI.\n\nThe ErrorBoundary must be a 'use client' class component (React 19 still requires class components for componentDidCatch). Default fallback uses Bloomberg terminal aesthetic: bg-black, text-amber-500, font-mono, uppercase tracking-widest, sharp corners, border-amber-500/20. Includes a 'RETRY' button that resets the boundary's error state.\n\nThe layout.tsx is a pass-through ({children}) needed so loading.tsx has a Suspense boundary for route transitions. loading.tsx shows a Bloomberg-styled pulse animation with 'LOADING...' text. error.tsx is the last-resort page-level error boundary receiving error and reset props.",
       "estimate": "45m",
       "files": [
@@ -1140,6 +1148,28 @@
       "verdict": "✅ pass (false positives only)",
       "duration_ms": 500,
       "created_at": "2026-03-26T20:06:07.472Z"
+    },
+    {
+      "id": 12,
+      "task_id": "T01",
+      "slice_id": "S03",
+      "milestone_id": "M010",
+      "command": "npx vitest run src/components/ui/__tests__/ErrorBoundary.test.tsx",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 1226,
+      "created_at": "2026-03-26T20:14:19.306Z"
+    },
+    {
+      "id": 13,
+      "task_id": "T01",
+      "slice_id": "S03",
+      "milestone_id": "M010",
+      "command": "npx tsc --noEmit",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 3600,
+      "created_at": "2026-03-26T20:14:19.307Z"
     }
   ]
 }
