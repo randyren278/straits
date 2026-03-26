@@ -12,6 +12,7 @@ import { OilPricePanel } from '@/components/panels/OilPricePanel';
 import { NewsPanel } from '@/components/panels/NewsPanel';
 import { WatchlistPanel } from '@/components/panels/WatchlistPanel';
 import { Header } from '@/components/ui/Header';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useVesselStore } from '@/stores/vessel';
 
 export default function DashboardPage() {
@@ -62,17 +63,21 @@ export default function DashboardPage() {
       />
       <main className="flex-1 grid grid-cols-[1fr_320px] overflow-hidden max-md:flex max-md:flex-col">
         {/* Left column: full-height map */}
-        <div className="relative overflow-hidden">
-          <VesselMap />
-        </div>
+        <ErrorBoundary>
+          <div className="relative overflow-hidden">
+            <VesselMap />
+          </div>
+        </ErrorBoundary>
         {/* Right column: stacked panels */}
-        <div className="flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10">
-          <ClusterPanel />
-          <VesselPanel />
-          <WatchlistPanel />
-          <OilPricePanel />
-          <NewsPanel />
-        </div>
+        <ErrorBoundary>
+          <div className="flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10">
+            <ClusterPanel />
+            <VesselPanel />
+            <WatchlistPanel />
+            <OilPricePanel />
+            <NewsPanel />
+          </div>
+        </ErrorBoundary>
       </main>
     </div>
   );

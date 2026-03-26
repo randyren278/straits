@@ -12,7 +12,7 @@ The layout.tsx is a pass-through ({children}) needed so loading.tsx has a Suspen
   - Estimate: 45m
   - Files: src/components/ui/ErrorBoundary.tsx, src/components/ui/__tests__/ErrorBoundary.test.tsx, src/app/(protected)/layout.tsx, src/app/(protected)/loading.tsx, src/app/(protected)/error.tsx
   - Verify: npx vitest run src/components/ui/__tests__/ErrorBoundary.test.tsx && npx tsc --noEmit
-- [ ] **T02: Wire ErrorBoundary into dashboard, fleet, and analytics pages** — Import the ErrorBoundary component and wrap major sections in each page:
+- [x] **T02: Wrapped major page sections in ErrorBoundary so a component crash shows fallback UI instead of white-screening the page** — Import the ErrorBoundary component and wrap major sections in each page:
 
 **Dashboard (dashboard/page.tsx):** Wrap the map container (<VesselMap>) in its own ErrorBoundary. Wrap the right-column panel stack in a second ErrorBoundary. This way a panel crash doesn't kill the map and vice versa.
 

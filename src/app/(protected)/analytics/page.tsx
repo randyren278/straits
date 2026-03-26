@@ -11,6 +11,7 @@ import { Header } from '@/components/ui/Header';
 import { TrafficChart } from '@/components/charts/TrafficChart';
 import { TimeRangeSelector } from '@/components/ui/TimeRangeSelector';
 import { ChokepointSelector } from '@/components/ui/ChokepointSelector';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
 import type { TrafficWithPrices } from '@/types/analytics';
@@ -136,23 +137,25 @@ export default function AnalyticsPage() {
 
         {/* Charts */}
         {!isLoading && !error && (
-          <div className="space-y-6">
-            {selectedChokepoints.map((cpId) => {
-              const chokepoint = CHOKEPOINTS[cpId];
-              const data = chartData[cpId] || [];
+          <ErrorBoundary>
+            <div className="space-y-6">
+              {selectedChokepoints.map((cpId) => {
+                const chokepoint = CHOKEPOINTS[cpId];
+                const data = chartData[cpId] || [];
 
-              return (
-                <TrafficChart
-                  key={cpId}
-                  data={data}
-                  title={`${chokepoint.name} - Traffic vs WTI Price`}
-                  showPrice={true}
-                  priceLabel="WTI"
-                  height={350}
-                />
-              );
-            })}
-          </div>
+                return (
+                  <TrafficChart
+                    key={cpId}
+                    data={data}
+                    title={`${chokepoint.name} - Traffic vs WTI Price`}
+                    showPrice={true}
+                    priceLabel="WTI"
+                    height={350}
+                  />
+                );
+              })}
+            </div>
+          </ErrorBoundary>
         )}
 
         {/* Empty state */}

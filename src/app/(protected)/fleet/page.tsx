@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { Header } from '@/components/ui/Header';
 import { AnomalyTable } from '@/components/fleet/AnomalyTable';
 import { SanctionedVessels } from '@/components/fleet/SanctionedVessels';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import type { Anomaly, AnomalyType } from '@/types/anomaly';
 
 /** Group anomalies by type and sort groups by count descending */
@@ -133,7 +134,7 @@ export default function FleetPage() {
 
         {/* Anomaly tables grouped by type */}
         {!loading && !error && anomalies.length > 0 && (
-          <>
+          <ErrorBoundary>
             <SanctionedVessels vessels={sanctionedVessels} />
             <div className={`space-y-4${sanctionedVessels.length > 0 ? ' mt-4' : ''}`}>
               {groups.map(({ type, items }) => (
@@ -144,7 +145,7 @@ export default function FleetPage() {
                 />
               ))}
             </div>
-          </>
+          </ErrorBoundary>
         )}
       </main>
     </div>
