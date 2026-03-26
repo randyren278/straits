@@ -168,6 +168,12 @@ export function VesselMap() {
       return;
     }
 
+    // Suppress known Mapbox GL internal error (errorCb is null)
+    // that fires when async tile/WebSocket callbacks run after map disposal.
+    mapInstance.on('error', (e) => {
+      console.warn('[MapboxGL]', e.error?.message || 'Unknown map error');
+    });
+
     map.current = mapInstance;
 
     map.current.on('load', () => {
@@ -367,7 +373,12 @@ export function VesselMap() {
 
     // Cleanup
     return () => {
-      map.current?.remove();
+      try {
+        map.current?.remove();
+      } catch {
+        // Mapbox GL may throw during teardown if async callbacks
+        // (e.g. errorCb) fire after the map instance is disposed.
+      }
       map.current = null;
     };
   }, [setSelectedVessel, detectProximityGroup]);
