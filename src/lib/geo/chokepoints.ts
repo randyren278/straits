@@ -6,6 +6,7 @@
  */
 import { pool } from '../db';
 import { CHOKEPOINTS, type ChokepointBounds, type Chokepoint } from './chokepoints-constants';
+import { CHOKEPOINT_STALENESS_INTERVAL } from '../constants/staleness';
 
 // Re-export constants for backward compatibility
 export { CHOKEPOINTS, isInChokepoint, type Chokepoint, type ChokepointBounds } from './chokepoints-constants';
@@ -35,7 +36,7 @@ export async function countVesselsInChokepoint(bounds: ChokepointBounds): Promis
       SELECT DISTINCT ON (vp.mmsi) vp.mmsi, vp.latitude, vp.longitude, v.ship_type
       FROM vessel_positions vp
       JOIN vessels v ON vp.mmsi = v.mmsi
-      WHERE vp.time > NOW() - INTERVAL '1 hour'
+      WHERE vp.time > NOW() - INTERVAL '${CHOKEPOINT_STALENESS_INTERVAL}'
       ORDER BY vp.mmsi, vp.time DESC
     )
     SELECT
@@ -114,7 +115,7 @@ export async function getVesselsInChokepoint(chokepointId: string): Promise<Chok
     FROM vessel_positions vp
     LEFT JOIN vessels v ON v.mmsi = vp.mmsi
     LEFT JOIN vessel_anomalies a ON v.imo = a.imo AND a.resolved_at IS NULL
-    WHERE vp.time > NOW() - INTERVAL '1 hour'
+    WHERE vp.time > NOW() - INTERVAL '${CHOKEPOINT_STALENESS_INTERVAL}'
       AND vp.latitude BETWEEN $1 AND $2
       AND vp.longitude BETWEEN $3 AND $4
     ORDER BY vp.mmsi, vp.time DESC

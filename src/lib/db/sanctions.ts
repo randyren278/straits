@@ -5,6 +5,7 @@
  * opensanctions_url, vessel_type. Batch upsert with stale entry cleanup.
  */
 import { pool } from './index';
+import { VESSEL_STALENESS_INTERVAL } from '../constants/staleness';
 import type { SanctionEntry } from '../external/opensanctions';
 
 export interface SanctionRecord {
@@ -295,7 +296,7 @@ export async function getVesselsWithSanctions(
         mmsi, latitude, longitude, speed, course, heading,
         nav_status, low_confidence, time
       FROM vessel_positions
-      WHERE time > NOW() - INTERVAL '48 hours'
+      WHERE time > NOW() - INTERVAL '${VESSEL_STALENESS_INTERVAL}'
       ORDER BY mmsi, time DESC
     ) p
     LEFT JOIN vessels v ON v.mmsi = p.mmsi
