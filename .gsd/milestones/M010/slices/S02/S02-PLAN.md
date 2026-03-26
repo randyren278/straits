@@ -4,7 +4,7 @@
 **Demo:** After this: Build passes clean. No orphaned components or dead modules. ~400 lines removed.
 
 ## Tasks
-- [ ] **T01: Delete 14 dead files and 4 empty directories, verify clean build** — Delete all orphaned components, dead lib modules, unwired auth scaffolding, and their tests. Then remove directories that become empty. Verify TypeScript still compiles and no dangling references remain.
+- [x] **T01: Deleted 14 orphaned files (930 lines) and 5 empty directories; TypeScript compiles clean with zero dangling references** — Delete all orphaned components, dead lib modules, unwired auth scaffolding, and their tests. Then remove directories that become empty. Verify TypeScript still compiles and no dangling references remain.
 
 **Dead components (3 files):**
 - `src/components/map/VesselLayer.tsx` (36 lines)
