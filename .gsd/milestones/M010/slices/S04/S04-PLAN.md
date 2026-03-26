@@ -4,7 +4,7 @@
 **Demo:** After this: Dashboard renders usably at 768px and 375px. All buttons have accessible names.
 
 ## Tasks
-- [ ] **T01: Add responsive breakpoints to Header, dashboard grid, and page layouts** — The Header packs ~8 components into a single 56px row that overflows at narrow widths. The dashboard grid has partial responsive support (max-md:flex max-md:flex-col) but the map container collapses to 0 height on mobile. This task restructures the Header for mobile, adds min-height to the map container, adds overflow handling to ChokepointWidgets, and verifies fleet/analytics pages at narrow widths.
+- [x] **T01: Added responsive breakpoints to Header (stacked layout), dashboard (map min-height), ChokepointWidgets (horizontal scroll), and fleet/analytics pages (reduced mobile padding)** — The Header packs ~8 components into a single 56px row that overflows at narrow widths. The dashboard grid has partial responsive support (max-md:flex max-md:flex-col) but the map container collapses to 0 height on mobile. This task restructures the Header for mobile, adds min-height to the map container, adds overflow handling to ChokepointWidgets, and verifies fleet/analytics pages at narrow widths.
 
 **Constraint (D004):** Desktop layout must not change. All responsive rules are additive at max-md: and max-sm: breakpoints only.
 **Constraint (KNOWLEDGE):** Tailwind v4 requires static class strings — no dynamic interpolation of breakpoint classes.

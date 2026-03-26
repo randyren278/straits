@@ -42,15 +42,17 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
 
   return (
     <header className="bg-black border-b border-amber-500/20">
-      <div className="h-14 flex items-center justify-between px-4">
-        <div className="flex items-center">
+      {/* Desktop: single row. Mobile: title + nav row, controls below */}
+      <div className="h-14 flex items-center justify-between px-4 max-md:h-auto max-md:flex-col max-md:items-stretch max-md:gap-0">
+        {/* Top row: logo + nav (always visible) */}
+        <div className="flex items-center max-md:justify-between max-md:h-12 max-md:w-full">
           <Link href="/dashboard" className="flex items-center gap-2">
             <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">Tanker Tracker</h1>
           </Link>
-          <nav className="flex gap-1 ml-6">
+          <nav className="flex gap-1 ml-6 max-md:ml-2">
             <Link
               href="/dashboard"
-              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
+              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
                 activeTab === 'dashboard'
                   ? 'border-amber-500 text-amber-500 bg-amber-500/10'
                   : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
@@ -60,7 +62,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             </Link>
             <Link
               href="/analytics"
-              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
+              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
                 activeTab === 'analytics'
                   ? 'border-amber-500 text-amber-500 bg-amber-500/10'
                   : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
@@ -70,7 +72,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             </Link>
             <Link
               href="/fleet"
-              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
+              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
                 activeTab === 'fleet'
                   ? 'border-amber-500 text-amber-500 bg-amber-500/10'
                   : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
@@ -80,7 +82,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             </Link>
             <Link
               href="/about"
-              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
+              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
                 activeTab === 'about'
                   ? 'border-amber-500 text-amber-500 bg-amber-500/10'
                   : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
@@ -90,7 +92,8 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             </Link>
           </nav>
         </div>
-        <div className="flex items-center gap-4">
+        {/* Controls row: hidden on mobile nav bar, wraps on tablet */}
+        <div className="flex items-center gap-4 max-md:gap-2 max-md:flex-wrap max-md:px-0 max-md:py-2 max-md:border-t max-md:border-amber-500/10">
           <SearchInput onSelectVessel={onSearchSelect} />
           <DataFreshness />
           <TankerFilter />
@@ -100,7 +103,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
         </div>
       </div>
       {activeTab === 'dashboard' && (
-        <div className="flex items-start px-4 py-2 border-t border-amber-500/10">
+        <div className="flex items-start px-4 py-2 border-t border-amber-500/10 max-md:overflow-x-auto">
           <ChokepointWidgets onSelect={onChokepointSelect} />
         </div>
       )}

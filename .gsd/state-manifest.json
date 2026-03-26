@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-03-26T20:23:09.666Z",
+  "exported_at": "2026-03-26T20:25:57.351Z",
   "milestones": [
     {
       "id": "M006",
@@ -972,19 +972,28 @@
       "milestone_id": "M010",
       "slice_id": "S04",
       "id": "T01",
-      "title": "Add responsive breakpoints to Header, dashboard grid, and page layouts",
-      "status": "pending",
-      "one_liner": "",
-      "narrative": "",
-      "verification_result": "",
+      "title": "Added responsive breakpoints to Header (stacked layout), dashboard (map min-height), ChokepointWidgets (horizontal scroll), and fleet/analytics pages (reduced mobile padding)",
+      "status": "complete",
+      "one_liner": "Added responsive breakpoints to Header (stacked layout), dashboard (map min-height), ChokepointWidgets (horizontal scroll), and fleet/analytics pages (reduced mobile padding)",
+      "narrative": "Restructured the Header component to use a two-row layout below the md breakpoint: logo+nav top row, controls bottom row with flex-wrap. Dashboard map container gets min-h-[50vh] on mobile to prevent collapse. ChokepointWidgets scroll horizontally on narrow screens. Analytics and fleet pages get reduced padding at mobile widths. All changes are additive via max-md: and max-sm: prefixes — desktop layout is untouched.",
+      "verification_result": "All three verification commands passed: tsc --noEmit (zero type errors), npm run build (18 routes compiled), vitest run (378 tests pass across 34 files).",
       "duration": "",
-      "completed_at": null,
+      "completed_at": "2026-03-26T20:25:57.334Z",
       "blocker_discovered": false,
-      "deviations": "",
-      "known_issues": "",
-      "key_files": [],
-      "key_decisions": [],
-      "full_summary_md": "",
+      "deviations": "None.",
+      "known_issues": "None.",
+      "key_files": [
+        "src/components/ui/Header.tsx",
+        "src/app/(protected)/dashboard/page.tsx",
+        "src/components/ui/ChokepointWidget.tsx",
+        "src/app/(protected)/analytics/page.tsx",
+        "src/app/(protected)/fleet/page.tsx"
+      ],
+      "key_decisions": [
+        "Header stacks logo+nav above controls at max-md rather than hiding behind hamburger menu — keeps all functionality visible without JS toggle state",
+        "ChokepointWidgets use overflow-x-auto with flex-shrink-0 children for horizontal scroll rather than wrapping"
+      ],
+      "full_summary_md": "---\nid: T01\nparent: S04\nmilestone: M010\nkey_files:\n  - src/components/ui/Header.tsx\n  - src/app/(protected)/dashboard/page.tsx\n  - src/components/ui/ChokepointWidget.tsx\n  - src/app/(protected)/analytics/page.tsx\n  - src/app/(protected)/fleet/page.tsx\nkey_decisions:\n  - Header stacks logo+nav above controls at max-md rather than hiding behind hamburger menu — keeps all functionality visible without JS toggle state\n  - ChokepointWidgets use overflow-x-auto with flex-shrink-0 children for horizontal scroll rather than wrapping\nduration: \"\"\nverification_result: passed\ncompleted_at: 2026-03-26T20:25:57.334Z\nblocker_discovered: false\n---\n\n# T01: Added responsive breakpoints to Header (stacked layout), dashboard (map min-height), ChokepointWidgets (horizontal scroll), and fleet/analytics pages (reduced mobile padding)\n\n**Added responsive breakpoints to Header (stacked layout), dashboard (map min-height), ChokepointWidgets (horizontal scroll), and fleet/analytics pages (reduced mobile padding)**\n\n## What Happened\n\nRestructured the Header component to use a two-row layout below the md breakpoint: logo+nav top row, controls bottom row with flex-wrap. Dashboard map container gets min-h-[50vh] on mobile to prevent collapse. ChokepointWidgets scroll horizontally on narrow screens. Analytics and fleet pages get reduced padding at mobile widths. All changes are additive via max-md: and max-sm: prefixes — desktop layout is untouched.\n\n## Verification\n\nAll three verification commands passed: tsc --noEmit (zero type errors), npm run build (18 routes compiled), vitest run (378 tests pass across 34 files).\n\n## Verification Evidence\n\n| # | Command | Exit Code | Verdict | Duration |\n|---|---------|-----------|---------|----------|\n| 1 | `npx tsc --noEmit` | 0 | ✅ pass | 3700ms |\n| 2 | `npm run build` | 0 | ✅ pass | 8000ms |\n| 3 | `npx vitest run` | 0 | ✅ pass | 3700ms |\n\n\n## Deviations\n\nNone.\n\n## Known Issues\n\nNone.\n\n## Files Created/Modified\n\n- `src/components/ui/Header.tsx`\n- `src/app/(protected)/dashboard/page.tsx`\n- `src/components/ui/ChokepointWidget.tsx`\n- `src/app/(protected)/analytics/page.tsx`\n- `src/app/(protected)/fleet/page.tsx`\n",
       "description": "The Header packs ~8 components into a single 56px row that overflows at narrow widths. The dashboard grid has partial responsive support (max-md:flex max-md:flex-col) but the map container collapses to 0 height on mobile. This task restructures the Header for mobile, adds min-height to the map container, adds overflow handling to ChokepointWidgets, and verifies fleet/analytics pages at narrow widths.\n\n**Constraint (D004):** Desktop layout must not change. All responsive rules are additive at max-md: and max-sm: breakpoints only.\n**Constraint (KNOWLEDGE):** Tailwind v4 requires static class strings — no dynamic interpolation of breakpoint classes.",
       "estimate": "45m",
       "files": [
@@ -1340,6 +1349,39 @@
       "verdict": "✅ pass",
       "duration_ms": 7800,
       "created_at": "2026-03-26T20:16:33.040Z"
+    },
+    {
+      "id": 17,
+      "task_id": "T01",
+      "slice_id": "S04",
+      "milestone_id": "M010",
+      "command": "npx tsc --noEmit",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 3700,
+      "created_at": "2026-03-26T20:25:57.334Z"
+    },
+    {
+      "id": 18,
+      "task_id": "T01",
+      "slice_id": "S04",
+      "milestone_id": "M010",
+      "command": "npm run build",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 8000,
+      "created_at": "2026-03-26T20:25:57.334Z"
+    },
+    {
+      "id": 19,
+      "task_id": "T01",
+      "slice_id": "S04",
+      "milestone_id": "M010",
+      "command": "npx vitest run",
+      "exit_code": 0,
+      "verdict": "✅ pass",
+      "duration_ms": 3700,
+      "created_at": "2026-03-26T20:25:57.334Z"
     }
   ]
 }

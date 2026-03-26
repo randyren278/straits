@@ -89,7 +89,7 @@ export default function FleetPage() {
     <div className="min-h-screen bg-black text-white">
       <Header />
 
-      <main className="p-6 max-w-7xl mx-auto">
+      <main className="p-6 max-w-7xl mx-auto max-md:p-3">
         {/* Page title */}
         <div className="mb-6">
           <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">

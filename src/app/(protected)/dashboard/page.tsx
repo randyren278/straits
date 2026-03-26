@@ -61,16 +61,16 @@ export default function DashboardPage() {
         onSearchSelect={handleSearchSelect}
         onChokepointSelect={handleChokepointSelect}
       />
-      <main className="flex-1 grid grid-cols-[1fr_320px] overflow-hidden max-md:flex max-md:flex-col">
-        {/* Left column: full-height map */}
+      <main className="flex-1 grid grid-cols-[1fr_320px] overflow-hidden max-md:flex max-md:flex-col max-md:overflow-y-auto">
+        {/* Left column: full-height map (min-height on mobile prevents collapse) */}
         <ErrorBoundary>
-          <div className="relative overflow-hidden">
+          <div className="relative overflow-hidden max-md:min-h-[50vh]">
             <VesselMap />
           </div>
         </ErrorBoundary>
         {/* Right column: stacked panels */}
         <ErrorBoundary>
-          <div className="flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10">
+          <div className="flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10 max-md:border-l-0 max-md:border-t max-md:border-amber-500/20">
             <ClusterPanel />
             <VesselPanel />
             <WatchlistPanel />
