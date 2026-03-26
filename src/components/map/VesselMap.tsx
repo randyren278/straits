@@ -235,10 +235,11 @@ export function VesselMap() {
             ['==', ['get', 'isSanctioned'], true],
             '#ef4444',
             // Priority 10: Tankers (amber)
+            // coalesce handles null shipType — prevents Mapbox expression error
             [
               'all',
-              ['>=', ['get', 'shipType'], 80],
-              ['<=', ['get', 'shipType'], 89],
+              ['>=', ['coalesce', ['get', 'shipType'], -1], 80],
+              ['<=', ['coalesce', ['get', 'shipType'], -1], 89],
             ],
             '#f59e0b',
             // Default: Other vessels (gray)

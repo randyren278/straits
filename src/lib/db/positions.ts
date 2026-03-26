@@ -3,6 +3,7 @@
  * Uses TimescaleDB hypertable for efficient time-series queries.
  */
 import { pool } from './index';
+import { VESSEL_STALENESS_INTERVAL } from '../constants/staleness';
 import type { VesselPosition } from '../../types/vessel';
 
 /**
@@ -57,7 +58,7 @@ export async function getPositionHistory(
 /**
  * Get the most recent position for each vessel.
  * Uses DISTINCT ON to efficiently get latest position per vessel.
- * Only considers positions from the last hour to avoid stale data.
+ * Only considers positions within the display staleness window.
  *
  * @returns Array of latest positions, one per vessel
  */
@@ -67,7 +68,7 @@ export async function getLatestPositions(): Promise<VesselPosition[]> {
        time, mmsi, imo, latitude, longitude, speed, course, heading,
        nav_status as "navStatus", low_confidence as "lowConfidence"
      FROM vessel_positions
-     WHERE time > NOW() - INTERVAL '1 hour'
+     WHERE time > NOW() - INTERVAL '${VESSEL_STALENESS_INTERVAL}'
      ORDER BY mmsi, time DESC`
   );
   return result.rows;
