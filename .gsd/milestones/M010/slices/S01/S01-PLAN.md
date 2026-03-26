@@ -4,7 +4,7 @@
 **Demo:** After this: Fleet tab only shows anomalies for vessels visible on the map. curl comparison confirms anomaly IMOs ⊆ vessel IMOs.
 
 ## Tasks
-- [ ] **T01: Add EXISTS staleness subquery to anomalies API route** — The anomalies API route (`/api/anomalies`) returns all unresolved anomalies regardless of vessel position recency. The map filters to vessels seen within 7 days (`VESSEL_STALENESS_INTERVAL`), creating a data parity gap: the fleet tab shows anomalies for vessels that don't appear on the map.
+- [x] **T01: Added EXISTS staleness subquery to /api/anomalies using IMO→MMSI bridge join so anomalies only return for vessels with positions within VESSEL_STALENESS_INTERVAL** — The anomalies API route (`/api/anomalies`) returns all unresolved anomalies regardless of vessel position recency. The map filters to vessels seen within 7 days (`VESSEL_STALENESS_INTERVAL`), creating a data parity gap: the fleet tab shows anomalies for vessels that don't appear on the map.
 
 This task adds an EXISTS subquery to the anomalies route SQL using the IMO→MMSI bridge join pattern documented in KNOWLEDGE.md and already implemented in `sanctions.ts`, `positions.ts`, and `chokepoints.ts`.
 

@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
+import { VESSEL_STALENESS_INTERVAL } from '@/lib/constants/staleness';
 
 export async function GET(request: NextRequest) {
   const imo = request.nextUrl.searchParams.get('imo');
@@ -39,6 +40,12 @@ export async function GET(request: NextRequest) {
       LEFT JOIN vessel_sanctions vs ON vs.imo = va.imo
       LEFT JOIN vessel_risk_scores vrs ON vrs.imo = va.imo
       WHERE va.resolved_at IS NULL
+      AND EXISTS (
+        SELECT 1 FROM vessel_positions vp2
+        JOIN vessels v2 ON v2.mmsi = vp2.mmsi
+        WHERE v2.imo = va.imo AND v2.imo IS NOT NULL
+        AND vp2.time > NOW() - INTERVAL '${VESSEL_STALENESS_INTERVAL}'
+      )
       ${shipTypeClause}
     `;
 
