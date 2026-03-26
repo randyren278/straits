@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-03-26T20:07:51.844Z",
+  "exported_at": "2026-03-26T20:11:58.719Z",
   "milestones": [
     {
       "id": "M006",
@@ -334,11 +334,11 @@
       "completed_at": null,
       "full_summary_md": "",
       "full_uat_md": "",
-      "goal": "Add React error boundaries to page sections and loading.tsx for route transitions",
-      "success_criteria": "Error boundary catches crash and shows fallback. loading.tsx renders during navigation. Map error boundary does not unmount the map.",
-      "proof_level": "browser",
-      "integration_closure": "Error boundaries wrap all major page sections on dashboard, fleet, and analytics",
-      "observability_impact": "Crashed components show error state with component name",
+      "goal": "Add error boundaries around major page sections and loading indicators for route transitions so a single component crash doesn't white-screen the page and navigation feels responsive.",
+      "success_criteria": "- A simulated component crash renders fallback UI (amber-on-black terminal style) while the rest of the page remains functional\n- Route transitions between protected pages show a loading indicator instead of a blank flash\n- `npx tsc --noEmit` passes clean\n- `npx vitest run` passes — all existing tests plus new ErrorBoundary tests\n- `npm run build` succeeds",
+      "proof_level": "contract — ErrorBoundary test simulates a crash and asserts fallback renders. Route-level files are verified by build + type-check.",
+      "integration_closure": "- Upstream surfaces consumed: `src/app/(protected)/dashboard/page.tsx`, `src/app/(protected)/fleet/page.tsx`, `src/app/(protected)/analytics/page.tsx` (existing page components that get wrapped)\n- New wiring introduced: `<ErrorBoundary>` wrapper around page sections; `loading.tsx` and `layout.tsx` at `(protected)` route group level; `error.tsx` as last-resort page boundary\n- What remains before the milestone is truly usable end-to-end: S04 (Responsive Layout & Accessibility)",
+      "observability_impact": "- Runtime signals: ErrorBoundary logs caught errors to `console.error` with component stack trace\n- Inspection surfaces: Fallback UI visible in-browser when a section crashes; error.tsx visible when unhandled errors escape section boundaries\n- Failure visibility: ErrorBoundary fallback shows the error message in the UI; \"Retry\" button resets boundary state\n- Redaction constraints: none",
       "sequence": 0,
       "replan_triggered_at": null
     },
@@ -868,6 +868,89 @@
         "`src/lib/auth/auth.test.ts` — deleted",
         "`src/app/login/page.tsx` — deleted",
         "`src/app/api/auth/login/route.ts` — deleted"
+      ],
+      "observability_impact": "",
+      "full_plan_md": "",
+      "sequence": 0
+    },
+    {
+      "milestone_id": "M010",
+      "slice_id": "S03",
+      "id": "T01",
+      "title": "Build ErrorBoundary component, loading/error/layout route files, and ErrorBoundary tests",
+      "status": "pending",
+      "one_liner": "",
+      "narrative": "",
+      "verification_result": "",
+      "duration": "",
+      "completed_at": null,
+      "blocker_discovered": false,
+      "deviations": "",
+      "known_issues": "",
+      "key_files": [],
+      "key_decisions": [],
+      "full_summary_md": "",
+      "description": "Create the reusable ErrorBoundary class component, the (protected) route group's layout.tsx, loading.tsx, and error.tsx, and a test file that verifies the ErrorBoundary catches render errors and shows fallback UI.\n\nThe ErrorBoundary must be a 'use client' class component (React 19 still requires class components for componentDidCatch). Default fallback uses Bloomberg terminal aesthetic: bg-black, text-amber-500, font-mono, uppercase tracking-widest, sharp corners, border-amber-500/20. Includes a 'RETRY' button that resets the boundary's error state.\n\nThe layout.tsx is a pass-through ({children}) needed so loading.tsx has a Suspense boundary for route transitions. loading.tsx shows a Bloomberg-styled pulse animation with 'LOADING...' text. error.tsx is the last-resort page-level error boundary receiving error and reset props.",
+      "estimate": "45m",
+      "files": [
+        "src/components/ui/ErrorBoundary.tsx",
+        "src/components/ui/__tests__/ErrorBoundary.test.tsx",
+        "src/app/(protected)/layout.tsx",
+        "src/app/(protected)/loading.tsx",
+        "src/app/(protected)/error.tsx"
+      ],
+      "verify": "npx vitest run src/components/ui/__tests__/ErrorBoundary.test.tsx && npx tsc --noEmit",
+      "inputs": [
+        "`src/app/(protected)/dashboard/page.tsx` — reference for Bloomberg aesthetic patterns (bg-black, amber accents, font-mono, no border-radius)",
+        "`tests/setup.ts` — existing test setup with happy-dom and @testing-library/jest-dom",
+        "`src/components/fleet/__tests__/AnomalyTable.test.tsx` — reference for RTL test patterns including afterEach(cleanup)"
+      ],
+      "expected_output": [
+        "`src/components/ui/ErrorBoundary.tsx` — reusable 'use client' class component with componentDidCatch, configurable fallback, retry button",
+        "`src/components/ui/__tests__/ErrorBoundary.test.tsx` — tests: catches render error and shows fallback, retry resets boundary, renders children when no error",
+        "`src/app/(protected)/layout.tsx` — pass-through layout exporting {children}",
+        "`src/app/(protected)/loading.tsx` — Bloomberg-styled loading indicator with pulse animation",
+        "`src/app/(protected)/error.tsx` — 'use client' page-level error boundary with error message and reset button"
+      ],
+      "observability_impact": "",
+      "full_plan_md": "",
+      "sequence": 0
+    },
+    {
+      "milestone_id": "M010",
+      "slice_id": "S03",
+      "id": "T02",
+      "title": "Wire ErrorBoundary into dashboard, fleet, and analytics pages",
+      "status": "pending",
+      "one_liner": "",
+      "narrative": "",
+      "verification_result": "",
+      "duration": "",
+      "completed_at": null,
+      "blocker_discovered": false,
+      "deviations": "",
+      "known_issues": "",
+      "key_files": [],
+      "key_decisions": [],
+      "full_summary_md": "",
+      "description": "Import the ErrorBoundary component and wrap major sections in each page:\n\n**Dashboard (dashboard/page.tsx):** Wrap the map container (<VesselMap>) in its own ErrorBoundary. Wrap the right-column panel stack in a second ErrorBoundary. This way a panel crash doesn't kill the map and vice versa.\n\n**Fleet (fleet/page.tsx):** Wrap the SanctionedVessels + AnomalyTable rendering section (the block inside the `anomalies.length > 0` conditional) in an ErrorBoundary. The page already handles fetch errors via useState — the boundary catches render crashes in child components.\n\n**Analytics (analytics/page.tsx):** Wrap the charts rendering section (the selectedChokepoints.map block) in an ErrorBoundary. Same rationale — fetch errors are already handled, boundary catches Recharts render crashes.\n\nAbout page is static content — route-level error.tsx from T01 is sufficient coverage.\n\nRun full verification: type-check, all tests pass, build succeeds.",
+      "estimate": "30m",
+      "files": [
+        "src/app/(protected)/dashboard/page.tsx",
+        "src/app/(protected)/fleet/page.tsx",
+        "src/app/(protected)/analytics/page.tsx"
+      ],
+      "verify": "npx tsc --noEmit && npx vitest run && npm run build",
+      "inputs": [
+        "`src/components/ui/ErrorBoundary.tsx` — the reusable ErrorBoundary component from T01",
+        "`src/app/(protected)/dashboard/page.tsx` — dashboard page to modify",
+        "`src/app/(protected)/fleet/page.tsx` — fleet page to modify",
+        "`src/app/(protected)/analytics/page.tsx` — analytics page to modify"
+      ],
+      "expected_output": [
+        "`src/app/(protected)/dashboard/page.tsx` — map and panel column each wrapped in ErrorBoundary",
+        "`src/app/(protected)/fleet/page.tsx` — anomaly tables section wrapped in ErrorBoundary",
+        "`src/app/(protected)/analytics/page.tsx` — charts section wrapped in ErrorBoundary"
       ],
       "observability_impact": "",
       "full_plan_md": "",

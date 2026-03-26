@@ -34,7 +34,7 @@ This file is the explicit capability and coverage contract for the project.
 - Source: inferred
 - Primary owning slice: M010/S03
 - Supporting slices: none
-- Validation: unmapped
+- Validation: T01 builds ErrorBoundary component; T02 wires it into dashboard (map + panels), fleet (tables), and analytics (charts). Test file verifies crash → fallback rendering.
 - Notes: Currently zero error boundaries in the codebase.
 
 ### R009 — Route transitions between dashboard, fleet, analytics, and about must show a loading indicator rather than a blank flash.
@@ -45,7 +45,7 @@ This file is the explicit capability and coverage contract for the project.
 - Source: inferred
 - Primary owning slice: M010/S03
 - Supporting slices: none
-- Validation: unmapped
+- Validation: T01 creates (protected)/loading.tsx with Bloomberg-styled indicator and (protected)/layout.tsx as pass-through Suspense host. Build verification confirms Next.js route integration.
 - Notes: No loading.tsx or Suspense boundaries found in the codebase.
 
 ### R010 — Dashboard, fleet, and analytics pages must be usable on tablet (768px) and mobile (375px) viewports.
@@ -138,8 +138,8 @@ This file is the explicit capability and coverage contract for the project.
 | R005 | constraint | validated | M008/S01 | none | validated |
 | R006 | constraint | validated | M008/S01 | none | validated |
 | R007 | quality-attribute | validated | M010/S02 | none | All 14 files deleted, 4 empty directories removed, npx tsc --noEmit clean, rg scan shows zero real references to deleted symbols. See D005. |
-| R008 | failure-visibility | active | M010/S03 | none | unmapped |
-| R009 | quality-attribute | active | M010/S03 | none | unmapped |
+| R008 | failure-visibility | active | M010/S03 | none | T01 builds ErrorBoundary component; T02 wires it into dashboard (map + panels), fleet (tables), and analytics (charts). Test file verifies crash → fallback rendering. |
+| R009 | quality-attribute | active | M010/S03 | none | T01 creates (protected)/loading.tsx with Bloomberg-styled indicator and (protected)/layout.tsx as pass-through Suspense host. Build verification confirms Next.js route integration. |
 | R010 | quality-attribute | active | M010/S04 | none | unmapped |
 | R011 | quality-attribute | active | M010/S04 | none | unmapped |
 
