@@ -154,6 +154,19 @@ export function VesselMap() {
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
+    // Intercept Mapbox GL's internal errorCb race condition.
+    // map.remove() nullifies errorCb on telemetry trackers, but in-flight
+    // async HTTP callbacks still invoke this.errorCb(e) after disposal.
+    // This listener catches the resulting uncaught TypeError before it
+    // reaches the ErrorBoundary. See: mapbox-gl v3.x telemetry classes.
+    const suppressMapboxErrorCb = (event: ErrorEvent) => {
+      if (event.message?.includes('errorCb')) {
+        event.preventDefault();
+        console.warn('[MapboxGL] Suppressed post-dispose errorCb:', event.message);
+      }
+    };
+    window.addEventListener('error', suppressMapboxErrorCb);
+
     let mapInstance: mapboxgl.Map;
     try {
       mapInstance = new mapboxgl.Map({
@@ -162,14 +175,13 @@ export function VesselMap() {
         center: [54, 25], // Strait of Hormuz region
         zoom: 5,
       });
-      map.current = mapInstance;
     } catch (err) {
+      window.removeEventListener('error', suppressMapboxErrorCb);
       setMapError(err instanceof Error ? err.message : 'Map failed to load');
       return;
     }
 
-    // Suppress known Mapbox GL internal error (errorCb is null)
-    // that fires when async tile/WebSocket callbacks run after map disposal.
+    // Suppress Mapbox GL map-level errors (tile failures, style errors, etc.)
     mapInstance.on('error', (e) => {
       console.warn('[MapboxGL]', e.error?.message || 'Unknown map error');
     });
@@ -373,6 +385,7 @@ export function VesselMap() {
 
     // Cleanup
     return () => {
+      window.removeEventListener('error', suppressMapboxErrorCb);
       try {
         map.current?.remove();
       } catch {

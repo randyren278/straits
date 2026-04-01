@@ -42,6 +42,11 @@ Thumbs.db
 .gsd/activity/
 .gsd/worktrees/
 .gsd/STATE.md
+.gsd/gsd.db
+.gsd/gsd.db-shm
+.gsd/gsd.db-wal
+.gsd/journal/
+.gsd/metrics.json
 *.swp
 *.swo
 *~

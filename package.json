@@ -8,7 +8,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src/",
     "test": "vitest",
     "ingester": "tsx --env-file=.env.local src/services/ais-ingester/index.ts",
     "ingester:dev": "tsx watch --env-file=.env.local src/services/ais-ingester/index.ts"
