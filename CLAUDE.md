@@ -5,10 +5,21 @@ A geopolitical intelligence dashboard tracking all vessels across the Middle Eas
 
 ## Stack
 - Next.js 16 (Turbopack), React 19, TypeScript 5, Tailwind CSS v4
-- MapLibre GL JS + deck.gl for WebGL map rendering
+- MapLibre GL JS + CARTO dark-matter basemap for WebGL map rendering (keyless — no map token required)
 - PostgreSQL + TimescaleDB for time-series position data
 - Zustand for state, Recharts for analytics charts
 - Standalone AIS ingester service (aisstream.io WebSocket)
+
+## Data Sources (all keyless except the AIS feed)
+- Map tiles: MapLibre GL + CARTO dark-matter (no token)
+- Oil prices: FRED (primary, WTI `DCOILWTICO` / Brent `DCOILBRENTEU`; key optional), Alpha Vantage (optional fallback)
+- News: keyless Google News RSS (no NewsAPI key required)
+- Sanctions: OpenSanctions (CC BY-NC 4.0)
+- AIS positions: AISStream.io WebSocket (the one remaining keyed feed — no free equivalent)
+
+## Auth Posture
+- The `(protected)` route group is currently an **open, unauthenticated dashboard** (the layout is a pass-through; no login gate is wired). This is intentional for the small-group demo.
+- To enable the shared-password gate: add a `middleware.ts` that verifies a JWT (jose) minted from `PASSWORD_HASH` (bcrypt) — the env vars `JWT_SECRET` and `PASSWORD_HASH` already exist for this.
 
 ## Key Architecture
 - AIS ingester runs as separate process (`npm run ingester`) — not inside Next.js

@@ -56,7 +56,6 @@ export function AnomalyBadge({ type, confidence, size = 'sm' }: AnomalyBadgeProp
   return (
     <span
       className={`inline-flex items-center gap-1 ${config.bg} text-white rounded font-semibold ${sizeClasses}`}
-      role="img"
       aria-label={`${type.replace(/_/g, ' ')} anomaly: ${confidence}`}
     >
       <Icon className={size === 'sm' ? 'w-3 h-3' : 'w-4 h-4'} />

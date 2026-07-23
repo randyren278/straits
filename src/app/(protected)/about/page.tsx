@@ -161,16 +161,19 @@ export default function AboutPage() {
               <span className="text-amber-500">aisstream.io</span> — AIS vessel positions via WebSocket, near real-time
             </div>
             <div className="text-sm text-gray-300">
-              <span className="text-amber-500">OpenSanctions</span> — Sanctions database, daily refresh, IMO-matched
+              <span className="text-amber-500">MapLibre + CARTO</span> — Keyless basemap rendering, no access token required
             </div>
             <div className="text-sm text-gray-300">
-              <span className="text-amber-500">Alpha Vantage</span> — Oil prices (primary), 25 requests/day free tier
+              <span className="text-amber-500">OpenSanctions</span> — Sanctions database, daily refresh, IMO-matched (CC BY-NC 4.0)
             </div>
             <div className="text-sm text-gray-300">
-              <span className="text-amber-500">FRED</span> — Oil prices (fallback), Federal Reserve Economic Data, no rate limits
+              <span className="text-amber-500">FRED</span> — Oil prices (primary), Federal Reserve Economic Data, API key optional
             </div>
             <div className="text-sm text-gray-300">
-              <span className="text-amber-500">NewsAPI</span> — Geopolitical news headlines, keyword-filtered for Middle East and oil
+              <span className="text-amber-500">Alpha Vantage</span> — Oil prices (optional fallback), 25 requests/day free tier
+            </div>
+            <div className="text-sm text-gray-300">
+              <span className="text-amber-500">Google News RSS</span> — Geopolitical news headlines via keyless RSS, keyword-filtered for Middle East and oil
             </div>
             <div className="text-sm text-gray-300">
               <span className="text-amber-500">Nominatim</span> — Destination geocoding via OpenStreetMap, used for route deviation detection

@@ -1,211 +1,155 @@
-# Tanker Tracker
+# 🛢️ Tanker Tracker
 
-Personal geopolitical intelligence dashboard tracking oil tankers across the Middle East and major export routes, from Persian Gulf loading terminals through the Strait of Hormuz, Arabian Sea, Red Sea, and Suez Canal. Built for real-time visibility into oil flow with sanctions flags, price correlation, anomaly detection, and route analytics.
+**A real-time geopolitical intelligence dashboard for Middle East maritime oil flows.**
 
-## Features
+Tanker Tracker fuses live AIS vessel positions, oil prices, sanctions data, geopolitical news, and behavioral anomaly detection into a single Bloomberg-terminal-style command center. It was built to answer one question quickly during periods of regional tension: **what is actually happening to oil shipping through the Strait of Hormuz, Bab el-Mandeb, and the Suez Canal right now?**
 
-- Live vessel positions on an interactive WebGL map (MapLibre + deck.gl)
-- Sanctions flag overlay via OpenSanctions IMO matching
-- WTI/Brent oil price panel with 30-day chart (Alpha Vantage + FRED)
-- Geopolitical news feed filtered for Middle East and oil keywords
-- Going-dark detection and route anomaly alerts
-- Historical traffic analytics correlated with oil price movements
-- Vessel watchlist with notifications
-- Bloomberg terminal aesthetic: true black, amber accents, monospace data
-- Route deviation detection via destination geocoding
-- Behavioral pattern detection: repeat going-dark, destination changes, ship-to-ship transfers
-- Dark fleet risk scoring (0-100 composite score per vessel)
-- Vessel intelligence dossier panel with risk breakdown and anomaly history
-- About page documenting all anomaly definitions and scoring methodology
+![Tanker Tracker dashboard](docs/screenshots/dashboard.png)
 
-## Anomaly Detection
+> 🎬 **[Watch the 20-second launch video →](brag-output/brag.mp4)**
 
-Tanker Tracker monitors 6 types of vessel anomalies: AIS signal loss (going dark), loitering outside anchorage, speed anomalies, route deviation from declared destination, repeat going-dark patterns, and ship-to-ship transfers. Each vessel receives a composite dark fleet risk score (0-100) based on its evasion signal history. See the About tab in the dashboard for full definitions and scoring methodology.
+---
 
-## Prerequisites
+## What it does
 
-- Node.js 18+
-- Docker Desktop (for local TimescaleDB)
-- Git
-- Accounts needed: [aisstream.io](https://aisstream.io), [Mapbox](https://account.mapbox.com/access-tokens/), [Alpha Vantage](https://www.alphavantage.co/support/#api-key), [NewsAPI](https://newsapi.org/register)
+- **Live vessel map** — every tracked ship rendered as a color-coded dot across the Persian Gulf, Gulf of Oman, Red Sea, and approaches. Colors encode threat state: going-dark, loitering, route deviation, speed anomaly, sanctioned, shadow-fleet, tanker, or ordinary traffic.
+- **Vessel intelligence dossiers** — click any vessel for a full profile: identity (IMO/MMSI/flag/type), live kinematics, a composite **dark-fleet risk score** (going-dark history, sanctions match, flag risk, loitering, STS transfers), and 24h track replay.
+- **Chokepoint monitoring** — live vessel/tanker counts for the Strait of Hormuz, Bab el-Mandeb, and Suez Canal.
+- **Evasion & anomaly detection** — AIS gaps ("going dark"), loitering, mid-voyage destination changes, route deviation, and ship-to-ship transfer detection, computed by the ingester and surfaced as alerts.
+- **Market + news context** — WTI/Brent price sparklines and a live geopolitical news feed alongside the map.
+- **Historical analytics** — traffic-vs-price correlation charts per chokepoint over 7/30/90-day windows.
+- **Data export** — one-click CSV / JSON export of the live fleet snapshot for offline analysis.
 
-## Local Setup
+---
 
-### 1. Clone and Install
+## Screenshots
+
+### Live situational dashboard
+Map + oil prices + intel feed, updating in near real-time.
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Vessel intelligence dossier
+Click any vessel for identity, kinematics, and a composite dark-fleet risk score.
+![Vessel detail](docs/screenshots/dashboard-detail.png)
+
+### Fleet overview
+Sanctioned vessels and active anomalies grouped by type — with CSV/JSON export.
+![Fleet](docs/screenshots/fleet.png)
+
+---
+
+## Features at a glance
+
+| Capability | Detail |
+|---|---|
+| Real-time AIS | Standalone ingester streams positions from AISStream.io into TimescaleDB |
+| Identity model | IMO is the primary vessel key (MMSI can be reused / spoofed) |
+| Anomaly engine | Going-dark, loitering, deviation, speed, destination-change, STS-transfer |
+| Risk scoring | Composite 0–100 dark-fleet score per vessel, updated on new anomalies |
+| Sanctions | OpenSanctions maritime dataset, IMO-matched |
+| Chokepoints | Live counts for Hormuz, Bab el-Mandeb, Suez |
+| Export | `/api/export?format=csv|json` — live fleet snapshot |
+| Aesthetic | True-black + amber, JetBrains Mono, sharp corners, zero chrome |
+
+---
+
+## Stack
+
+- **Next.js 16** (App Router, Turbopack), **React 19**, **TypeScript 5**, **Tailwind CSS v4**
+- **MapLibre GL JS** + **CARTO dark-matter** basemap for WebGL rendering — **keyless, no map token required**
+- **PostgreSQL + TimescaleDB** hypertables for time-series position data
+- **Zustand** for state, **Recharts** for analytics
+- **Standalone AIS ingester** (Node + `ws`) running anomaly-detection cron jobs
+
+---
+
+## Data sources
+
+Everything except the AIS feed is **keyless / free** — the dashboard runs without paid API keys.
+
+| Layer | Source | Key required? |
+|---|---|---|
+| Map tiles | MapLibre GL + CARTO dark-matter | ❌ none |
+| Oil prices | **FRED** (WTI `DCOILWTICO`, Brent `DCOILBRENTEU`) — primary; Alpha Vantage optional fallback | ❌ optional |
+| News | **Google News RSS** (keyless) | ❌ none |
+| Sanctions | **OpenSanctions** maritime dataset (CC BY-NC 4.0) | ❌ none |
+| AIS positions | **AISStream.io** WebSocket | ✅ free key |
+
+> The map, prices, and news layers were migrated off paid/rate-limited providers to free open-source equivalents without sacrificing quality or the terminal aesthetic.
+
+---
+
+## Running locally
+
+Fastest path to a fully populated dashboard (no live AIS feed required) — see [`scripts/README-dev.md`](scripts/README-dev.md) for the full recipe.
 
 ```bash
-git clone https://github.com/randyren278/tanker-tracker.git
-cd tanker-tracker
-npm install
-```
-
-### 2. Start TimescaleDB
-
-The app requires TimescaleDB (not plain PostgreSQL — the schema uses hypertables). Start it with Docker:
-
-```bash
-docker run -d --name timescaledb -p 5432:5432 \
-  -e POSTGRES_PASSWORD=password \
-  -e POSTGRES_DB=tanker_tracker \
+# 1. Start TimescaleDB
+docker run -d --name tanker-ts -p 5432:5432 \
+  -e POSTGRES_PASSWORD=password -e POSTGRES_DB=tanker_tracker \
   timescale/timescaledb:latest-pg16
+
+# 2. Point the app at it (in .env.local)
+#    DATABASE_URL=postgresql://postgres:password@localhost:5432/tanker_tracker
+
+# 3. Apply schema
+docker exec tanker-ts psql -U postgres -d tanker_tracker -c "CREATE EXTENSION IF NOT EXISTS timescaledb;"
+docker exec -i tanker-ts psql -U postgres -d tanker_tracker < src/lib/db/schema.sql
+
+# 4. Seed realistic demo data (~140 vessels, positions, sanctions, anomalies, prices, news)
+npx tsx --env-file=.env.local scripts/seed-demo.ts
+
+# 5. Run — no map token needed
+npm run dev            # http://localhost:3000/dashboard
 ```
 
-This runs TimescaleDB (PostgreSQL 16 + TimescaleDB extension) on port 5432. The container name `timescaledb` is used for subsequent start/stop commands.
-
-### 3. Apply Database Schema
-
-No migration runner — apply the schema manually:
+For **live data** instead of the seed, add `AISSTREAM_API_KEY` to `.env.local` and run the ingester:
 
 ```bash
-psql postgresql://postgres:password@localhost:5432/tanker_tracker -f src/lib/db/schema.sql
+npm run ingester:dev   # streams real AIS positions into the DB
 ```
 
-Or open `src/lib/db/schema.sql` in a GUI tool (TablePlus, DBeaver, pgAdmin) and run it against the database.
+### Auth posture
 
-> **Note:** This step must run before starting the app or ingester. If the app starts without tables, the ingester will crash immediately with "relation does not exist".
-
-### 4. Configure Environment Variables
-
-```bash
-cp .env.example .env.local
-# Edit .env.local and fill in all values
-```
-
-#### Required Environment Variables
-
-| Variable | Description | How to Get |
-|----------|-------------|------------|
-| `DATABASE_URL` | PostgreSQL connection string | Local: `postgresql://postgres:password@localhost:5432/tanker_tracker` |
-| `AISSTREAM_API_KEY` | AISStream.io WebSocket API key | [aisstream.io](https://aisstream.io) — free tier |
-| `JWT_SECRET` | 32+ character secret for session tokens | Generate with command below |
-| `PASSWORD_HASH` | bcrypt hash of the shared dashboard password | Generate with command below |
-| `NEXT_PUBLIC_MAPBOX_TOKEN` | Mapbox access token for map rendering | [account.mapbox.com](https://account.mapbox.com/access-tokens/) — free 50k tile loads/month |
-| `ALPHA_VANTAGE_API_KEY` | Oil prices primary source (25 req/day free) | [alphavantage.co](https://www.alphavantage.co/support/#api-key) |
-| `FRED_API_KEY` | Oil prices fallback — free, no rate limits | [fred.stlouisfed.org](https://fred.stlouisfed.org/docs/api/api_key.html) |
-| `NEWSAPI_KEY` | Geopolitical news headlines (100 req/day free) | [newsapi.org/register](https://newsapi.org/register) |
-
-> **Important — `NEXT_PUBLIC_` prefix:** Next.js only exposes environment variables prefixed with `NEXT_PUBLIC_` to the browser bundle. `NEXT_PUBLIC_MAPBOX_TOKEN` must be set exactly as shown — if you use `MAPBOX_TOKEN`, the map renders blank with no error message.
-
-#### Generating Secrets
-
-**JWT_SECRET** (random 32-byte hex string):
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-**PASSWORD_HASH** (replace `yourpassword` with your chosen password):
-```bash
-node -e "const b=require('bcrypt'); b.hash('yourpassword',10).then(h=>console.log(h))"
-```
-
-Copy the output and paste it as the `PASSWORD_HASH` value.
-
-### 5. Start the App
-
-```bash
-npm run dev
-```
-
-App available at [http://localhost:3000](http://localhost:3000).
-
-### 6. Start the AIS Ingester
-
-In a separate terminal:
-
-```bash
-npm run ingester
-```
-
-The ingester connects to AISStream.io and logs:
-
-```
-============================================================
-AIS Ingester Service
-============================================================
-Environment: development
-Database URL: (configured)
-AISStream API Key: (configured)
-============================================================
-Connected. Sending subscription...
-Subscription sent. Waiting for messages...
-```
-
-#### Coverage Areas
-
-The ingester subscribes to 6 regional bounding boxes via AISStream.io:
-
-| Region | Lat | Lon | Purpose |
-|--------|-----|-----|---------|
-| Full Persian Gulf | 23–30°N | 47–57.5°E | Loading terminals: Ras Tanura, Kharg Island, Kuwait, UAE |
-| Gulf of Oman + Arabian Sea (west) | 22–26°N | 55–66°E | Tankers exiting Strait of Hormuz |
-| Arabian Sea (transit) | 8–25°N | 60–78°E | East-bound routes to India and Asia |
-| Full Red Sea | 12–30°N | 32–45°E | Entire Red Sea corridor |
-| Gulf of Aden | 11–14°N | 42–52°E | Exits from Bab-el-Mandeb strait |
-| Suez + Eastern Mediterranean | 29.5–37°N | 28–37°E | Suez Canal northbound exits |
-
-Vessels outside all 6 boxes are not received from AISStream.io. To adjust coverage, edit the `BOUNDING_BOXES` array in `src/services/ais-ingester/index.ts`.
-
-Vessel positions will start appearing on the map within seconds of a successful connection.
+The dashboard is currently an **open, unauthenticated** app (intended for a small-group demo). The env vars `JWT_SECRET` and `PASSWORD_HASH` exist to enable a shared-password gate via a `middleware.ts` (JWT verified with `jose`) when needed — see [`CLAUDE.md`](CLAUDE.md).
 
 ---
 
-## Production Deployment
+## Architecture
 
-### Architecture
-
-The app has two components that deploy separately:
-
-| Component | What It Is | Hosting |
-|-----------|------------|---------|
-| Next.js app | Frontend + all API routes | Vercel (recommended) |
-| AIS Ingester | Standalone Node.js WebSocket service | Railway or Render |
-
-Vercel cannot maintain persistent WebSocket connections — this is why the ingester is a separate service. All data flows through the shared production database.
-
-### Production Database
-
-Options (TimescaleDB required — plain PostgreSQL will not work):
-
-- **[Timescale Cloud](https://console.cloud.timescale.com)** (recommended) — managed, free tier available
-- **Railway PostgreSQL** with TimescaleDB extension enabled
-- **Self-hosted** — VPS running `timescale/timescaledb:latest-pg16` via Docker
-
-After creating the database, apply the schema:
-```bash
-psql <your-production-DATABASE_URL> -f src/lib/db/schema.sql
+```mermaid
+flowchart TD
+    AIS["AISStream.io"] -->|WebSocket| ING["AIS Ingester<br/>standalone process<br/>+ cron anomaly detection"]
+    EXT["FRED / RSS / OpenSanctions<br/>refreshed by ingester"] --> ING
+    ING -->|writes| DB[("PostgreSQL + TimescaleDB<br/>hypertable: vessel_positions")]
+    DB -->|reads| APP["Next.js 16 (App Router)<br/>API routes + React 19 UI<br/>MapLibre + Recharts"]
 ```
 
-### Next.js App on Vercel
-
-1. Connect your GitHub repository to Vercel
-2. In Vercel Project Settings > Environment Variables, add all 8 environment variables from the table above, using the production database URL
-3. Deploy — Vercel auto-detects Next.js and builds with `next build`
-
-### AIS Ingester on Railway
-
-The ingester lives at `src/services/ais-ingester/` and has its own `package.json` with a `start` script.
-
-**Railway:**
-1. Create a new Railway service from your GitHub repo
-2. Set the root directory to `src/services/ais-ingester/`
-3. Add environment variables: `DATABASE_URL` (production), `AISSTREAM_API_KEY`, `ALPHA_VANTAGE_API_KEY`, `FRED_API_KEY`, `NEWSAPI_KEY`
-4. Railway auto-runs `npm start`
-
-**Render (alternative):**
-Same pattern — create a Web Service, set root directory to `src/services/ais-ingester/`, set env vars, Render runs `npm start`.
+- The ingester runs **outside** Next.js (`npm run ingester`) so streaming and cron detection don't block request handling.
+- Vessel status is derived from **DB freshness timestamps**, not live API pings.
 
 ---
 
-## Troubleshooting
+## Project structure
 
-**Map is blank, no error message**
-The `NEXT_PUBLIC_MAPBOX_TOKEN` env var is missing or uses the wrong name. Confirm the variable name is exactly `NEXT_PUBLIC_MAPBOX_TOKEN` (not `MAPBOX_TOKEN`). Rebuild after setting it.
+```mermaid
+graph LR
+    root["tanker-tracker/"] --> src["src/"]
+    root --> scripts["scripts/<br/><i>seed data, screenshots, checkpoints</i>"]
+    src --> app["app/<br/><i>App Router — pages + API routes</i>"]
+    src --> components["components/<br/><i>map, panels, fleet, charts, ui</i>"]
+    src --> lib["lib/<br/><i>db, ais, external APIs, detection, geo</i>"]
+    src --> services["services/<br/><i>standalone AIS ingester + cron jobs</i>"]
+    src --> stores["stores/<br/><i>Zustand state</i>"]
+    src --> types["types/<br/><i>TypeScript definitions</i>"]
+```
 
-**Ingester crashes immediately with "relation does not exist"**
-The database schema hasn't been applied. Run step 3 (Apply Database Schema) before starting the ingester.
+---
 
-**Schema application fails with "function create_hypertable does not exist"**
-You started a plain `postgres:16` container instead of `timescale/timescaledb:latest-pg16`. Stop the container, remove it, and use the exact Docker image from step 2.
+## Testing
 
-**Oil prices show as offline**
-Alpha Vantage free tier is 25 requests/day. The app fetches prices every 6 hours, so this limit is rarely hit during normal use. If it does hit, the FRED fallback takes over. Set both `ALPHA_VANTAGE_API_KEY` and `FRED_API_KEY` for maximum resilience.
+```bash
+npm test               # vitest — 386 tests
+npx eslint src/        # lint (clean)
+npx tsc --noEmit       # typecheck
+```

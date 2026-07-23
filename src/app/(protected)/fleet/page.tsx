@@ -91,15 +91,32 @@ export default function FleetPage() {
 
       <main className="p-6 max-w-7xl mx-auto max-md:p-3">
         {/* Page title */}
-        <div className="mb-6">
-          <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">
-            FLEET OVERVIEW
-          </h1>
-          {!loading && !error && (
-            <p className="text-xs text-gray-600 mt-0.5 font-mono">
-              {anomalies.length} active anomalies across {groups.length} categories
-            </p>
-          )}
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">
+              FLEET OVERVIEW
+            </h1>
+            {!loading && !error && (
+              <p className="text-xs text-gray-600 mt-0.5 font-mono">
+                {anomalies.length} active anomalies across {groups.length} categories
+              </p>
+            )}
+          </div>
+          {/* Export current fleet snapshot for offline analysis */}
+          <div className="flex gap-2 shrink-0">
+            <a
+              href="/api/export?format=csv"
+              className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-amber-500/40 text-amber-500 hover:bg-amber-500/10 transition-colors"
+            >
+              Export CSV
+            </a>
+            <a
+              href="/api/export?format=json"
+              className="px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-gray-600/50 text-gray-400 hover:bg-gray-800/50 transition-colors"
+            >
+              JSON
+            </a>
+          </div>
         </div>
 
         {/* Loading state */}

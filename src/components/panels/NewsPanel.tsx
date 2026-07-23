@@ -68,9 +68,9 @@ export function NewsPanel() {
           {headlines.length === 0 ? (
             <p className="px-3 py-2 text-gray-500 text-xs font-mono">No headlines available</p>
           ) : (
-            headlines.map((item, i) => (
+            headlines.map((item) => (
               <a
-                key={i}
+                key={`${item.url}-${item.publishedAt}`}
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"

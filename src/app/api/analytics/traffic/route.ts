@@ -49,6 +49,9 @@ export async function GET(request: NextRequest) {
         groupBy: 'route',
         range,
         data: filteredData,
+      }, {
+        // Analytics aggregates change slowly; cache for 5 min, revalidate for 10.
+        headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
       });
     } else {
       // Chokepoint-based grouping (default)
@@ -68,6 +71,9 @@ export async function GET(request: NextRequest) {
         groupBy: 'chokepoint',
         range,
         data: results,
+      }, {
+        // Analytics aggregates change slowly; cache for 5 min, revalidate for 10.
+        headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
       });
     }
   } catch (error) {

@@ -13,10 +13,19 @@ export async function GET(request: Request) {
     // Use getVesselsWithSanctions which includes LEFT JOIN to vessel_sanctions
     const vessels = await getVesselsWithSanctions(tankersOnly);
 
-    return NextResponse.json({
-      vessels,
-      timestamp: new Date().toISOString(),
-    });
+    return NextResponse.json(
+      {
+        vessels,
+        timestamp: new Date().toISOString(),
+      },
+      {
+        // Positions refresh on a multi-minute cadence; serve a cached copy for
+        // 30s and revalidate in the background to cut DB load under fan-out.
+        headers: {
+          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        },
+      }
+    );
   } catch (error) {
     console.error('Failed to fetch vessels:', error);
     return NextResponse.json(

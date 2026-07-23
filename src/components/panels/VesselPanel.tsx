@@ -7,6 +7,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useVesselStore } from '@/stores/vessel';
+import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
 import { AlertTriangle, Eye, EyeOff, ChevronDown, ChevronRight, Shield, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { AnomalyBadge } from '../ui/AnomalyBadge';
@@ -17,7 +18,7 @@ import type { RiskFactors } from '@/lib/db/risk-scores';
 export function VesselPanel() {
   const { selectedVessel, showTrack, setShowTrack, setSelectedVessel, watchlist, addToWatchlist, removeFromWatchlist } =
     useVesselStore();
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useLocalStorage<string>('tanker_tracker_user_id', '');
 
   // Intelligence dossier state
   const [riskScore, setRiskScore] = useState<{ score: number; factors: RiskFactors; computedAt: string | null } | null>(null);
@@ -38,31 +39,28 @@ export function VesselPanel() {
     risk: true, anomalies: false, destinations: false,
   });
 
-  // Initialize user ID from localStorage
+  // Generate and persist a user ID once the persisted value has loaded (if none exists)
   useEffect(() => {
-    let id = localStorage.getItem('tanker_tracker_user_id');
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem('tanker_tracker_user_id', id);
+    if (!userId) {
+      setUserId(crypto.randomUUID());
     }
-    setUserId(id);
-  }, []);
+  }, [userId, setUserId]);
 
   // imo may be null for IMO-less vessels (position-only reports from vessel_positions)
   const vesselImo = selectedVessel ? ((selectedVessel as VesselWithSanctions).imo ?? null) : null;
 
   // Fetch intelligence dossier data when vessel changes
   useEffect(() => {
-    if (!vesselImo) {
-      setRiskScore(null);
-      setRiskError(false);
-      setSanctionDetail(null);
-      setAnomalyHistory([]);
-      setDestChanges([]);
-      return;
-    }
-
     const fetchDossier = async () => {
+      if (!vesselImo) {
+        setRiskScore(null);
+        setRiskError(false);
+        setSanctionDetail(null);
+        setAnomalyHistory([]);
+        setDestChanges([]);
+        return;
+      }
+
       try {
         const [riskRes, historyRes] = await Promise.all([
           fetch(`/api/vessels/${vesselImo}/risk`),

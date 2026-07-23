@@ -1,6 +1,6 @@
 /**
  * Oil Price Fetcher Tests
- * Tests for the orchestrating fetcher with Alpha Vantage primary and FRED fallback.
+ * Tests for the orchestrating fetcher with FRED primary and Alpha Vantage fallback.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchOilPrices, type OilPriceData } from './fetcher';
@@ -62,42 +62,43 @@ describe('Oil Price Fetcher', () => {
   });
 
   describe('fetchOilPrices', () => {
-    it('fetches WTI price from Alpha Vantage', async () => {
-      vi.mocked(fetchAlphaVantagePrices).mockResolvedValue(mockAlphaVantagePrices);
+    it('fetches WTI price from FRED as the primary source', async () => {
+      vi.mocked(fetchFREDPrices).mockResolvedValue(mockFREDPrices);
 
       const prices = await fetchOilPrices();
       const wti = prices.find(p => p.symbol === 'WTI');
 
-      expect(fetchAlphaVantagePrices).toHaveBeenCalled();
+      expect(fetchFREDPrices).toHaveBeenCalled();
+      expect(fetchAlphaVantagePrices).not.toHaveBeenCalled();
       expect(wti).toBeDefined();
-      expect(wti!.current).toBe(80.50);
+      expect(wti!.current).toBe(80.00);
     });
 
-    it('fetches Brent price from Alpha Vantage', async () => {
-      vi.mocked(fetchAlphaVantagePrices).mockResolvedValue(mockAlphaVantagePrices);
+    it('fetches Brent price from FRED as the primary source', async () => {
+      vi.mocked(fetchFREDPrices).mockResolvedValue(mockFREDPrices);
 
       const prices = await fetchOilPrices();
       const brent = prices.find(p => p.symbol === 'BRENT');
 
       expect(brent).toBeDefined();
-      expect(brent!.current).toBe(85.00);
+      expect(brent!.current).toBe(84.50);
     });
 
-    it('falls back to FRED when Alpha Vantage fails', async () => {
-      vi.mocked(fetchAlphaVantagePrices).mockRejectedValue(new Error('Rate limit exceeded'));
-      vi.mocked(fetchFREDPrices).mockResolvedValue(mockFREDPrices);
+    it('falls back to Alpha Vantage when FRED fails', async () => {
+      vi.mocked(fetchFREDPrices).mockRejectedValue(new Error('FRED down'));
+      vi.mocked(fetchAlphaVantagePrices).mockResolvedValue(mockAlphaVantagePrices);
 
       const prices = await fetchOilPrices();
 
-      expect(fetchAlphaVantagePrices).toHaveBeenCalled();
       expect(fetchFREDPrices).toHaveBeenCalled();
+      expect(fetchAlphaVantagePrices).toHaveBeenCalled();
       expect(prices.length).toBe(2);
-      expect(prices[0].current).toBe(80.00); // FRED price
+      expect(prices[0].current).toBe(80.50); // Alpha Vantage price
     });
 
     it('returns empty array on complete API failure with empty DB', async () => {
-      vi.mocked(fetchAlphaVantagePrices).mockRejectedValue(new Error('Alpha Vantage down'));
       vi.mocked(fetchFREDPrices).mockRejectedValue(new Error('FRED down'));
+      vi.mocked(fetchAlphaVantagePrices).mockRejectedValue(new Error('Alpha Vantage down'));
       vi.mocked(getLatestPrices).mockResolvedValue([]);
 
       const prices = await fetchOilPrices();
@@ -106,8 +107,8 @@ describe('Oil Price Fetcher', () => {
     });
 
     it('returns last known DB prices when both APIs fail and DB has data', async () => {
-      vi.mocked(fetchAlphaVantagePrices).mockRejectedValue(new Error('Alpha Vantage down'));
       vi.mocked(fetchFREDPrices).mockRejectedValue(new Error('FRED down'));
+      vi.mocked(fetchAlphaVantagePrices).mockRejectedValue(new Error('Alpha Vantage down'));
       vi.mocked(getLatestPrices).mockResolvedValue([
         { symbol: 'WTI', price: 75.5, change: -0.5, changePercent: -0.66, history: [{ value: 75.5 }] },
       ]);

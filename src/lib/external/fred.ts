@@ -51,17 +51,21 @@ function parseFREDResponse(data: unknown, symbol: 'WTI' | 'BRENT'): OilPriceData
   const dataObj = data as { observations?: Array<{ date: string; value: string }> };
   const observations = dataObj.observations || [];
 
-  const history: OilPricePoint[] = observations
+  // FRED returns observations in descending date order (most recent first).
+  const descending: OilPricePoint[] = observations
     .filter((o) => o.value !== '.')
     .map((o) => ({
       date: new Date(o.date),
       price: parseFloat(o.value),
     }));
 
-  const current = history[0]?.price || 0;
-  const previous = history[1]?.price || current;
+  const current = descending[0]?.price || 0;
+  const previous = descending[1]?.price || current;
   const change = current - previous;
   const changePercent = previous ? (change / previous) * 100 : 0;
+
+  // Sparkline history should be ascending (oldest to newest) to read left-to-right.
+  const history: OilPricePoint[] = [...descending].reverse();
 
   return { symbol, current, change, changePercent, history };
 }

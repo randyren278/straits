@@ -4,29 +4,31 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Active
 
+(none)
+
+## Validated
+
 ### R001 — Vessels not seen in 7 days must not appear on the live map, fleet page, or any current-state vessel list.
 - Class: core-capability
-- Status: active
+- Status: validated
 - Description: Vessels not seen in 7 days must not appear on the live map, fleet page, or any current-state vessel list.
 - Why it matters: Prevents stale vessels from polluting live views and giving a false picture of current activity.
 - Source: user
 - Primary owning slice: M010/S01
 - Supporting slices: none
-- Validation: partial — `sanctions.ts` fixed in audit commit (was hardcoded '48 hours'), needs re-validation
-- Notes: Previously validated under M008/S01 but audit found the fix was never actually applied to the SQL string.
+- Validation: validated — `sanctions.ts` imports VESSEL_STALENESS_INTERVAL from shared constants module. Query uses interpolated constant, no hardcoded intervals. rg audit confirms all display queries use shared constants.
+- Notes: Originally validated under M008/S01, re-validated after M010 audit confirmed the fix is correctly applied.
 
 ### R002 — Chokepoint vessel counts and vessel lists must use a 7-day position recency window matching vessel display.
 - Class: core-capability
-- Status: active
+- Status: validated
 - Description: Chokepoint vessel counts and vessel lists must use a 7-day position recency window matching vessel display.
 - Why it matters: Chokepoint counts should be consistent with what's shown on the map.
 - Source: user
 - Primary owning slice: M010/S01
 - Supporting slices: none
-- Validation: partial — `chokepoints.ts` fixed in audit commit (was hardcoded '1 hour'), needs re-validation
-- Notes: Previously validated under M008/S01 but audit found the fix was never actually applied. Updated from 24h to 7d to match vessel display.
-
-## Validated
+- Validation: validated — `chokepoints.ts` imports CHOKEPOINT_STALENESS_INTERVAL (7 days) from shared constants. Both count and list queries use the shared constant. No hardcoded intervals in display queries. rg audit confirms consistency.
+- Notes: Updated from 24h to 7d to match vessel display. Shared constant is the single source of truth.
 
 ### R003 — The anomalies API and fleet anomaly views must exclude anomalies for vessels not seen in 7 days.
 - Class: core-capability
@@ -131,8 +133,8 @@ This file is the explicit capability and coverage contract for the project.
 
 | ID | Class | Status | Primary owner | Supporting | Proof |
 |---|---|---|---|---|---|
-| R001 | core-capability | active | M010/S01 | none | partial — `sanctions.ts` fixed in audit commit (was hardcoded '48 hours'), needs re-validation |
-| R002 | core-capability | active | M010/S01 | none | partial — `chokepoints.ts` fixed in audit commit (was hardcoded '1 hour'), needs re-validation |
+| R001 | core-capability | validated | M010/S01 | none | validated — `sanctions.ts` imports VESSEL_STALENESS_INTERVAL from shared constants module. Query uses interpolated constant, no hardcoded intervals. rg audit confirms all display queries use shared constants. |
+| R002 | core-capability | validated | M010/S01 | none | validated — `chokepoints.ts` imports CHOKEPOINT_STALENESS_INTERVAL (7 days) from shared constants. Both count and list queries use the shared constant. No hardcoded intervals in display queries. rg audit confirms consistency. |
 | R003 | core-capability | validated | M010/S01 | none | validated — EXISTS staleness subquery added to /api/anomalies using VESSEL_STALENESS_INTERVAL with IMO→MMSI bridge join. TypeScript compiles clean. Staleness audit confirms anomalies/route.ts consumes the shared constant. |
 | R004 | quality-attribute | validated | M008/S01 | M010/S01 | validated |
 | R005 | constraint | validated | M008/S01 | none | validated |
@@ -145,7 +147,6 @@ This file is the explicit capability and coverage contract for the project.
 
 ## Coverage Summary
 
-- Active requirements: 2
-- Mapped to slices: 2
-- Validated: 9 (R003, R004, R005, R006, R007, R008, R009, R010, R011)
+- Active requirements: 0
+- Validated: 11 (R001, R002, R003, R004, R005, R006, R007, R008, R009, R010, R011)
 - Unmapped active requirements: 0

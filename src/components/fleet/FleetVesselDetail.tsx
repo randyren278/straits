@@ -140,6 +140,7 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
 
         if (riskRes.ok) {
           const data = await riskRes.json();
+          if (cancelled) return;
           setRiskScore({ score: data.score, factors: data.factors, computedAt: data.computedAt });
           setSanctionDetail(data.sanction || null);
         } else {
@@ -148,6 +149,7 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
 
         if (historyRes.ok) {
           const data = await historyRes.json();
+          if (cancelled) return;
           setAnomalyHistory(data.anomalies || []);
           setDestChanges(data.destinationChanges || []);
         } else {

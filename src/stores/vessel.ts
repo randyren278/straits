@@ -124,14 +124,7 @@ export const useVesselStore = create<VesselStore>((set) => ({
   setUnreadCount: (unreadCount) => set({ unreadCount }),
   setAnomalyFilter: (anomalyFilter) => set({ anomalyFilter }),
   setClusterVessels: (clusterVessels) => set({ clusterVessels }),
-  setTargetVesselImo: (targetVesselImo) => {
-    if (targetVesselImo) {
-      console.log(`[VesselStore] targetVesselImo set: ${targetVesselImo}`);
-    } else {
-      console.log('[VesselStore] targetVesselImo cleared');
-    }
-    set({ targetVesselImo });
-  },
+  setTargetVesselImo: (targetVesselImo) => set({ targetVesselImo }),
 
   // Optimistic updates for responsive UI
   addToWatchlist: (entry) => set((state) => ({

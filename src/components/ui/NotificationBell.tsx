@@ -6,7 +6,7 @@
  * Filtering is display-only — detection logic is not changed.
  * Requirements: ANOM-02, ANOM-06, HIST-02, PANL-04
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bell } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useVesselStore } from '@/stores/vessel';
@@ -28,10 +28,7 @@ export function NotificationBell() {
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [shipTypeFilter, setShipTypeFilter] = useState<ShipTypeFilter>('all');
 
-  // Ref to track current filter inside interval closure (avoids stale closure)
-  const shipTypeFilterRef = useRef<ShipTypeFilter>('all');
-
-  const fetchAnomalies = async (filter: ShipTypeFilter) => {
+  const fetchAnomalies = useCallback(async (filter: ShipTypeFilter) => {
     try {
       const url =
         filter !== 'all'
@@ -43,23 +40,28 @@ export function NotificationBell() {
     } catch (err) {
       console.error('Failed to fetch anomalies:', err);
     }
-  };
-
-  // Fetch anomalies on mount and every 30 seconds (respects current filter via ref)
-  useEffect(() => {
-    fetchAnomalies(shipTypeFilterRef.current);
-
-    const interval = setInterval(() => {
-      fetchAnomalies(shipTypeFilterRef.current);
-    }, 30000);
-
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetch anomalies on mount and every 30 seconds (respects current filter)
+  useEffect(() => {
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) fetchAnomalies(shipTypeFilter);
+    };
+    // Defer the initial fetch out of the synchronous effect body so the
+    // setState inside fetchAnomalies doesn't trigger a cascading render.
+    const initial = setTimeout(run, 0);
+    const interval = setInterval(run, 30000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
+  }, [fetchAnomalies, shipTypeFilter]);
 
   const handleFilterClick = (filter: ShipTypeFilter) => {
     setShipTypeFilter(filter);
-    shipTypeFilterRef.current = filter;
     fetchAnomalies(filter);
   };
 

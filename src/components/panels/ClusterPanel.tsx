@@ -10,6 +10,7 @@
  *
  * Clicking a vessel row selects it (opens VesselPanel) and dismisses this panel.
  */
+import { useMemo } from 'react';
 import { useVesselStore } from '@/stores/vessel';
 import { AlertTriangle, Ship, X } from 'lucide-react';
 import type { ClusterVessel } from '@/stores/vessel';
@@ -56,30 +57,38 @@ export function ClusterPanel() {
   const setClusterVessels = useVesselStore((s) => s.setClusterVessels);
   const setSelectedVessel = useVesselStore((s) => s.setSelectedVessel);
 
-  if (!clusterVessels || clusterVessels.length === 0) return null;
-
   // Sort: anomalies first, then sanctioned, then tankers, then alphabetical
-  const sorted = [...clusterVessels].sort((a, b) => {
-    // Anomalies first
-    if (a.anomalyType && !b.anomalyType) return -1;
-    if (!a.anomalyType && b.anomalyType) return 1;
-    // Sanctioned next
-    if (a.isSanctioned && !b.isSanctioned) return -1;
-    if (!a.isSanctioned && b.isSanctioned) return 1;
-    // Tankers next
-    const aIsTanker = a.shipType != null && a.shipType >= 80 && a.shipType <= 89;
-    const bIsTanker = b.shipType != null && b.shipType >= 80 && b.shipType <= 89;
-    if (aIsTanker && !bIsTanker) return -1;
-    if (!aIsTanker && bIsTanker) return 1;
-    // Alphabetical
-    return (a.name || a.mmsi).localeCompare(b.name || b.mmsi);
-  });
+  const sorted = useMemo(() => {
+    if (!clusterVessels) return [];
+    return [...clusterVessels].sort((a, b) => {
+      // Anomalies first
+      if (a.anomalyType && !b.anomalyType) return -1;
+      if (!a.anomalyType && b.anomalyType) return 1;
+      // Sanctioned next
+      if (a.isSanctioned && !b.isSanctioned) return -1;
+      if (!a.isSanctioned && b.isSanctioned) return 1;
+      // Tankers next
+      const aIsTanker = a.shipType != null && a.shipType >= 80 && a.shipType <= 89;
+      const bIsTanker = b.shipType != null && b.shipType >= 80 && b.shipType <= 89;
+      if (aIsTanker && !bIsTanker) return -1;
+      if (!aIsTanker && bIsTanker) return 1;
+      // Alphabetical
+      return (a.name || a.mmsi).localeCompare(b.name || b.mmsi);
+    });
+  }, [clusterVessels]);
 
-  const tankerCount = clusterVessels.filter(
-    (v) => v.shipType != null && v.shipType >= 80 && v.shipType <= 89
-  ).length;
-  const anomalyCount = clusterVessels.filter((v) => v.anomalyType).length;
-  const sanctionedCount = clusterVessels.filter((v) => v.isSanctioned).length;
+  const { tankerCount, anomalyCount, sanctionedCount } = useMemo(() => {
+    if (!clusterVessels) return { tankerCount: 0, anomalyCount: 0, sanctionedCount: 0 };
+    return {
+      tankerCount: clusterVessels.filter(
+        (v) => v.shipType != null && v.shipType >= 80 && v.shipType <= 89
+      ).length,
+      anomalyCount: clusterVessels.filter((v) => v.anomalyType).length,
+      sanctionedCount: clusterVessels.filter((v) => v.isSanctioned).length,
+    };
+  }, [clusterVessels]);
+
+  if (!clusterVessels || clusterVessels.length === 0) return null;
 
   const handleVesselClick = (v: ClusterVessel) => {
     const vessel: VesselWithSanctions = {

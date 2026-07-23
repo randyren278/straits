@@ -1,14 +1,17 @@
 'use client';
 
 /**
- * Main map component using Mapbox GL JS.
+ * Main map component using MapLibre GL JS.
  * Renders ALL vessel positions as individual GeoJSON dots — no visual clustering.
  * When zoomed in close to a group of co-located vessels, the sidebar panel
  * auto-populates with the nearby vessels for easy browsing.
+ *
+ * Uses a keyless CARTO dark-matter basemap — no access token required, which
+ * keeps the Bloomberg-terminal aesthetic without a paid map provider.
  * Requirements: MAP-01, MAP-02, MAP-03, MAP-06, MAP-07, INTL-01, ANOM-01
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import mapboxgl from 'mapbox-gl';
+import maplibregl from 'maplibre-gl';
 import { useVesselStore } from '@/stores/vessel';
 import { vesselsToGeoJSON } from '@/lib/map/geojson';
 import { filterTankers } from '@/lib/map/filter';
@@ -16,8 +19,11 @@ import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
 import type { ClusterVessel } from '@/stores/vessel';
 
-// Set Mapbox token from environment
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
+/**
+ * Keyless dark basemap style (CARTO dark-matter, GL-compatible).
+ * No API token required — served free by CARTO's basemaps CDN.
+ */
+const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
 /**
  * Minimum zoom level before proximity detection kicks in.
@@ -37,7 +43,7 @@ const PROXIMITY_MIN_COUNT = 2;
 
 export function VesselMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
+  const map = useRef<maplibregl.Map | null>(null);
   const vesselsRef = useRef<VesselWithSanctions[]>([]);
   const [vessels, setVessels] = useState<VesselWithSanctions[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -60,7 +66,7 @@ export function VesselMap() {
 
     // Query all rendered vessel features in the viewport
     const canvas = map.current.getCanvas();
-    let features: mapboxgl.GeoJSONFeature[];
+    let features: maplibregl.MapGeoJSONFeature[];
     try {
       features = map.current.queryRenderedFeatures(
         [[0, 0], [canvas.width, canvas.height]],
@@ -154,51 +160,89 @@ export function VesselMap() {
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
-    // Intercept Mapbox GL's internal errorCb race condition.
-    // map.remove() nullifies errorCb on telemetry trackers, but in-flight
-    // async HTTP callbacks still invoke this.errorCb(e) after disposal.
-    // This listener catches the resulting uncaught TypeError before it
-    // reaches the ErrorBoundary. See: mapbox-gl v3.x telemetry classes.
-    const suppressMapboxErrorCb = (event: ErrorEvent) => {
-      if (event.message?.includes('errorCb')) {
-        event.preventDefault();
-        console.warn('[MapboxGL] Suppressed post-dispose errorCb:', event.message);
-      }
-    };
-    window.addEventListener('error', suppressMapboxErrorCb);
-
-    let mapInstance: mapboxgl.Map;
+    let mapInstance: maplibregl.Map;
     try {
-      mapInstance = new mapboxgl.Map({
+      mapInstance = new maplibregl.Map({
         container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/dark-v11',
+        style: MAP_STYLE,
         center: [54, 25], // Strait of Hormuz region
         zoom: 5,
+        attributionControl: { compact: true },
       });
     } catch (err) {
-      window.removeEventListener('error', suppressMapboxErrorCb);
       setMapError(err instanceof Error ? err.message : 'Map failed to load');
       return;
     }
 
-    // Suppress Mapbox GL map-level errors (tile failures, style errors, etc.)
+    // Handle map-level errors (tile failures, style load errors, etc.) on the
+    // instance itself rather than a global window listener. MapLibre routes all
+    // async load/telemetry failures through this event, so there is no post-dispose
+    // errorCb race that a global handler would need to intercept.
     mapInstance.on('error', (e) => {
-      console.warn('[MapboxGL]', e.error?.message || 'Unknown map error');
+      console.warn('[MapLibre]', e.error?.message || 'Unknown map error');
     });
 
     map.current = mapInstance;
+
+    // Named handler refs so the cleanup can detach each listener explicitly
+    // (prevents handler accumulation across React Strict Mode re-mounts).
+    const handleClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+      if (!e.features?.length) return;
+      const props = e.features[0].properties;
+      const coords = (e.features[0].geometry as GeoJSON.Point).coordinates;
+
+      const vessel: VesselWithSanctions = {
+        imo: props?.imo || null,
+        mmsi: props?.mmsi || '',
+        name: props?.name || null,
+        flag: props?.flag || null,
+        shipType: props?.shipType ?? null,
+        destination: props?.destination || null,
+        lastSeen: new Date(),
+        isSanctioned: props?.isSanctioned || false,
+        sanctioningAuthority: props?.sanctioningAuthority || null,
+        sanctionReason: null,
+        sanctionRiskCategory: props?.sanctionRiskCategory || null,
+        anomalyType: props?.anomalyType || null,
+        anomalyConfidence: props?.anomalyConfidence || null,
+        position: {
+          time: new Date(),
+          mmsi: props?.mmsi || '',
+          imo: props?.imo || null,
+          latitude: coords[1],
+          longitude: coords[0],
+          speed: props?.speed ?? null,
+          course: props?.course ?? null,
+          heading: props?.heading ?? null,
+          navStatus: null,
+          lowConfidence: props?.lowConfidence || false,
+        },
+      };
+      setSelectedVessel(vessel);
+    };
+    const handleMouseEnter = () => {
+      if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+    };
+    const handleMouseLeave = () => {
+      if (map.current) map.current.getCanvas().style.cursor = '';
+    };
+    const handleMoveEnd = () => detectProximityGroup();
 
     map.current.on('load', () => {
       if (!map.current) return;
 
       // ─── Vessel source — NO clustering ─────────────────────────
       // Every vessel renders as its own dot at all zoom levels.
-      map.current.addSource('vessels', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
+      // Guard against duplicate ids if the style ever reloads.
+      if (!map.current.getSource('vessels')) {
+        map.current.addSource('vessels', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+      }
 
       // ─── Vessel circles — always visible ───────────────────────
+      if (!map.current.getLayer('vessel-circles')) {
       map.current.addLayer({
         id: 'vessel-circles',
         type: 'circle',
@@ -253,7 +297,7 @@ export function VesselMap() {
             ['==', ['get', 'isSanctioned'], true],
             '#ef4444',
             // Priority 10: Tankers (amber)
-            // coalesce handles null shipType — prevents Mapbox expression error
+            // coalesce handles null shipType — prevents GL expression error
             [
               'all',
               ['>=', ['coalesce', ['get', 'shipType'], -1], 80],
@@ -267,6 +311,7 @@ export function VesselMap() {
           'circle-stroke-color': '#ffffff',
         },
       });
+      }
 
       // ─── Chokepoint bounding box overlays ──────────────────────
       const chokepointFeatures: GeoJSON.Feature<GeoJSON.Polygon>[] = Object.values(CHOKEPOINTS).map((cp) => ({
@@ -284,87 +329,57 @@ export function VesselMap() {
         properties: { name: cp.name },
       }));
 
-      map.current.addSource('chokepoints', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: chokepointFeatures },
-      });
+      if (!map.current.getSource('chokepoints')) {
+        map.current.addSource('chokepoints', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: chokepointFeatures },
+        });
+      }
 
-      map.current.addLayer({
-        id: 'chokepoint-fill',
-        type: 'fill',
-        source: 'chokepoints',
-        paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.04 },
-      }, 'vessel-circles');
+      if (!map.current.getLayer('chokepoint-fill')) {
+        map.current.addLayer({
+          id: 'chokepoint-fill',
+          type: 'fill',
+          source: 'chokepoints',
+          paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.04 },
+        }, 'vessel-circles');
+      }
 
-      map.current.addLayer({
-        id: 'chokepoint-outline',
-        type: 'line',
-        source: 'chokepoints',
-        paint: { 'line-color': '#f59e0b', 'line-width': 1, 'line-opacity': 0.4, 'line-dasharray': [4, 3] },
-      }, 'vessel-circles');
+      if (!map.current.getLayer('chokepoint-outline')) {
+        map.current.addLayer({
+          id: 'chokepoint-outline',
+          type: 'line',
+          source: 'chokepoints',
+          paint: { 'line-color': '#f59e0b', 'line-width': 1, 'line-opacity': 0.4, 'line-dasharray': [4, 3] },
+        }, 'vessel-circles');
+      }
 
-      map.current.addLayer({
-        id: 'chokepoint-labels',
-        type: 'symbol',
-        source: 'chokepoints',
-        layout: {
-          'text-field': ['get', 'name'],
-          'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-          'text-size': 11,
-          'text-anchor': 'top-left',
-          'text-offset': [0.3, 0.3],
-        },
-        paint: { 'text-color': '#f59e0b', 'text-opacity': 0.6 },
-      });
-
-      // ─── Individual vessel click handler ──────────────────────
-      map.current.on('click', 'vessel-circles', (e) => {
-        if (!e.features?.length) return;
-        const props = e.features[0].properties;
-        const coords = (e.features[0].geometry as GeoJSON.Point).coordinates;
-
-        const vessel: VesselWithSanctions = {
-          imo: props?.imo || null,
-          mmsi: props?.mmsi || '',
-          name: props?.name || null,
-          flag: props?.flag || null,
-          shipType: props?.shipType ?? null,
-          destination: props?.destination || null,
-          lastSeen: new Date(),
-          isSanctioned: props?.isSanctioned || false,
-          sanctioningAuthority: props?.sanctioningAuthority || null,
-          sanctionReason: null,
-          sanctionRiskCategory: props?.sanctionRiskCategory || null,
-          anomalyType: props?.anomalyType || null,
-          anomalyConfidence: props?.anomalyConfidence || null,
-          position: {
-            time: new Date(),
-            mmsi: props?.mmsi || '',
-            imo: props?.imo || null,
-            latitude: coords[1],
-            longitude: coords[0],
-            speed: props?.speed ?? null,
-            course: props?.course ?? null,
-            heading: props?.heading ?? null,
-            navStatus: null,
-            lowConfidence: props?.lowConfidence || false,
+      if (!map.current.getLayer('chokepoint-labels')) {
+        map.current.addLayer({
+          id: 'chokepoint-labels',
+          type: 'symbol',
+          source: 'chokepoints',
+          layout: {
+            'text-field': ['get', 'name'],
+            // CARTO dark-matter glyphs expose the "Open Sans" family.
+            'text-font': ['Open Sans Bold'],
+            'text-size': 11,
+            'text-anchor': 'top-left',
+            'text-offset': [0.3, 0.3],
           },
-        };
-        setSelectedVessel(vessel);
-      });
+          paint: { 'text-color': '#f59e0b', 'text-opacity': 0.6 },
+        });
+      }
 
-      // Cursor change on hover
-      map.current.on('mouseenter', 'vessel-circles', () => {
-        if (map.current) map.current.getCanvas().style.cursor = 'pointer';
-      });
-      map.current.on('mouseleave', 'vessel-circles', () => {
-        if (map.current) map.current.getCanvas().style.cursor = '';
-      });
+      // ─── Interaction handlers (named refs, detached in cleanup) ─
+      map.current.on('click', 'vessel-circles', handleClick);
+      map.current.on('mouseenter', 'vessel-circles', handleMouseEnter);
+      map.current.on('mouseleave', 'vessel-circles', handleMouseLeave);
 
       // ─── Proximity detection on zoom/pan ──────────────────────
       // After the map settles, detect dense vessel groups and auto-
       // populate the sidebar panel.
-      map.current.on('moveend', () => detectProximityGroup());
+      map.current.on('moveend', handleMoveEnd);
 
       setMapLoaded(true);
 
@@ -373,7 +388,7 @@ export function VesselMap() {
       // but this guarantees the source gets data immediately.
       const currentVessels = vesselsRef.current;
       if (currentVessels.length > 0) {
-        const source = mapInstance.getSource('vessels') as mapboxgl.GeoJSONSource;
+        const source = mapInstance.getSource('vessels') as maplibregl.GeoJSONSource;
         if (source) {
           const { tankersOnly: t, anomalyFilter: af } = useVesselStore.getState();
           let filtered = filterTankers(currentVessels, t);
@@ -385,12 +400,20 @@ export function VesselMap() {
 
     // Cleanup
     return () => {
-      window.removeEventListener('error', suppressMapboxErrorCb);
+      // Detach layer/map listeners explicitly before removing the instance so
+      // handlers don't accumulate across Strict Mode re-mounts.
+      try {
+        mapInstance.off('click', 'vessel-circles', handleClick);
+        mapInstance.off('mouseenter', 'vessel-circles', handleMouseEnter);
+        mapInstance.off('mouseleave', 'vessel-circles', handleMouseLeave);
+        mapInstance.off('moveend', handleMoveEnd);
+      } catch {
+        // Instance may already be partially torn down; ignore.
+      }
       try {
         map.current?.remove();
       } catch {
-        // Mapbox GL may throw during teardown if async callbacks
-        // (e.g. errorCb) fire after the map instance is disposed.
+        // GL teardown can throw if async callbacks fire after disposal.
       }
       map.current = null;
     };
@@ -432,7 +455,7 @@ export function VesselMap() {
 
     const geojson = vesselsToGeoJSON(filtered);
 
-    const source = map.current.getSource('vessels') as mapboxgl.GeoJSONSource;
+    const source = map.current.getSource('vessels') as maplibregl.GeoJSONSource;
     if (source) {
       source.setData(geojson);
     }
@@ -521,7 +544,6 @@ export function VesselMap() {
 
     const match = vessels.find((v) => v.imo === targetVesselImo);
     if (match) {
-      console.log(`[VesselMap] Hydrated target vessel: ${targetVesselImo}`);
       setSelectedVessel(match);
       setTargetVesselImo(null);
     } else {

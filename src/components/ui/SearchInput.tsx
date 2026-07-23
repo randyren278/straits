@@ -26,6 +26,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +43,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
         const res = await fetch(`/api/vessels/search?q=${encodeURIComponent(query)}`);
         const data = await res.json();
         setResults(data.results || []);
+        setActiveIndex(-1);
         setIsOpen(true);
       } catch (error) {
         console.error('Search failed:', error);
@@ -72,6 +74,24 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
     onSelectVessel?.(result);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isOpen || results.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % results.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((i) => (i <= 0 ? results.length - 1 : i - 1));
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0 && activeIndex < results.length) {
+        e.preventDefault();
+        handleSelect(results[activeIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+    }
+  };
+
   const clearSearch = () => {
     setQuery('');
     setResults([]);
@@ -89,6 +109,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setIsOpen(true)}
+          onKeyDown={handleKeyDown}
           placeholder="Search vessel..."
           aria-label="Search vessels by name, IMO, or MMSI"
           className="w-48 pl-9 pr-8 py-1.5 bg-black border border-gray-700 text-sm font-mono text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
@@ -108,12 +129,15 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
           ref={dropdownRef}
           className="absolute top-full left-0 mt-1 w-72 bg-black border border-amber-500/20 shadow-lg z-50 max-h-64 overflow-y-auto"
         >
-          {results.map((result) => (
+          {results.map((result, i) => (
             <button
               key={result.imo}
               role="option"
+              aria-selected={i === activeIndex}
               onClick={() => handleSelect(result)}
-              className="w-full px-3 py-2 text-left hover:bg-gray-900 transition-colors border-b border-gray-800 last:border-b-0"
+              className={`w-full px-3 py-2 text-left hover:bg-gray-900 transition-colors border-b border-gray-800 last:border-b-0 ${
+                i === activeIndex ? 'bg-gray-900' : ''
+              }`}
             >
               <p className="text-sm text-white font-medium">{result.name}</p>
               <p className="text-xs text-gray-400">

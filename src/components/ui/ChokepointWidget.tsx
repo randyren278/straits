@@ -80,6 +80,8 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchAllVessels = async (ids: string[]) => {
       const entries = await Promise.all(
         ids.map(async (id) => {
@@ -88,6 +90,7 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
           return [id, data.vessels ?? []] as [string, ChokepointVessel[]];
         })
       );
+      if (cancelled) return;
       setVesselMap(Object.fromEntries(entries));
     };
 
@@ -95,20 +98,24 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
       try {
         const res = await fetch('/api/chokepoints');
         const data = await res.json();
+        if (cancelled) return;
         const cps: ChokepointData[] = data.chokepoints || [];
         setChokepoints(cps);
         await fetchAllVessels(cps.map((cp) => cp.id));
       } catch (error) {
         console.error('Failed to fetch chokepoints:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchStats();
     // Refresh every 30 seconds to match map vessel position polling
     const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   if (loading) return null;
