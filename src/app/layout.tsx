@@ -9,7 +9,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Tanker Tracker',
+  title: 'Straits',
   description: 'Real-time Middle East oil tanker tracking',
   icons: {
     icon: [

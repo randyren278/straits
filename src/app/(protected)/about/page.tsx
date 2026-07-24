@@ -2,7 +2,7 @@
  * About Page
  *
  * Documents all anomaly event definitions, the dark fleet risk score formula,
- * and data sources used by Tanker Tracker.
+ * and data sources used by Straits.
  */
 'use client';
 
@@ -16,7 +16,7 @@ export default function AboutPage() {
       <main className="p-6 max-w-4xl mx-auto">
         {/* Page title */}
         <div className="mb-6">
-          <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">About Tanker Tracker</h1>
+          <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">About Straits</h1>
           <p className="text-xs text-gray-600 mt-0.5">
             Anomaly detection definitions and risk scoring methodology
           </p>

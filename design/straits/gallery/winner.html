@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>STRAITS — Transit Gate mk2 · in context</title>
+<link rel="icon" type="image/svg+xml" href="../concepts/C4R-transit-gate-mk2.svg">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#000;color:#e5e5e5;font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;padding:48px;line-height:1.5;}
+  h1{color:#f59e0b;font-size:20px;letter-spacing:8px;text-transform:uppercase;}
+  .sub{color:#666;font-size:11px;letter-spacing:2px;margin:4px 0 36px;text-transform:uppercase;}
+  .row{display:flex;gap:40px;flex-wrap:wrap;margin-bottom:40px;align-items:flex-start;}
+  .panel{border:1px solid #1f1f1f;background:#050505;padding:22px 26px;}
+  .label{color:#555;font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;}
+
+  /* fake browser tab */
+  .browser{width:520px;border:1px solid #222;border-radius:0;overflow:hidden;background:#0a0a0a;}
+  .chrome{background:#141414;display:flex;align-items:flex-end;height:40px;padding:0 8px;gap:0;}
+  .tab{background:#0a0a0a;height:32px;display:flex;align-items:center;gap:8px;padding:0 14px;border:1px solid #222;border-bottom:none;min-width:180px;}
+  .tab img{width:16px;height:16px;}
+  .tab span{font-size:12px;color:#ccc;letter-spacing:1px;white-space:nowrap;}
+  .tab.dim{background:#101010;opacity:.5;min-width:120px;}
+  .addr{background:#0a0a0a;padding:8px 14px;border-top:1px solid #1a1a1a;font-size:11px;color:#666;}
+  .body{padding:40px;text-align:center;background:#000;}
+
+  /* real app header lockup */
+  .apphdr{width:640px;background:#000;border:1px solid #1f1f1f;}
+  .apphdr .bar{height:56px;border-bottom:1px solid rgba(245,158,11,.2);display:flex;align-items:center;padding:0 16px;gap:24px;}
+  .apphdr .lock{display:flex;align-items:center;gap:10px;}
+  .apphdr .lock img{width:22px;height:22px;}
+  .apphdr .lock h1{font-size:14px;letter-spacing:6px;}
+  .apphdr nav{display:flex;gap:4px;}
+  .apphdr nav a{font-size:11px;letter-spacing:2px;text-transform:uppercase;padding:5px 12px;border:1px solid transparent;color:#666;}
+  .apphdr nav a.on{color:#f59e0b;border-color:#f59e0b;background:rgba(245,158,11,.1);}
+
+  .icons{display:flex;gap:28px;align-items:flex-end;}
+  .ic{text-align:center;}
+  .ic img{display:block;background:#000;margin-bottom:8px;}
+  .ic .c{color:#555;font-size:9px;letter-spacing:1px;}
+  .app-icon{border-radius:12px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,.6);}
+
+  .note{color:#888;font-size:11px;max-width:640px;margin-top:8px;}
+  .note b{color:#f59e0b;}
+</style></head>
+<body>
+  <h1>STRAITS</h1>
+  <div class="sub">Transit Gate mk2 · winner · shown in real usage contexts</div>
+
+  <div class="row">
+    <div class="panel">
+      <div class="label">◆ Browser tab (the 16px test)</div>
+      <div class="browser">
+        <div class="chrome">
+          <div class="tab"><img src="../renders/C4R-transit-gate-mk2-16.png"><span>STRAITS</span></div>
+          <div class="tab dim"><span style="color:#555;font-size:11px">Bloomberg</span></div>
+        </div>
+        <div class="addr">straits.app/dashboard</div>
+        <div class="body"><img src="../renders/C4R-wordmark.png" style="height:40px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <div class="label">◆ App header lockup (replaces the text-only title)</div>
+      <div class="apphdr">
+        <div class="bar">
+          <div class="lock"><img src="../renders/C4R-transit-gate-mk2-64.png"><h1>STRAITS</h1></div>
+          <nav><a class="on">Live Map</a><a>Analytics</a><a>Fleet</a><a>About</a></nav>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <div class="label">◆ Icon set (what actually gets generated)</div>
+      <div class="icons">
+        <div class="ic"><img src="../renders/C4R-transit-gate-mk2-16.png" width="16" height="16"><div class="c">16 · tab</div></div>
+        <div class="ic"><img src="../renders/C4R-transit-gate-mk2-32.png" width="32" height="32"><div class="c">favicon-32</div></div>
+        <div class="ic"><img src="../renders/C4R-transit-gate-mk2-64.png" width="64" height="64"><div class="c">64</div></div>
+        <div class="ic"><img class="app-icon" src="../renders/C4R-transit-gate-mk2-180.png" width="90" height="90"><div class="c">apple-icon 180</div></div>
+        <div class="ic"><img src="../renders/C4R-transit-gate-mk2-192.png" width="96" height="96"><div class="c">icon-192 (PWA)</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>The idea:</b> two tapered coastline walls pinch a strait; a brighter-amber vessel chevron
+    (<span style="color:#fbbf24">#fbbf24</span>) drives through the narrows, inside a terminal bezel.
+    True-black + amber <span style="color:#f59e0b">#f59e0b</span>, sharp corners, JetBrains Mono wordmark —
+    matches the existing Bloomberg aesthetic exactly.
+  </div>
+</body></html>

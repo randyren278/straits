@@ -1,10 +1,10 @@
-# Tanker Tracker
+# Straits
 
 **A real-time geopolitical intelligence dashboard for Middle East maritime oil flows.**
 
-Tanker Tracker fuses live AIS vessel positions, oil prices, sanctions data, geopolitical news, and behavioral anomaly detection into a single Bloomberg-terminal-style command center. It was built to answer one question quickly during periods of regional tension: **what is actually happening to oil shipping through the Strait of Hormuz, Bab el-Mandeb, the Gulf of Aden, and the Suez Canal right now?**
+Straits fuses live AIS vessel positions, oil prices, sanctions data, geopolitical news, and behavioral anomaly detection into a single Bloomberg-terminal-style command center. It was built to answer one question quickly during periods of regional tension: **what is actually happening to oil shipping through the Strait of Hormuz, Bab el-Mandeb, the Gulf of Aden, and the Suez Canal right now?**
 
-![Tanker Tracker dashboard](docs/screenshots/dashboard.png)
+![Straits dashboard](docs/screenshots/dashboard.png)
 
 ---
 

@@ -1,4 +1,4 @@
-# Tanker Tracker — Project Context
+# Straits — Project Context
 
 ## What This Is
 A geopolitical intelligence dashboard tracking all vessels across the Middle East in near real-time. Bloomberg-terminal aesthetic. AIS data + oil prices + sanctions + news + anomaly detection.

@@ -1,5 +1,5 @@
 /**
- * Vessel and position type definitions for the tanker tracker.
+ * Vessel and position type definitions for Straits.
  * IMO is used as primary key per DATA-03 decision - MMSI can be reused/spoofed.
  */
 

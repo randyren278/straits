@@ -14,6 +14,7 @@ import { ChokepointWidgets } from './ChokepointWidget';
 import { NotificationBell } from './NotificationBell';
 import { AnomalyFilter } from './AnomalyFilter';
 import { StatusBar } from './StatusBar';
+import { StraitsMark } from './StraitsMark';
 
 interface SearchResult {
   imo: string;
@@ -47,7 +48,8 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
         {/* Top row: logo + nav (always visible) */}
         <div className="flex items-center max-md:justify-between max-md:h-12 max-md:w-full">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">Tanker Tracker</h1>
+            <StraitsMark size={20} className="shrink-0" />
+            <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">Straits</h1>
           </Link>
           <nav className="flex gap-1 ml-6 max-md:ml-2">
             <Link

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# run.sh — one command to boot Tanker Tracker locally.
+# run.sh — one command to boot Straits locally.
 #
 # Fires every part needed for a fully-populated dashboard:
 #   1. TimescaleDB (Docker)      4. .env.local (DATABASE_URL)
@@ -131,6 +131,6 @@ if [ "$WITH_INGESTER" = 1 ]; then
 fi
 
 # ---- 9. launch dev server ----
-printf '\n  %sTANKER TRACKER%s  %s→%s  %s%s%s\n\n' "$AMBER" "$RST" "$AMBER" "$RST" "$UL" "$APP_URL" "$RST"
+printf '\n  %sSTRAITS%s  %s→%s  %s%s%s\n\n' "$AMBER" "$RST" "$AMBER" "$RST" "$UL" "$APP_URL" "$RST"
 printf '  %sCtrl-C to stop. Dashboard, fleet, analytics, and the intel brief are all live.%s\n\n' "$DIM" "$RST"
 npm run dev
