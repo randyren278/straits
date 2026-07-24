@@ -8,6 +8,7 @@
  *   - sanctions:            25pts if vessel is sanctioned, else 0
  *   - loitering (90 days):  10pts binary (any loitering = 10, none = 0)
  *   - STS transfers:        10pts binary (any STS = 10, none = 0)
+ *   - repeat rendezvous:    5pts binary (>=2 rendezvous encounters in 90 days = 5, else 0)
  *
  * Requirements: RISK-01, RISK-02
  */
@@ -31,6 +32,7 @@ interface RiskAggRow {
   loiter_count: string;
   sts_count: string;
   is_sanctioned: string;
+  rendezvous_count: string;
 }
 
 /**
@@ -59,7 +61,12 @@ export async function computeRiskScores(): Promise<number> {
       COUNT(*) FILTER (WHERE va.anomaly_type = 'going_dark') AS dark_count,
       COUNT(*) FILTER (WHERE va.anomaly_type = 'loitering' AND va.detected_at > NOW() - INTERVAL '90 days') AS loiter_count,
       COUNT(*) FILTER (WHERE va.anomaly_type = 'sts_transfer') AS sts_count,
-      CASE WHEN vs.imo IS NOT NULL AND vs.risk_category IN ('sanction', 'mare.shadow;poi') THEN 1 ELSE 0 END AS is_sanctioned
+      CASE WHEN vs.imo IS NOT NULL AND vs.risk_category IN ('sanction', 'mare.shadow;poi') THEN 1 ELSE 0 END AS is_sanctioned,
+      (
+        SELECT COUNT(*) FROM vessel_rendezvous rz
+        WHERE (rz.imo_a = s.imo OR rz.imo_b = s.imo)
+          AND rz.last_seen_at > NOW() - INTERVAL '90 days'
+      ) AS rendezvous_count
     FROM seed s
     LEFT JOIN vessel_anomalies va ON va.imo = s.imo
     LEFT JOIN vessels v ON v.imo = s.imo
@@ -74,6 +81,7 @@ export async function computeRiskScores(): Promise<number> {
     const loiterCount = parseInt(row.loiter_count, 10);
     const stsCount = parseInt(row.sts_count, 10);
     const isSanctioned = parseInt(row.is_sanctioned, 10) === 1;
+    const rendezvousCount = parseInt(row.rendezvous_count, 10);
 
     const factors: RiskFactors = {
       goingDark: Math.min(darkCount * 8, 40),
@@ -81,9 +89,10 @@ export async function computeRiskScores(): Promise<number> {
       sanctions: isSanctioned ? 25 : 0,
       loitering: loiterCount > 0 ? 10 : 0,
       sts: stsCount > 0 ? 10 : 0,
+      rendezvous: rendezvousCount >= 2 ? 5 : 0,
     };
 
-    const score = factors.goingDark + factors.flagRisk + factors.sanctions + factors.loitering + factors.sts;
+    const score = factors.goingDark + factors.flagRisk + factors.sanctions + factors.loitering + factors.sts + factors.rendezvous;
 
     await upsertRiskScore(row.imo, score, factors);
     count++;

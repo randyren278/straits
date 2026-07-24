@@ -36,6 +36,7 @@ describe('computeRiskScores', () => {
           loiter_count: '0',
           sts_count: '0',
           is_sanctioned: '1',
+          rendezvous_count: '0',
         },
       ],
     } as any);
@@ -53,6 +54,7 @@ describe('computeRiskScores', () => {
     expect(factors.goingDark).toBe(0);
     expect(factors.loitering).toBe(0);
     expect(factors.sts).toBe(0);
+    expect(factors.rendezvous).toBe(0);
     expect(score).toBeGreaterThanOrEqual(25);
     expect(score).toBe(40);
   });
@@ -70,6 +72,7 @@ describe('computeRiskScores', () => {
           loiter_count: '0',
           sts_count: '0',
           is_sanctioned: '0',
+          rendezvous_count: '0',
         },
       ],
     } as any);
@@ -86,5 +89,31 @@ describe('computeRiskScores', () => {
     expect(factors.sanctions).toBe(0);
     expect(factors.flagRisk).toBe(0);
     expect(score).toBe(16);
+  });
+
+  it('adds rendezvous factor (+5) for a repeat-partner vessel (>=2 encounters/90d)', async () => {
+    const { pool } = await import('@/lib/db');
+    const { upsertRiskScore } = await import('@/lib/db/risk-scores');
+
+    vi.mocked(pool.query).mockResolvedValue({
+      rows: [
+        {
+          imo: '9333333',
+          flag: 'MH',
+          dark_count: '0',
+          loiter_count: '0',
+          sts_count: '0',
+          is_sanctioned: '0',
+          rendezvous_count: '3',
+        },
+      ],
+    } as any);
+
+    const { computeRiskScores } = await import('./risk-score');
+    await computeRiskScores();
+
+    const [, score, factors] = vi.mocked(upsertRiskScore).mock.calls[0];
+    expect(factors.rendezvous).toBe(5);
+    expect(score).toBe(5);
   });
 });

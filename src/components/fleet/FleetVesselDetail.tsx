@@ -10,7 +10,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, ExternalLink, MapPin, AlertTriangle } from 'lucide-react';
+import { Shield, ExternalLink, MapPin, AlertTriangle, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { AnomalyBadge } from '@/components/ui/AnomalyBadge';
 import { useVesselStore } from '@/stores/vessel';
@@ -68,6 +68,15 @@ interface DestChange {
   changedAt: string;
 }
 
+interface Associate {
+  partnerImo: string;
+  partnerName: string | null;
+  encounterCount: string;
+  lastSeenAt: string;
+  minDistanceKm: number | null;
+  partnerSanctioned: boolean;
+}
+
 /** Extract lat/lon from anomaly details when position data is available */
 function extractPosition(
   details: AnomalyDetails,
@@ -111,6 +120,7 @@ const RISK_FACTORS: ReadonlyArray<{ label: string; key: keyof RiskFactors; max: 
   { label: 'Flag Risk', key: 'flagRisk', max: 15 },
   { label: 'Loitering', key: 'loitering', max: 10 },
   { label: 'STS Events', key: 'sts', max: 10 },
+  { label: 'Rendezvous', key: 'rendezvous', max: 5 },
 ] as const;
 
 export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVesselDetailProps) {
@@ -122,9 +132,14 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
   const [sanctionDetail, setSanctionDetail] = useState<SanctionDetail | null>(null);
   const [anomalyHistory, setAnomalyHistory] = useState<AnomalyHistoryItem[]>([]);
   const [destChanges, setDestChanges] = useState<DestChange[]>([]);
+  const [associates, setAssociates] = useState<Associate[]>([]);
 
   const position = extractPosition(anomalyDetails, anomalyType);
   const canShowOnMap = position !== null;
+
+  // STS anomaly counterpart, surfaced within the Known Associates context
+  const stsPartner =
+    anomalyType === 'sts_transfer' ? (anomalyDetails as StsTransferDetails) : null;
 
   // Fetch dossier data on mount
   useEffect(() => {
@@ -134,9 +149,10 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
       setLoading(true);
       setError(null);
       try {
-        const [riskRes, historyRes] = await Promise.all([
+        const [riskRes, historyRes, associatesRes] = await Promise.all([
           fetch(`/api/vessels/${imo}/risk`),
           fetch(`/api/vessels/${imo}/history`),
+          fetch(`/api/vessels/${imo}/associates`),
         ]);
         if (cancelled) return;
 
@@ -156,6 +172,14 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
           setDestChanges(data.destinationChanges || []);
         } else {
           console.error(`[FleetVesselDetail] History fetch failed for IMO ${imo}: HTTP ${historyRes.status}`);
+        }
+
+        if (associatesRes.ok) {
+          const data = await associatesRes.json();
+          if (cancelled) return;
+          setAssociates(data.associates || []);
+        } else {
+          console.error(`[FleetVesselDetail] Associates fetch failed for IMO ${imo}: HTTP ${associatesRes.status}`);
         }
       } catch (err) {
         console.error('[FleetVesselDetail] Dossier fetch error for IMO', imo, err);
@@ -298,8 +322,56 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
           </div>
         </div>
 
-        {/* Sanctions + Show on Map Section */}
+        {/* Sanctions + Known Associates + Show on Map Section */}
         <div className="flex flex-col gap-4">
+          {/* Known Associates Block */}
+          <div className="border border-amber-500/20 bg-black/40">
+            <div className="px-3 py-1.5 border-b border-amber-500/20 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">KNOWN ASSOCIATES</span>
+              </div>
+              <span className="text-xs text-gray-500 font-mono">{associates.length}</span>
+            </div>
+            <div className="max-h-48 overflow-y-auto">
+              {stsPartner && (
+                <div className="px-3 py-1.5 border-b border-amber-500/20 text-xs bg-amber-500/5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-white truncate">{stsPartner.otherName}</span>
+                    <span className="text-amber-500 font-mono uppercase tracking-widest text-[10px]">ACTIVE STS</span>
+                  </div>
+                  <div className="text-gray-500 font-mono mt-0.5">
+                    IMO {stsPartner.otherImo} · {stsPartner.distanceKm.toFixed(2)} km
+                  </div>
+                </div>
+              )}
+              {associates.length > 0 ? (
+                associates.map((a) => (
+                  <div key={a.partnerImo} className="px-3 py-1.5 border-b border-gray-800/50 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`font-mono truncate ${a.partnerSanctioned ? 'text-red-400' : 'text-white'}`}>
+                        {a.partnerName || `IMO ${a.partnerImo}`}
+                      </span>
+                      <span className="text-gray-500 font-mono shrink-0">
+                        {'×'}{a.encounterCount}
+                      </span>
+                    </div>
+                    <div className="text-gray-600 font-mono mt-0.5">
+                      IMO {a.partnerImo}
+                      {a.minDistanceKm !== null && ` · ${Number(a.minDistanceKm).toFixed(2)} km`}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                !stsPartner && (
+                  <div className="px-3 py-3">
+                    <span className="text-xs text-gray-600 font-mono">No known associates</span>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+
           {/* Sanctions Block */}
           {sanctionDetail && (
             <div className="border border-red-700 bg-red-900/30">

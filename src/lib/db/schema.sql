@@ -212,6 +212,30 @@ CREATE TABLE IF NOT EXISTS vessel_proximity_events (
   PRIMARY KEY (imo_a, imo_b)
 );
 
+-- Closest observed separation during the current encounter (kilometers)
+ALTER TABLE vessel_proximity_events ADD COLUMN IF NOT EXISTS distance_km DOUBLE PRECISION;
+
+-- Rendezvous ledger — archives completed sustained co-location encounters before
+-- they age out of vessel_proximity_events, so "Known Associates" history persists.
+-- Each row is one encounter (bounded by first_seen_at); repeat encounters between
+-- the same pair produce distinct rows, letting us count repeat-partner behavior.
+CREATE TABLE IF NOT EXISTS vessel_rendezvous (
+  imo_a TEXT NOT NULL,
+  imo_b TEXT NOT NULL,
+  first_seen_at TIMESTAMPTZ NOT NULL,
+  last_seen_at TIMESTAMPTZ NOT NULL,
+  min_distance_km DOUBLE PRECISION,
+  centroid_lat DOUBLE PRECISION,
+  centroid_lon DOUBLE PRECISION,
+  a_sanctioned BOOLEAN,
+  b_sanctioned BOOLEAN,
+  PRIMARY KEY (imo_a, imo_b, first_seen_at)
+);
+
+-- Indexes for associate lookups from either side of the pair
+CREATE INDEX IF NOT EXISTS idx_rendezvous_imo_a ON vessel_rendezvous(imo_a);
+CREATE INDEX IF NOT EXISTS idx_rendezvous_imo_b ON vessel_rendezvous(imo_b);
+
 -- =============================================================================
 -- Phase 13: Dark Fleet Risk Score
 -- =============================================================================

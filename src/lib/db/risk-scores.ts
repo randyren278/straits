@@ -18,6 +18,7 @@ export interface RiskFactors {
   sanctions: number;   // max 25
   loitering: number;   // max 10
   sts: number;         // max 10
+  rendezvous: number;  // max 5 — repeat co-location partners (>=2 encounters/90d)
 }
 
 /**
@@ -66,7 +67,7 @@ export async function getRiskScore(
   if (result.rows.length === 0) {
     return {
       score: 0,
-      factors: { goingDark: 0, flagRisk: 0, sanctions: 0, loitering: 0, sts: 0 },
+      factors: { goingDark: 0, flagRisk: 0, sanctions: 0, loitering: 0, sts: 0, rendezvous: 0 },
       computedAt: null,
     };
   }
