@@ -185,6 +185,27 @@ CREATE INDEX IF NOT EXISTS idx_alerts_unread ON alerts(user_id, triggered_at DES
   WHERE read_at IS NULL;
 
 -- =============================================================================
+-- Phase 14: Fleet-Level (System) Alerts
+-- =============================================================================
+-- System/chokepoint alerts have no vessel (imo IS NULL). Drop the NOT NULL
+-- constraint on alerts.imo so a fleet-level alert can be stored. Guarded so the
+-- schema stays idempotent — applying it twice is a no-op.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'alerts' AND column_name = 'imo' AND is_nullable = 'NO'
+  ) THEN
+    ALTER TABLE alerts ALTER COLUMN imo DROP NOT NULL;
+  END IF;
+END $$;
+
+-- Scope tag distinguishes vessel alerts (NULL scope) from system alerts
+-- (e.g. 'chokepoint'). Chokepoint column names the affected chokepoint id.
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS scope TEXT;
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS chokepoint TEXT;
+
+-- =============================================================================
 -- Phase 12: Behavioral Pattern Detection
 -- =============================================================================
 

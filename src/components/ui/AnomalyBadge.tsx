@@ -4,10 +4,10 @@
  * Reusable anomaly badge component with color-coded styling.
  * Requirements: ANOM-01, ANOM-02
  */
-import { AlertTriangle, Radio, Navigation, Gauge, MapPin } from 'lucide-react';
+import { AlertTriangle, Radio, Navigation, Gauge, MapPin, GitBranch } from 'lucide-react';
 
 interface AnomalyBadgeProps {
-  type: 'going_dark' | 'loitering' | 'deviation' | 'speed' | 'repeat_going_dark' | 'sts_transfer' | 'spoofed_position';
+  type: 'going_dark' | 'loitering' | 'deviation' | 'speed' | 'repeat_going_dark' | 'sts_transfer' | 'spoofed_position' | 'composite_diversion';
   confidence: 'confirmed' | 'suspected' | 'unknown';
   size?: 'sm' | 'md';
 }
@@ -47,6 +47,11 @@ const BADGE_CONFIG = {
     confirmed: { bg: 'bg-pink-600', icon: MapPin, label: 'SPOOF' },
     suspected: { bg: 'bg-pink-400', icon: MapPin, label: 'SPOOF?' },
     unknown: { bg: 'bg-gray-500', icon: MapPin, label: 'JUMP' },
+  },
+  composite_diversion: {
+    confirmed: { bg: 'bg-rose-700', icon: GitBranch, label: 'DIVERT' },
+    suspected: { bg: 'bg-rose-500', icon: GitBranch, label: 'DIVERT?' },
+    unknown: { bg: 'bg-gray-500', icon: GitBranch, label: 'FLIP' },
   },
 };
 

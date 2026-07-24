@@ -111,7 +111,7 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
                     <td colSpan={5} className="p-0">
                       <FleetVesselDetail
                         imo={vessel.imo}
-                        anomalyDetails={vessel.details}
+                        anomalyDetails={vessel.details as Parameters<typeof FleetVesselDetail>[0]['anomalyDetails']}
                         anomalyType={vessel.anomalyType}
                       />
                     </td>

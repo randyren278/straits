@@ -138,7 +138,7 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                     <td colSpan={6} className="p-0">
                       <FleetVesselDetail
                         imo={anomaly.imo}
-                        anomalyDetails={anomaly.details}
+                        anomalyDetails={anomaly.details as Parameters<typeof FleetVesselDetail>[0]['anomalyDetails']}
                         anomalyType={anomaly.anomalyType}
                       />
                     </td>

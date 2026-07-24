@@ -9,6 +9,37 @@ import type { Alert } from '../../types/anomaly';
 import { getWatchersForVessel } from './watchlist';
 
 /**
+ * Sentinel user_id used for fleet-level (system) alerts that belong to no
+ * specific user. alerts.user_id is NOT NULL, so system alerts share this id.
+ */
+export const SYSTEM_USER_ID = 'system';
+
+/**
+ * Create a fleet-level (system) alert with no associated vessel.
+ *
+ * Used for chokepoint / fleet-wide signals (e.g. a throughput collapse at a
+ * strait) that are not tied to a single watched vessel. Stored with NULL imo,
+ * a scope tag, and the affected chokepoint id.
+ *
+ * @param scope - Alert scope tag (e.g. 'chokepoint')
+ * @param chokepoint - Affected chokepoint id (e.g. 'hormuz'), or null
+ * @param alertType - Type of alert (e.g. 'throughput_collapse')
+ * @param details - Additional context about the alert
+ */
+export async function createSystemAlert(
+  scope: string,
+  chokepoint: string | null,
+  alertType: string,
+  details: object
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO alerts (user_id, imo, scope, chokepoint, alert_type, details)
+     VALUES ($1, NULL, $2, $3, $4, $5)`,
+    [SYSTEM_USER_ID, scope, chokepoint, alertType, JSON.stringify(details)]
+  );
+}
+
+/**
  * Create a new alert for a user.
  *
  * @param userId - User session ID

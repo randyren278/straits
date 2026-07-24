@@ -62,6 +62,43 @@ describe('createAlert', () => {
   });
 });
 
+describe('createSystemAlert', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it('inserts a fleet-level alert with NULL imo and a scope/chokepoint tag', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    const { createSystemAlert, SYSTEM_USER_ID } = await import('./alerts');
+    const details = { z: -6.1, latest: 12, mean: 90 };
+    await createSystemAlert('chokepoint', 'hormuz', 'throughput_collapse', details);
+
+    expect(mockQuery).toHaveBeenCalled();
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain('INSERT INTO alerts');
+    expect(sql).toContain('NULL'); // imo column set to NULL literal
+    expect(sql).toContain('scope');
+    expect(sql).toContain('chokepoint');
+    expect(params[0]).toBe(SYSTEM_USER_ID);
+    expect(params[1]).toBe('chokepoint');
+    expect(params[2]).toBe('hormuz');
+    expect(params[3]).toBe('throughput_collapse');
+    expect(params[4]).toBe(JSON.stringify(details));
+  });
+
+  it('accepts a null chokepoint for non-chokepoint system alerts', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    const { createSystemAlert } = await import('./alerts');
+    await createSystemAlert('fleet', null, 'fleet_signal', {});
+
+    const [, params] = mockQuery.mock.calls[0];
+    expect(params[2]).toBeNull();
+  });
+});
+
 describe('getUnreadAlerts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
