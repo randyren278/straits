@@ -2,7 +2,8 @@
  * Analytics Database Queries (HIST-01)
  *
  * Aggregation queries for historical traffic analysis.
- * Uses TimescaleDB time_bucket for efficient daily grouping.
+ * Uses date_trunc for daily grouping — portable across vanilla Postgres
+ * (Supabase) and TimescaleDB.
  */
 import { pool } from './index';
 import { CHOKEPOINTS } from '../geo/chokepoints';
@@ -12,7 +13,7 @@ import { timeRangeToDays } from '@/types/analytics';
 
 /**
  * Get daily vessel traffic for a chokepoint over time range.
- * Uses time_bucket for efficient TimescaleDB aggregation.
+ * Uses date_trunc for daily aggregation (portable Postgres/TimescaleDB).
  *
  * @param chokepointId - ID from CHOKEPOINTS (hormuz, babel_mandeb, suez)
  * @param range - Time range ('7d', '30d', '90d')
@@ -46,7 +47,7 @@ export async function getTrafficByChokepoint(
     tanker_count: string;
   }>(`
     SELECT
-      time_bucket('1 day', vp.time) AS bucket_day,
+      date_trunc('day', vp.time) AS bucket_day,
       COUNT(DISTINCT vp.mmsi)::text AS vessel_count,
       COUNT(DISTINCT vp.mmsi) FILTER (WHERE v.ship_type BETWEEN 80 AND 89)::text AS tanker_count
     FROM vessel_positions vp
@@ -97,7 +98,7 @@ export async function getTrafficByRoute(
     tanker_count: string;
   }>(`
     SELECT
-      time_bucket('1 day', vp.time) AS bucket_day,
+      date_trunc('day', vp.time) AS bucket_day,
       v.destination,
       COUNT(DISTINCT vp.mmsi)::text AS vessel_count,
       COUNT(DISTINCT vp.mmsi) FILTER (WHERE v.ship_type BETWEEN 80 AND 89)::text AS tanker_count

@@ -189,7 +189,7 @@ export async function getChokepointSpcBandSql(
     roll_std: string | null;
   }>(`
     WITH daily AS (
-      SELECT time_bucket('1 day', vp.time) AS day,
+      SELECT date_trunc('day', vp.time) AS day,
              COUNT(DISTINCT vp.mmsi) AS cnt
       FROM vessel_positions vp
       WHERE vp.time > NOW() - $1::interval

@@ -64,3 +64,8 @@ vendor/
 coverage/
 .cache/
 tmp/
+.vercel
+.env*
+
+# Supabase CLI local metadata
+supabase/.temp/

@@ -27,7 +27,7 @@ describe('getTrafficByChokepoint', () => {
     await getTrafficByChokepoint('hormuz', '7d');
 
     expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining('time_bucket'),
+      expect.stringContaining('date_trunc'),
       expect.arrayContaining(['7 days'])
     );
   });
@@ -38,7 +38,7 @@ describe('getTrafficByChokepoint', () => {
     await getTrafficByChokepoint('hormuz', '30d');
 
     expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining('time_bucket'),
+      expect.stringContaining('date_trunc'),
       expect.arrayContaining(['30 days'])
     );
   });
@@ -83,7 +83,7 @@ describe('getTrafficByRoute', () => {
     await getTrafficByRoute('30d');
 
     expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining('time_bucket'),
+      expect.stringContaining('date_trunc'),
       expect.arrayContaining(['30 days'])
     );
   });
