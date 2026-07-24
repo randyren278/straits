@@ -20,8 +20,6 @@ Tanker Tracker fuses live AIS vessel positions, oil prices, sanctions data, geop
 
 ---
 
-## Screenshots
-
 ### Live situational dashboard
 Map + oil prices + intel feed, updating in near real-time.
 ![Dashboard](docs/screenshots/dashboard.png)
