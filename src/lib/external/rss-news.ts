@@ -22,7 +22,7 @@ const FEED_URLS = [
 ];
 
 const USER_AGENT =
-  'Mozilla/5.0 (compatible; Straits/1.0; +https://github.com/randyren278/tanker-tracker)';
+  'Mozilla/5.0 (compatible; Straits/1.0; +https://github.com/randyren278/straits)';
 
 /**
  * Fetch news headlines from Google News RSS search feeds.

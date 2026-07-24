@@ -1,8 +1,8 @@
 {
-  "name": "tanker-tracker",
+  "name": "straits",
   "version": "1.0.0",
   "type": "module",
-  "description": "Real-time tanker tracking application",
+  "description": "Real-time geopolitical intelligence dashboard for Middle East maritime oil flows",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,15 +15,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/randyren278/tanker-tracker.git"
+    "url": "git+https://github.com/randyren278/straits.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/randyren278/tanker-tracker/issues"
+    "url": "https://github.com/randyren278/straits/issues"
   },
-  "homepage": "https://github.com/randyren278/tanker-tracker#readme",
+  "homepage": "https://github.com/randyren278/straits#readme",
   "dependencies": {
     "@tailwindcss/postcss": "^4.2.1",
     "@types/node": "^25.4.0",
