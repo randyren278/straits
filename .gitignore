@@ -72,3 +72,13 @@ supabase/.temp/
 
 # Brag launch video output (generated, local only)
 brag-output/
+
+# Local-only workflow & planning artifacts (build history / agent state, not part of the public repo)
+CLAUDE.md
+.gsd/
+.planning/
+.checkpoints/
+.bg-shell/
+.claude/
+PLAN.md
+scripts/checkpoint_runner.py
