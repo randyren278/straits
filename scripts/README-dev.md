@@ -2,6 +2,20 @@
 
 Fastest path to a fully populated dashboard locally (no live AIS feed required).
 
+## Quick start
+
+```bash
+./run.sh          # from the repo root — does everything below, then launches the dev server
+```
+
+`run.sh` starts/reuses the Docker DB, waits for Postgres, writes `DATABASE_URL` into
+`.env.local` if missing, applies the schema, installs deps on first run, seeds demo
+data **only if the DB is empty**, and opens http://localhost:3000/dashboard.
+Flags: `--reseed` (fresh dataset), `--ingester` (also run the live AIS feed), `--help`.
+
+The manual steps below are what `run.sh` automates — use them if you want to run a
+single stage by hand.
+
 ## 1. Start TimescaleDB (Docker)
 ```bash
 docker run -d --name tanker-ts -p 5432:5432 \

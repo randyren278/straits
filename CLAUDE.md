@@ -30,6 +30,10 @@ A geopolitical intelligence dashboard tracking all vessels across the Middle Eas
 
 ## Running Locally
 ```bash
+./run.sh                      # one command: DB + schema + seed + dev server → :3000/dashboard
+```
+Manual equivalent:
+```bash
 docker compose up -d          # TimescaleDB
 npm run dev                   # Next.js frontend
 npm run ingester:dev          # AIS data ingestion
@@ -51,6 +55,7 @@ src/
 - v1.1 Polish — Bloomberg UI, data wiring, documentation
 - v1.2 All-Vessels — Expanded to all ship types, chokepoint live lists
 - v1.3 Evasion Intelligence — Route deviation, behavioral patterns, risk scoring, panel intelligence
+- v1.4 Council Build — Identity-first risk (sanctioned hulls scored on sight), personal alert inbox, Gulf of Aden chokepoint, nav-status precision + GPS-spoof/teleport detection, rendezvous ledger + Known Associates, per-vessel dossier export, SPC throughput band + fleet-level alerts, composite-diversion detector, chokepoint situation brief, STS CPA nowcast (alert-gated)
 
 ## GSD Migration
 - `.planning/` contains the original planning artifacts (preserved for history)
