@@ -214,7 +214,7 @@ export function VesselMap() {
           speed: props?.speed ?? null,
           course: props?.course ?? null,
           heading: props?.heading ?? null,
-          navStatus: null,
+          navStatus: props?.navStatus ?? null,
           lowConfidence: props?.lowConfidence || false,
         },
       };
@@ -307,8 +307,10 @@ export function VesselMap() {
             // Default: Other vessels (gray)
             '#6b7280',
           ],
-          'circle-stroke-width': 1,
-          'circle-stroke-color': '#ffffff',
+          // Low-confidence positions get a thicker amber ring to flag uncertainty
+          'circle-stroke-width': ['case', ['==', ['get', 'lowConfidence'], true], 3, 1],
+          'circle-stroke-color': ['case', ['==', ['get', 'lowConfidence'], true], '#f59e0b', '#ffffff'],
+          'circle-stroke-opacity': ['case', ['==', ['get', 'lowConfidence'], true], 0.9, 1],
         },
       });
       }

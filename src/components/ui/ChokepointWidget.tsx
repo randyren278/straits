@@ -33,6 +33,7 @@ interface ChokepointVessel {
   longitude: number;
   hasActiveAnomaly: boolean;
   anomalyType: string | null;
+  navStatus?: number | null;
 }
 
 interface ChokepointWidgetsProps {
@@ -72,7 +73,7 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
         speed: null,
         course: null,
         heading: null,
-        navStatus: null,
+        navStatus: vessel.navStatus ?? null,
         lowConfidence: false,
       },
     });

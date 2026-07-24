@@ -19,6 +19,7 @@ import { detectLoitering } from '../../lib/detection/loitering';
 import { detectSpeedAnomaly, detectDeviation } from '../../lib/detection/deviation';
 import { detectRepeatGoingDark } from '../../lib/detection/repeat-going-dark';
 import { detectStsTransfers } from '../../lib/detection/sts-transfer';
+import { detectSpoofedPositions } from '../../lib/detection/teleport';
 import { computeRiskScores } from '../../lib/detection/risk-score';
 import { generateAlertsForNewAnomalies } from '../../lib/db/alerts';
 
@@ -72,13 +73,14 @@ export function startDetectionJobs(): void {
     const t0 = Date.now();
     try {
       // Phase 1: Run all independent detectors in parallel
-      const [loiteringResult, speedResult, deviationResult, repeatDarkResult, stsResult] =
+      const [loiteringResult, speedResult, deviationResult, repeatDarkResult, stsResult, spoofResult] =
         await Promise.allSettled([
           detectLoitering(),
           detectSpeedAnomaly(),
           detectDeviation(),
           detectRepeatGoingDark(),
           detectStsTransfers(),
+          detectSpoofedPositions(),
         ]);
 
       const loiteringCount = loiteringResult.status === 'fulfilled' ? loiteringResult.value : 0;
@@ -86,6 +88,7 @@ export function startDetectionJobs(): void {
       const deviationCount = deviationResult.status === 'fulfilled' ? deviationResult.value : 0;
       const repeatDarkCount = repeatDarkResult.status === 'fulfilled' ? repeatDarkResult.value : 0;
       const stsCount = stsResult.status === 'fulfilled' ? stsResult.value : 0;
+      const spoofCount = spoofResult.status === 'fulfilled' ? spoofResult.value : 0;
 
       // Log any individual failures
       for (const [name, result] of [
@@ -94,6 +97,7 @@ export function startDetectionJobs(): void {
         ['deviation', deviationResult],
         ['repeat_dark', repeatDarkResult],
         ['sts', stsResult],
+        ['spoofed_position', spoofResult],
       ] as const) {
         if (result.status === 'rejected') {
           console.error(`[CRON] ${name} detection failed:`, result.reason);
@@ -106,7 +110,7 @@ export function startDetectionJobs(): void {
       console.log(
         `[CRON] Route anomalies: ${loiteringCount} loitering, ${speedCount} speed, ` +
         `${deviationCount} deviation, ${repeatDarkCount} repeat_dark, ${stsCount} sts, ` +
-        `${riskCount} risk_scores (${Date.now() - t0}ms)`
+        `${spoofCount} spoofed_position, ${riskCount} risk_scores (${Date.now() - t0}ms)`
       );
 
       // Phase 3: Generate alerts concurrently
@@ -116,6 +120,7 @@ export function startDetectionJobs(): void {
         generateAlertsForNewAnomalies('deviation'),
         generateAlertsForNewAnomalies('repeat_going_dark'),
         generateAlertsForNewAnomalies('sts_transfer'),
+        generateAlertsForNewAnomalies('spoofed_position'),
       ]);
     } catch (err) {
       console.error('[CRON] Route anomaly detection error:', err);

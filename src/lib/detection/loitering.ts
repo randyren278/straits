@@ -12,6 +12,7 @@
 import { pool } from '../db';
 import { haversineDistance } from '../geo/haversine';
 import { isInAnchorage } from '../geo/anchorages';
+import { isDeclaredStationary } from '../ais/nav-status';
 import { upsertAnomaly } from '../db/anomalies';
 
 /**
@@ -21,6 +22,30 @@ export interface Position {
   lat: number;
   lon: number;
   time: Date;
+}
+
+/**
+ * Maximum age (minutes) of a nav_status report for it to be trusted for
+ * suppression. Stale declared statuses are ignored — a vessel that declared
+ * itself moored hours ago may since have moved.
+ */
+const NAV_STATUS_FRESHNESS_MINUTES = 15;
+
+/**
+ * Decide whether an anomaly should be suppressed based on a declared
+ * navigational status. Suppress only when the vessel declares itself at anchor
+ * (1) or moored (5) AND the status report is fresh (within the freshness
+ * window). Null status or stale status never suppresses.
+ *
+ * @param navStatus - AIS nav_status code, or null if not reported
+ * @param positionAgeMinutes - Age of the position report in minutes
+ * @returns True if the anomaly should be suppressed as a false positive
+ */
+export function shouldSuppressForNavStatus(
+  navStatus: number | null,
+  positionAgeMinutes: number
+): boolean {
+  return isDeclaredStationary(navStatus) && positionAgeMinutes <= NAV_STATUS_FRESHNESS_MINUTES;
 }
 
 /**
@@ -78,18 +103,24 @@ export function isLoiteringBehavior(positions: Position[]): boolean {
  * @returns Number of loitering anomalies detected
  */
 export async function detectLoitering(): Promise<number> {
-  // Get positions from last 6 hours for all vessels, grouped by vessel
+  // Get positions from last 6 hours for all vessels, grouped by vessel.
+  // Also surface the most recent nav_status and its timestamp so a fresh
+  // declared "at anchor"/"moored" status can suppress false positives.
   const result = await pool.query<{
     imo: string;
     mmsi: string;
     positions: Position[];
+    latestNavStatus: number | null;
+    latestTime: string;
   }>(`
     SELECT v.imo, v.mmsi,
            array_agg(json_build_object(
              'lat', p.latitude,
              'lon', p.longitude,
              'time', p.time
-           ) ORDER BY p.time) as positions
+           ) ORDER BY p.time) as positions,
+           (array_agg(p.nav_status ORDER BY p.time DESC))[1] as "latestNavStatus",
+           max(p.time) as "latestTime"
     FROM vessels v
     JOIN vessel_positions p ON p.mmsi = v.mmsi
     WHERE p.time > NOW() - INTERVAL '6 hours'
@@ -109,6 +140,13 @@ export async function detectLoitering(): Promise<number> {
 
     // Check if positions indicate loitering
     if (!isLoiteringBehavior(positions)) {
+      continue;
+    }
+
+    // Suppress false positives: a vessel with a FRESH declared "at anchor" or
+    // "moored" status is legitimately stationary, not loitering.
+    const positionAgeMinutes = (Date.now() - new Date(vessel.latestTime).getTime()) / 60000;
+    if (shouldSuppressForNavStatus(vessel.latestNavStatus, positionAgeMinutes)) {
       continue;
     }
 

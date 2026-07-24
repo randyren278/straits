@@ -36,6 +36,7 @@ export interface ClusterVessel {
   anomalyConfidence: string | null;
   sanctionRiskCategory: string | null;
   destination: string | null;
+  navStatus?: number | null;
   lowConfidence: boolean;
 }
 

@@ -24,6 +24,7 @@ import type {
   StsTransferDetails,
   DeviationDetails,
   RepeatGoingDarkDetails,
+  SpoofedPositionDetails,
 } from '@/types/anomaly';
 
 type AnomalyDetails =
@@ -32,7 +33,8 @@ type AnomalyDetails =
   | DeviationDetails
   | SpeedDetails
   | RepeatGoingDarkDetails
-  | StsTransferDetails;
+  | StsTransferDetails
+  | SpoofedPositionDetails;
 
 interface FleetVesselDetailProps {
   imo: string;

@@ -47,6 +47,7 @@ function anomalyLabel(type: string): string {
     case 'speed': return 'SPEED';
     case 'deviation': return 'DEVIATE';
     case 'sts_transfer': return 'STS';
+    case 'spoofed_position': return 'SPOOF';
     case 'repeat_going_dark': return 'RPT DARK';
     default: return type.toUpperCase();
   }
@@ -114,7 +115,7 @@ export function ClusterPanel() {
         speed: v.speed,
         course: v.course,
         heading: v.heading,
-        navStatus: null,
+        navStatus: v.navStatus ?? null,
         lowConfidence: v.lowConfidence,
       },
     };

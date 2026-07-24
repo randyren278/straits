@@ -26,6 +26,7 @@ interface VesselForGeoJSON {
     speed: number | null;
     course: number | null;
     heading: number | null;
+    navStatus: number | null;
     lowConfidence: boolean;
   } | null;
 }
@@ -61,6 +62,7 @@ export function vesselsToGeoJSON(
           speed: v.position!.speed,
           course: v.position!.course,
           heading: v.position!.heading,
+          navStatus: v.position!.navStatus,
           lowConfidence: v.position!.lowConfidence,
           // Sanctions properties
           isSanctioned: v.isSanctioned || false,

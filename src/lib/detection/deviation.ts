@@ -9,6 +9,7 @@
  */
 import { pool } from '../db';
 import { isInAnchorage } from '../geo/anchorages';
+import { isDeclaredStationary } from '../ais/nav-status';
 import { upsertAnomaly, resolveAnomaly } from '../db/anomalies';
 import { calculateBearing } from '../geo/haversine';
 import type { DeviationDetails } from '../../types/anomaly';
@@ -48,6 +49,9 @@ export function isSpeedAnomaly(speedKnots: number, lat: number, lon: number): bo
   return speedKnots < MIN_NORMAL_SPEED_KNOTS;
 }
 
+/** Maximum age (minutes) of a nav_status report for it to suppress an anomaly. */
+const NAV_STATUS_FRESHNESS_MINUTES = 15;
+
 /**
  * Detect tankers with anomalously slow speed outside anchorages.
  *
@@ -55,7 +59,8 @@ export function isSpeedAnomaly(speedKnots: number, lat: number, lon: number): bo
  * 1. Query all vessels with recent position updates
  * 2. Check if speed < 3 knots
  * 3. Exclude vessels in known anchorages
- * 4. Create speed anomaly records
+ * 4. Suppress vessels with a FRESH declared "at anchor"/"moored" nav_status
+ * 5. Create speed anomaly records
  *
  * @returns Number of speed anomalies detected
  */
@@ -66,8 +71,11 @@ export async function detectSpeedAnomaly(): Promise<number> {
     speed: number;
     latitude: number;
     longitude: number;
+    navStatus: number | null;
+    time: string;
   }>(`
-    SELECT DISTINCT ON (v.imo) v.imo, p.speed, p.latitude, p.longitude
+    SELECT DISTINCT ON (v.imo) v.imo, p.speed, p.latitude, p.longitude,
+           p.nav_status AS "navStatus", p.time
     FROM vessels v
     JOIN vessel_positions p ON p.mmsi = v.mmsi
     WHERE p.time > NOW() - INTERVAL '1 hour'
@@ -80,6 +88,13 @@ export async function detectSpeedAnomaly(): Promise<number> {
   for (const vessel of result.rows) {
     // Check if this is a speed anomaly
     if (!isSpeedAnomaly(vessel.speed, vessel.latitude, vessel.longitude)) {
+      continue;
+    }
+
+    // Suppress false positives: a vessel with a FRESH declared "at anchor" or
+    // "moored" status is legitimately slow/stationary, not drifting/disabled.
+    const positionAgeMinutes = (Date.now() - new Date(vessel.time).getTime()) / 60000;
+    if (isDeclaredStationary(vessel.navStatus) && positionAgeMinutes <= NAV_STATUS_FRESHNESS_MINUTES) {
       continue;
     }
 

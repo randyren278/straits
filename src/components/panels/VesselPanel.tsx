@@ -11,6 +11,7 @@ import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
 import { AlertTriangle, Eye, EyeOff, ChevronDown, ChevronRight, Shield, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { AnomalyBadge } from '../ui/AnomalyBadge';
+import { decodeNavStatus, isDeclaredStationary } from '@/lib/ais/nav-status';
 import type { AnomalyType, Confidence } from '@/types/anomaly';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
 import type { RiskFactors } from '@/lib/db/risk-scores';
@@ -221,6 +222,22 @@ export function VesselPanel() {
               {selectedVessel.position?.course != null && '\u00B0'}
             </span>
           </div>
+          <div className="flex justify-between mt-1.5">
+            <span className="text-gray-500">Nav Status</span>
+            <span className="font-mono text-white">
+              {decodeNavStatus(selectedVessel.position?.navStatus ?? null)}
+            </span>
+          </div>
+          {/* Display-only contradiction flag: declared anchored/moored but moving */}
+          {isDeclaredStationary(selectedVessel.position?.navStatus ?? null) &&
+            (selectedVessel.position?.speed ?? 0) > 1 && (
+            <div className="flex items-center gap-1 mt-1 text-amber-500">
+              <AlertTriangle className="w-3 h-3" />
+              <span className="font-mono text-[10px] uppercase tracking-wide">
+                Declared stationary but moving
+              </span>
+            </div>
+          )}
         </div>
         <div className="border-t border-amber-500/10 pt-1.5">
           <div className="flex justify-between mb-1.5">
