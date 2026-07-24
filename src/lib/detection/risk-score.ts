@@ -34,7 +34,9 @@ interface RiskAggRow {
 }
 
 /**
- * Compute dark fleet risk scores for all vessels with at least one anomaly event.
+ * Compute dark fleet risk scores for all vessels that have at least one anomaly event
+ * OR are sanctioned (risk_category 'sanction' or 'mare.shadow;poi'). Identity-first: a
+ * clean-behaving sanctioned hull with zero anomalies is still scored and surfaced.
  *
  * Uses a single aggregation query across vessel_anomalies, vessels, and vessel_sanctions
  * to avoid N+1 per-vessel queries. Scores are upserted into vessel_risk_scores.
@@ -46,17 +48,23 @@ interface RiskAggRow {
  */
 export async function computeRiskScores(): Promise<number> {
   const result = await pool.query<RiskAggRow>(`
+    WITH seed AS (
+      SELECT DISTINCT imo FROM vessel_anomalies
+      UNION
+      SELECT imo FROM vessel_sanctions WHERE risk_category IN ('sanction', 'mare.shadow;poi')
+    )
     SELECT
-      va.imo,
+      s.imo,
       v.flag,
       COUNT(*) FILTER (WHERE va.anomaly_type = 'going_dark') AS dark_count,
       COUNT(*) FILTER (WHERE va.anomaly_type = 'loitering' AND va.detected_at > NOW() - INTERVAL '90 days') AS loiter_count,
       COUNT(*) FILTER (WHERE va.anomaly_type = 'sts_transfer') AS sts_count,
       CASE WHEN vs.imo IS NOT NULL AND vs.risk_category IN ('sanction', 'mare.shadow;poi') THEN 1 ELSE 0 END AS is_sanctioned
-    FROM vessel_anomalies va
-    LEFT JOIN vessels v ON v.imo = va.imo
-    LEFT JOIN vessel_sanctions vs ON vs.imo = va.imo
-    GROUP BY va.imo, v.flag, vs.imo, vs.risk_category
+    FROM seed s
+    LEFT JOIN vessel_anomalies va ON va.imo = s.imo
+    LEFT JOIN vessels v ON v.imo = s.imo
+    LEFT JOIN vessel_sanctions vs ON vs.imo = s.imo
+    GROUP BY s.imo, v.flag, vs.imo, vs.risk_category
   `);
 
   let count = 0;
