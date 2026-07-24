@@ -6,8 +6,6 @@ Tanker Tracker fuses live AIS vessel positions, oil prices, sanctions data, geop
 
 ![Tanker Tracker dashboard](docs/screenshots/dashboard.png)
 
-> **[Watch the 20-second launch video →](brag-output/brag.mp4)**
-
 ---
 
 ## What it does
