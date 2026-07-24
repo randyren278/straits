@@ -1,11 +1,11 @@
-# Straits — macOS Live-Data Harvester
+# Straits: macOS Live-Data Harvester
 
 Keeps the deployed Supabase database fed with **live AIS positions** by running a
 bounded harvest on this Mac every 10 minutes via a `launchd` LaunchAgent, with an
 optional SwiftBar menu-bar readout.
 
 The hosted app on Vercel can't run the always-on ingester (no persistent
-WebSockets on serverless), and there is no keyless free AIS source — so the
+WebSockets on serverless), and there is no keyless free AIS source. So the
 harvester runs where the free AIS key already lives: your laptop.
 
 ---
@@ -29,32 +29,33 @@ SwiftBar  (straits.10m.sh, optional)
 ```
 
 **Why bounded, not the daemon:** `src/services/ais-ingester/index.ts` streams
-forever + runs crons — right for a server, wrong for a laptop. `harvest-once.ts`
-reuses the *same* detectors and refreshers but drives them once and exits, so
-`launchd` can re-fire on a clean 10-minute cadence.
+forever and runs crons, which is right for a server and wrong for a laptop.
+`harvest-once.ts` reuses the *same* detectors and refreshers but drives them once
+and exits, so `launchd` can re-fire on a clean 10-minute cadence.
 
-**Why `StartInterval`, not `KeepAlive`:** the harvest exits quickly; `KeepAlive`
-would relaunch it in a ~10s loop. If the Mac sleeps through fire times, `launchd`
-coalesces the misses into a single run on wake (no backfill — expected).
+**Why `StartInterval`, not `KeepAlive`:** the harvest exits quickly, and
+`KeepAlive` would relaunch it in a ~10s loop. If the Mac sleeps through fire
+times, `launchd` coalesces the misses into a single run on wake (no backfill,
+which is expected).
 
 ---
 
 ## Data volume & retention (Supabase free tier)
 
 - Free tier cap is **500 MB** total DB size. Deduping to latest-per-vessel-per-window
-  keeps ingest tiny: a typical run inserts ~25–300 rows (varies with live traffic).
-- `raw_message` is never stored (roughly triples row size).
+  keeps ingest tiny: a typical run inserts ~25-300 rows (varies with live traffic).
+- `raw_message` is never stored (it roughly triples row size).
 - `RETENTION_DAYS=7` prunes `vessel_positions` older than a week each run. Plain
   Postgres `DELETE` marks tuples dead; autovacuum reclaims the space.
 - Current usage prints in `status.json` (`dbSizeMB`, `positionsSizeMB`) and in the
-  SwiftBar dropdown — watch it stays well under 500 MB.
+  SwiftBar dropdown, so you can watch it stays well under 500 MB.
 - Periodic writes also keep the Supabase project from pausing after 7 days idle.
 
 ---
 
 ## Setup
 
-### 1. Secrets — `.env.harvester` (repo root, gitignored)
+### 1. Secrets: `.env.harvester` (repo root, gitignored)
 
 Already created by the deploy step. It holds:
 
@@ -66,8 +67,8 @@ HARVEST_WINDOW_MS=90000
 RETENTION_DAYS=7
 ```
 
-`DATABASE_URL` is the Supabase **transaction pooler (:6543)** — correct for a
-short-lived writer — and points at the SAME database the deployed app reads.
+`DATABASE_URL` is the Supabase **transaction pooler (:6543)**, which is correct
+for a short-lived writer, and points at the SAME database the deployed app reads.
 
 ### 2. Install the LaunchAgent
 
@@ -79,7 +80,7 @@ This rewrites the plist paths for your machine, validates it, loads it into
 `gui/<uid>`, and kickstarts one run immediately. It also installs the SwiftBar
 plugin if `~/.swiftbar-plugins` exists.
 
-### 3. (Optional) Menu-bar icon — SwiftBar
+### 3. (Optional) Menu-bar icon: SwiftBar
 
 ```bash
 brew install --cask swiftbar
@@ -131,13 +132,13 @@ scripts/harvester/install-harvester.sh --uninstall
 
 ## Troubleshooting
 
-- **"works in Terminal, fails under launchd"** — almost always PATH. The wrapper
+- **"works in Terminal, fails under launchd"** is almost always PATH. The wrapper
   sets an explicit PATH (`/opt/homebrew/bin:...`); if node lives elsewhere, edit it.
-- **No status.json / job not firing** — `launchctl print gui/$(id -u)/local.straits.harvester`;
-  after editing the plist you must `bootout` then `bootstrap` (the installer does this).
-- **Site shows AIS "degraded"** — the newest position is >15m old. Either the last
+- **No status.json / job not firing:** run `launchctl print gui/$(id -u)/local.straits.harvester`.
+  After editing the plist you must `bootout` then `bootstrap` (the installer does this).
+- **Site shows AIS "degraded":** the newest position is >15m old. Either the last
   run failed (check the log) or the Mac was asleep. It self-heals on the next run.
-- **DB size creeping up** — lower `RETENTION_DAYS` in `.env.harvester`; space is
+- **DB size creeping up:** lower `RETENTION_DAYS` in `.env.harvester`; space is
   reclaimed by autovacuum after the prune.
-- **Few messages per window** — live AIS volume varies by time of day; the window
-  is capped at ~90s. Raise `HARVEST_WINDOW_MS` for more per run (costs more runtime).
+- **Few messages per window:** live AIS volume varies by time of day, and the window
+  is capped at ~90s. Raise `HARVEST_WINDOW_MS` for more per run (it costs more runtime).
