@@ -69,3 +69,6 @@ tmp/
 
 # Supabase CLI local metadata
 supabase/.temp/
+
+# Brag launch video output (generated, local only)
+brag-output/

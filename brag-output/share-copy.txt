@@ -1,7 +1,0 @@
-🛢️ I built a real-time oil-tanker intelligence terminal.
-
-Live AIS tracking across the Strait of Hormuz, Bab el-Mandeb & Suez — with sanctions matching, dark-fleet risk scoring, and anomaly detection (going-dark, loitering, STS transfers). Click any vessel for a full risk dossier.
-
-Bloomberg-terminal aesthetic. And the whole thing runs on zero paid API keys — MapLibre + CARTO for the map, FRED for prices, OpenSanctions, keyless news. 📡
-
-#maritime #OSINT #geopolitics #dataviz
