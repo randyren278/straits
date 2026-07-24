@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  local.straits.harvester — LaunchAgent that fires the bounded AIS harvest
+  every 10 minutes (StartInterval=600), plus once immediately at load
+  (RunAtLoad).
+
+  StartInterval (not KeepAlive): the harvest exits quickly, so KeepAlive would
+  relaunch it in a ~10s loop. StartInterval gives a clean 10-minute cadence.
+  If the Mac sleeps through one or more fire times, launchd coalesces them into
+  a single run on wake — expected for a status poller.
+
+  Install with scripts/harvester/install-harvester.sh (do NOT hand-edit paths;
+  the installer rewrites the two absolute paths below for your machine).
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>local.straits.harvester</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/randyren/Developer/tanker-tracker/scripts/harvester/run-harvest.sh</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>600</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/randyren/.straits-harvester/launchd.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/randyren/.straits-harvester/launchd.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/randyren/Developer/tanker-tracker</string>
+</dict>
+</plist>

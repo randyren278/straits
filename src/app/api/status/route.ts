@@ -34,7 +34,11 @@ export async function GET() {
     pool.query('SELECT MAX(created_at) as last_update FROM news_items'),
   ]);
 
-  const ais = classify(aisResult.rows[0]?.last_update, 5 * 60 * 1000, 30 * 60 * 1000);
+  // AIS is fed by a 10-minute harvest cadence (macOS LaunchAgent), and each
+  // position carries the vessel's own report time which lags further — so the
+  // newest row is routinely several minutes old between runs. Thresholds are
+  // sized to the cadence: live within 15m, degraded up to 60m, else offline.
+  const ais = classify(aisResult.rows[0]?.last_update, 15 * 60 * 1000, 60 * 60 * 1000);
   const prices = classify(pricesResult.rows[0]?.last_update, 2 * 60 * 60 * 1000, 24 * 60 * 60 * 1000);
   const news = classify(newsResult.rows[0]?.last_update, 60 * 60 * 1000, 12 * 60 * 60 * 1000);
 

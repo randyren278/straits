@@ -1,0 +1,409 @@
+/**
+ * harvest-once.ts — bounded, single-shot AIS harvest for launchd.
+ *
+ * Unlike index.ts (a persistent daemon that streams forever + runs crons),
+ * this script does ONE bounded pass and exits — the shape a laptop LaunchAgent
+ * wants (StartInterval fires it every ~10 min; it must terminate quickly):
+ *
+ *   1. Connect to AISStream, collect messages for HARVEST_WINDOW_MS (~90s)
+ *   2. Dedupe to the LATEST position per vessel this window (10-min-resolution
+ *      tracks — keeps Supabase free-tier storage bounded vs. raw firehose)
+ *   3. Bulk-upsert vessels + bulk-insert positions
+ *   4. Run the anomaly detectors once, and refresh prices/news/sanctions
+ *      (each freshness-gated so a 10-min cadence never hammers the APIs)
+ *   5. Prune vessel_positions older than RETENTION_DAYS (default 7)
+ *   6. Write status.json (for the SwiftBar menu bar), then exit 0/1
+ *
+ * It reuses the SAME db pool + detector/refresh functions as the daemon, so
+ * behavior stays identical — it just drives them once instead of on cron.
+ *
+ * Env (from .env.harvester via `tsx --env-file`):
+ *   DATABASE_URL          Supabase transaction pooler (:6543) + ?sslmode=no-verify
+ *   AISSTREAM_API_KEY     free AISStream key
+ *   HARVEST_WINDOW_MS     collection window (default 90000)
+ *   HARVEST_HARD_TIMEOUT_MS  safety kill (default 240000)
+ *   RETENTION_DAYS        prune horizon (default 7)
+ *   STRAITS_STATE_DIR     where status.json is written (default ~/.straits-harvester)
+ */
+import WebSocket from 'ws';
+import { mkdirSync, writeFileSync } from 'fs';
+import { homedir } from 'os';
+import { join } from 'path';
+import { pool } from '../../lib/db';
+
+// Anomaly detectors (run once, not on cron) — same set as detection-jobs.ts
+import { detectGoingDark } from '../../lib/detection/going-dark';
+import { detectLoitering } from '../../lib/detection/loitering';
+import { detectSpeedAnomaly, detectDeviation } from '../../lib/detection/deviation';
+import { detectRepeatGoingDark } from '../../lib/detection/repeat-going-dark';
+import { detectStsTransfers } from '../../lib/detection/sts-transfer';
+import { detectSpoofedPositions } from '../../lib/detection/teleport';
+import { computeRiskScores } from '../../lib/detection/risk-score';
+import { generateAlertsForNewAnomalies } from '../../lib/db/alerts';
+
+// Enrichment refreshers (freshness-gated below) — same set as refresh-jobs.ts
+import { fetchOilPrices } from '../../lib/prices/fetcher';
+import { insertPrice } from '../../lib/db/prices';
+import { fetchNews } from '../../lib/news/fetcher';
+import { insertNewsItem } from '../../lib/db/news';
+import { fetchSanctionsList } from '../../lib/external/opensanctions';
+import { batchUpsertSanctions, migrateSanctionsSchema } from '../../lib/db/sanctions';
+
+// ── Config ──────────────────────────────────────────────────────────────────
+const WINDOW_MS = Number(process.env.HARVEST_WINDOW_MS ?? 90_000);
+const HARD_TIMEOUT_MS = Number(process.env.HARVEST_HARD_TIMEOUT_MS ?? 240_000);
+const RETENTION_DAYS = Number(process.env.RETENTION_DAYS ?? 7);
+const STATE_DIR = process.env.STRAITS_STATE_DIR || join(homedir(), '.straits-harvester');
+const STATUS_PATH = join(STATE_DIR, 'status.json');
+
+// ── Types (standalone, mirrors index.ts to avoid importing the daemon) ────────
+interface Pos {
+  time: Date; mmsi: string; imo: string | null;
+  latitude: number; longitude: number;
+  speed: number | null; course: number | null; heading: number | null;
+  navStatus: number | null; lowConfidence: boolean;
+}
+interface Meta { imo: string; mmsi: string; name: string; shipType: number | null; destination: string | null; }
+
+// ── AISStream subscription (mirrors index.ts bounding boxes) ──────────────────
+const MAX_SPEED_KNOTS = 50;
+const JAMMING_ZONES = [
+  { minLat: 24, maxLat: 30, minLon: 48, maxLon: 57 }, // Persian Gulf
+  { minLat: 12, maxLat: 20, minLon: 38, maxLon: 45 }, // Red Sea / Bab el-Mandeb
+];
+const isInJammingZone = (lat: number, lon: number) =>
+  JAMMING_ZONES.some((z) => lat >= z.minLat && lat <= z.maxLat && lon >= z.minLon && lon <= z.maxLon);
+
+const subscription = {
+  APIKey: process.env.AISSTREAM_API_KEY,
+  BoundingBoxes: [
+    [[23.0, 47.0], [30.0, 57.5]],  // Full Persian Gulf
+    [[15.0, 55.0], [26.0, 66.0]],  // Gulf of Oman + Arabian Sea approaches
+    [[8.0, 60.0], [25.0, 78.0]],   // Arabian Sea transit corridor
+    [[12.0, 32.0], [30.0, 45.0]],  // Full Red Sea
+    [[11.0, 42.0], [14.0, 52.0]],  // Gulf of Aden
+    [[29.5, 31.5], [37.0, 37.0]],  // Suez + Eastern Med
+  ],
+  FilterMessageTypes: ['PositionReport', 'ShipStaticData'],
+};
+
+// ── Status (progressively filled; also written by the hard-timeout killer) ────
+type Status = {
+  lastRun: string; ok: boolean; error: string | null; durationMs: number;
+  windowMs: number; messagesReceived: number; uniqueVessels: number;
+  positionsInserted: number; vesselsUpserted: number; destinationChanges: number;
+  anomalies: number; pricesRefreshed: boolean; newsRefreshed: number;
+  sanctionsRefreshed: boolean; pruned: number;
+  positionsTotal: number | null; dbSizeMB: number | null; positionsSizeMB: number | null;
+};
+const status: Status = {
+  lastRun: '', ok: false, error: null, durationMs: 0,
+  windowMs: WINDOW_MS, messagesReceived: 0, uniqueVessels: 0,
+  positionsInserted: 0, vesselsUpserted: 0, destinationChanges: 0,
+  anomalies: 0, pricesRefreshed: false, newsRefreshed: 0,
+  sanctionsRefreshed: false, pruned: 0,
+  positionsTotal: null, dbSizeMB: null, positionsSizeMB: null,
+};
+
+function writeStatus(startedAt: number): void {
+  status.durationMs = Date.now() - startedAt;
+  try {
+    mkdirSync(STATE_DIR, { recursive: true });
+    writeFileSync(STATUS_PATH, JSON.stringify(status, null, 2));
+  } catch (err) {
+    console.error('Failed to write status:', (err as Error).message);
+  }
+}
+
+// ── Collect a bounded window of AIS messages ──────────────────────────────────
+function collectWindow(): Promise<{ positions: Map<string, Pos>; statics: Map<string, Meta> }> {
+  return new Promise((resolve) => {
+    const positions = new Map<string, Pos>(); // latest per MMSI
+    const statics = new Map<string, Meta>();   // latest per IMO
+    let settled = false;
+
+    console.log(`Connecting to AISStream (window ${WINDOW_MS}ms)...`);
+    const ws = new WebSocket('wss://stream.aisstream.io/v0/stream');
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      try { ws.close(); } catch { /* already closing */ }
+      resolve({ positions, statics });
+    };
+    const windowTimer = setTimeout(finish, WINDOW_MS);
+
+    ws.on('open', () => {
+      ws.send(JSON.stringify(subscription));
+      console.log('Subscribed. Collecting...');
+    });
+
+    ws.on('message', (data: WebSocket.Data) => {
+      status.messagesReceived++;
+      let msg: any;
+      try { msg = JSON.parse(data.toString()); } catch { return; }
+
+      if (msg.MessageType === 'PositionReport') {
+        const m = msg.Message?.PositionReport;
+        if (!m || typeof m.Latitude !== 'number' || typeof m.Longitude !== 'number' ||
+            !isFinite(m.Latitude) || !isFinite(m.Longitude) ||
+            Math.abs(m.Latitude) > 90 || Math.abs(m.Longitude) > 180) return;
+        const speed = m.Sog ?? null;
+        if (speed !== null && speed > MAX_SPEED_KNOTS) return;
+        const mmsi = String(msg.MetaData?.MMSI ?? '');
+        if (!mmsi) return;
+        const time = new Date(msg.MetaData?.time_utc ?? Date.now());
+        const prev = positions.get(mmsi);
+        if (prev && prev.time >= time) return; // keep the latest only
+        positions.set(mmsi, {
+          time, mmsi, imo: null,
+          latitude: m.Latitude, longitude: m.Longitude,
+          speed, course: m.Cog ?? null, heading: m.TrueHeading ?? null,
+          navStatus: m.NavigationalStatus ?? null,
+          lowConfidence: isInJammingZone(m.Latitude, m.Longitude),
+        });
+      } else if (msg.MessageType === 'ShipStaticData') {
+        const m = msg.Message?.ShipStaticData;
+        if (!m?.ImoNumber) return; // IMO is the identity key (DATA-03)
+        statics.set(String(m.ImoNumber), {
+          imo: String(m.ImoNumber),
+          mmsi: String(msg.MetaData?.MMSI ?? ''),
+          name: m.Name?.trim() || 'UNKNOWN',
+          shipType: m.Type ?? null,
+          destination: m.Destination?.trim() || null,
+        });
+      }
+    });
+
+    ws.on('error', (err: Error) => {
+      console.error('WebSocket error:', err.message);
+      // Don't reconnect (this is one-shot); just end the window early.
+      clearTimeout(windowTimer);
+      finish();
+    });
+    ws.on('close', () => { /* handled by finish() */ });
+  });
+}
+
+// ── Bulk upsert vessels (+ batch destination-change logging) ──────────────────
+async function upsertVessels(statics: Map<string, Meta>): Promise<void> {
+  const rows = [...statics.values()];
+  if (rows.length === 0) return;
+
+  // Prior destinations in one round-trip so we can log mid-voyage changes.
+  const imos = rows.map((r) => r.imo);
+  const prev = new Map<string, string | null>();
+  const { rows: prevRows } = await pool.query<{ imo: string; destination: string | null }>(
+    `SELECT imo, destination FROM vessels WHERE imo = ANY($1)`, [imos]
+  );
+  for (const r of prevRows) prev.set(r.imo, r.destination);
+
+  // Batch upsert.
+  const CHUNK = 500, cols = 5;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const chunk = rows.slice(i, i + CHUNK);
+    const values = chunk.map((_, j) => {
+      const b = j * cols;
+      return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, NOW())`;
+    }).join(', ');
+    const params = chunk.flatMap((v) => [v.imo, v.mmsi, v.name, v.shipType, v.destination]);
+    await pool.query(
+      `INSERT INTO vessels (imo, mmsi, name, ship_type, destination, last_seen)
+       VALUES ${values}
+       ON CONFLICT (imo) DO UPDATE SET
+         mmsi = EXCLUDED.mmsi,
+         name = EXCLUDED.name,
+         ship_type = COALESCE(EXCLUDED.ship_type, vessels.ship_type),
+         destination = COALESCE(EXCLUDED.destination, vessels.destination),
+         last_seen = NOW()`,
+      params
+    );
+  }
+  status.vesselsUpserted = rows.length;
+
+  // Batch destination changes (both non-null and differing, case-insensitive).
+  const changes = rows.filter((v) => {
+    const p = prev.get(v.imo);
+    return p != null && v.destination != null &&
+      p.toUpperCase().trim() !== v.destination.toUpperCase().trim();
+  });
+  if (changes.length > 0) {
+    const values = changes.map((_, j) => {
+      const b = j * 3;
+      return `($${b + 1}, $${b + 2}, $${b + 3})`;
+    }).join(', ');
+    const params = changes.flatMap((v) => [v.imo, prev.get(v.imo)!, v.destination!]);
+    await pool.query(
+      `INSERT INTO vessel_destination_changes (imo, previous_destination, new_destination)
+       VALUES ${values}`, params
+    );
+    status.destinationChanges = changes.length;
+  }
+}
+
+// ── Bulk insert positions ─────────────────────────────────────────────────────
+async function insertPositions(positions: Map<string, Pos>): Promise<void> {
+  const rows = [...positions.values()];
+  if (rows.length === 0) return;
+  const CHUNK = 500, cols = 10;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const chunk = rows.slice(i, i + CHUNK);
+    const values = chunk.map((_, j) => {
+      const b = j * cols;
+      return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8},$${b + 9},$${b + 10})`;
+    }).join(', ');
+    const params = chunk.flatMap((p) => [
+      p.time, p.mmsi, p.imo, p.latitude, p.longitude,
+      p.speed, p.course, p.heading, p.navStatus, p.lowConfidence,
+    ]);
+    await pool.query(
+      `INSERT INTO vessel_positions
+       (time, mmsi, imo, latitude, longitude, speed, course, heading, nav_status, low_confidence)
+       VALUES ${values}`, params
+    );
+  }
+  status.positionsInserted = rows.length;
+}
+
+// ── Run all detectors once ────────────────────────────────────────────────────
+async function runDetectors(): Promise<void> {
+  try {
+    const going = await detectGoingDark();
+    await generateAlertsForNewAnomalies('going_dark');
+
+    const results = await Promise.allSettled([
+      detectLoitering(), detectSpeedAnomaly(), detectDeviation(),
+      detectRepeatGoingDark(), detectStsTransfers(), detectSpoofedPositions(),
+    ]);
+    const counts = results.map((r) => (r.status === 'fulfilled' ? r.value : 0));
+    const routeTotal = counts.reduce((a, b) => a + b, 0);
+
+    await computeRiskScores();
+    await Promise.allSettled([
+      generateAlertsForNewAnomalies('loitering'),
+      generateAlertsForNewAnomalies('speed'),
+      generateAlertsForNewAnomalies('deviation'),
+      generateAlertsForNewAnomalies('repeat_going_dark'),
+      generateAlertsForNewAnomalies('sts_transfer'),
+      generateAlertsForNewAnomalies('spoofed_position'),
+    ]);
+    status.anomalies = going + routeTotal;
+    console.log(`Detectors: ${going} going_dark + ${routeTotal} route anomalies`);
+  } catch (err) {
+    console.error('Detector pass error:', (err as Error).message);
+  }
+}
+
+// ── Freshness-gated enrichment refresh ────────────────────────────────────────
+async function isStale(sql: string, minutes: number): Promise<boolean> {
+  try {
+    const { rows } = await pool.query<{ ts: Date | null }>(sql);
+    const ts = rows[0]?.ts;
+    if (!ts) return true;
+    return Date.now() - new Date(ts).getTime() > minutes * 60_000;
+  } catch { return true; }
+}
+
+async function refreshEnrichment(): Promise<void> {
+  // Prices: FRED, refresh at most every 3h.
+  if (await isStale(`SELECT MAX(fetched_at) AS ts FROM oil_prices`, 180)) {
+    try {
+      const prices = await fetchOilPrices();
+      for (const p of prices) await insertPrice(p);
+      status.pricesRefreshed = prices.length > 0;
+      console.log(`Prices refreshed: ${prices.length}`);
+    } catch (err) { console.error('Prices refresh error:', (err as Error).message); }
+  }
+  // News: keyless RSS, refresh at most every 25m.
+  if (await isStale(`SELECT MAX(created_at) AS ts FROM news_items`, 25)) {
+    try {
+      const news = await fetchNews();
+      for (const n of news) await insertNewsItem(n);
+      status.newsRefreshed = news.length;
+      console.log(`News refreshed: ${news.length}`);
+    } catch (err) { console.error('News refresh error:', (err as Error).message); }
+  }
+  // Sanctions: big CSV, refresh at most every 20h (≈daily).
+  if (await isStale(`SELECT MAX(updated_at) AS ts FROM vessel_sanctions`, 20 * 60)) {
+    try {
+      await migrateSanctionsSchema();
+      const entries = await fetchSanctionsList();
+      const res = await batchUpsertSanctions(entries);
+      status.sanctionsRefreshed = true;
+      console.log(`Sanctions refreshed: ${res.upserted} upserted, ${res.deleted} removed`);
+    } catch (err) { console.error('Sanctions refresh error:', (err as Error).message); }
+  }
+}
+
+// ── Prune + size metrics ──────────────────────────────────────────────────────
+async function pruneAndMeasure(): Promise<void> {
+  try {
+    const res = await pool.query(
+      `DELETE FROM vessel_positions WHERE time < NOW() - ($1 || ' days')::interval`,
+      [String(RETENTION_DAYS)]
+    );
+    status.pruned = res.rowCount ?? 0;
+    console.log(`Pruned ${status.pruned} positions older than ${RETENTION_DAYS}d`);
+  } catch (err) { console.error('Prune error:', (err as Error).message); }
+
+  try {
+    const { rows } = await pool.query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM vessel_positions`);
+    status.positionsTotal = parseInt(rows[0].c, 10);
+  } catch { /* best-effort */ }
+  try {
+    const { rows } = await pool.query<{ db: string; tbl: string }>(
+      `SELECT pg_database_size(current_database())::text AS db,
+              pg_total_relation_size('vessel_positions')::text AS tbl`
+    );
+    status.dbSizeMB = Math.round(parseInt(rows[0].db, 10) / 1e5) / 10;
+    status.positionsSizeMB = Math.round(parseInt(rows[0].tbl, 10) / 1e5) / 10;
+  } catch { /* best-effort */ }
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+async function main(): Promise<void> {
+  const startedAt = Date.now();
+  status.lastRun = new Date(startedAt).toISOString();
+
+  if (!process.env.DATABASE_URL || !process.env.AISSTREAM_API_KEY) {
+    status.error = 'DATABASE_URL and AISSTREAM_API_KEY are required';
+    console.error(status.error);
+    writeStatus(startedAt);
+    process.exit(1);
+  }
+
+  // Safety valve: guarantee termination even if a socket/query hangs.
+  const killer = setTimeout(() => {
+    status.error = 'hard timeout';
+    console.error('Hard timeout reached — forcing exit');
+    writeStatus(startedAt);
+    process.exit(1);
+  }, HARD_TIMEOUT_MS);
+  killer.unref();
+
+  try {
+    const { positions, statics } = await collectWindow();
+    status.uniqueVessels = positions.size;
+    console.log(`Window closed: ${status.messagesReceived} msgs, ${positions.size} unique positions, ${statics.size} static records`);
+
+    await upsertVessels(statics);   // vessels first (anomaly FK targets)
+    await insertPositions(positions);
+    await runDetectors();
+    await refreshEnrichment();
+    await pruneAndMeasure();
+
+    status.ok = true;
+    console.log(`Harvest OK in ${Date.now() - startedAt}ms`);
+  } catch (err) {
+    status.ok = false;
+    status.error = (err as Error).message;
+    console.error('Harvest failed:', err);
+  } finally {
+    writeStatus(startedAt);
+    clearTimeout(killer);
+    try { await pool.end(); } catch { /* ignore */ }
+  }
+  process.exit(status.ok ? 0 : 1);
+}
+
+main();
