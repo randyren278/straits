@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && python3 scripts/checkpoint_runner.py gate" }
+        ]
+      }
+    ]
+  }
+}

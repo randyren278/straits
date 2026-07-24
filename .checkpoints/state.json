@@ -1,0 +1,56 @@
+{
+  "CP-0": {
+    "passed": true,
+    "approved": false,
+    "attempts": 1,
+    "last": "2026-07-24 01:11:07"
+  },
+  "CP-1": {
+    "passed": false,
+    "approved": false,
+    "attempts": 0,
+    "last": null
+  },
+  "CP-2": {
+    "passed": false,
+    "approved": false,
+    "attempts": 0,
+    "last": null
+  },
+  "CP-3": {
+    "passed": false,
+    "approved": false,
+    "attempts": 0,
+    "last": null
+  },
+  "CP-4": {
+    "passed": false,
+    "approved": false,
+    "attempts": 0,
+    "last": null
+  },
+  "CP-5": {
+    "passed": false,
+    "approved": false,
+    "attempts": 0,
+    "last": null
+  },
+  "CP-6": {
+    "passed": false,
+    "approved": false,
+    "attempts": 0,
+    "last": null
+  },
+  "CP-7": {
+    "passed": false,
+    "approved": false,
+    "attempts": 0,
+    "last": null
+  },
+  "CP-FINAL": {
+    "passed": false,
+    "approved": false,
+    "attempts": 0,
+    "last": null
+  }
+}
