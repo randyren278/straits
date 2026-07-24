@@ -14,7 +14,7 @@ import { ChokepointSelector } from '@/components/ui/ChokepointSelector';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
-import type { TrafficWithPrices } from '@/types/analytics';
+import type { TrafficWithPrices, RouteTrafficPoint, RouteRegion } from '@/types/analytics';
 
 interface CorrelationData {
   chokepoint: string;
@@ -24,52 +24,88 @@ interface CorrelationData {
   data: TrafficWithPrices[];
 }
 
+/** Human-readable labels for route regions used as chart titles. */
+const ROUTE_LABELS: Record<RouteRegion, string> = {
+  east_asia: 'East Asia',
+  europe: 'Europe',
+  americas: 'Americas',
+  unknown: 'Unknown',
+};
+
 export default function AnalyticsPage() {
   const {
     timeRange,
     selectedChokepoints,
+    selectedRoutes,
+    viewMode,
+    priceSymbol,
     isLoading,
     shipTypeFilter,
     setTimeRange,
     setSelectedChokepoints,
+    setViewMode,
+    setPriceSymbol,
     setIsLoading,
     setShipTypeFilter,
   } = useAnalyticsStore();
 
+  // Chokepoint view: correlation data keyed by chokepoint ID.
   const [chartData, setChartData] = useState<Record<string, TrafficWithPrices[]>>({});
+  // Route view: traffic data keyed by route region.
+  const [routeData, setRouteData] = useState<Record<string, TrafficWithPrices[]>>({});
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch correlation data for each selected chokepoint
+  // Fetch data for the active view (chokepoint correlation or route traffic)
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const results: Record<string, TrafficWithPrices[]> = {};
+      if (viewMode === 'route') {
+        const routesParam = selectedRoutes.join(',');
+        const res = await fetch(
+          `/api/analytics/traffic?range=${timeRange}&groupBy=route&routes=${routesParam}`
+        );
 
-      await Promise.all(
-        selectedChokepoints.map(async (cpId) => {
-          const res = await fetch(
-            `/api/analytics/correlation?range=${timeRange}&chokepoint=${cpId}&priceSymbol=WTI&shipType=${shipTypeFilter}`
-          );
+        if (!res.ok) {
+          throw new Error('Failed to fetch route traffic');
+        }
 
-          if (!res.ok) {
-            throw new Error(`Failed to fetch data for ${cpId}`);
-          }
+        const json: { data: RouteTrafficPoint[] } = await res.json();
 
-          const json: CorrelationData = await res.json();
-          results[cpId] = json.data;
-        })
-      );
+        // Group the flat route series by route region for per-route charts.
+        const grouped: Record<string, TrafficWithPrices[]> = {};
+        for (const point of json.data) {
+          (grouped[point.route] ??= []).push(point);
+        }
+        setRouteData(grouped);
+      } else {
+        const results: Record<string, TrafficWithPrices[]> = {};
 
-      setChartData(results);
+        await Promise.all(
+          selectedChokepoints.map(async (cpId) => {
+            const res = await fetch(
+              `/api/analytics/correlation?range=${timeRange}&chokepoint=${cpId}&priceSymbol=${priceSymbol}&shipType=${shipTypeFilter}`
+            );
+
+            if (!res.ok) {
+              throw new Error(`Failed to fetch data for ${cpId}`);
+            }
+
+            const json: CorrelationData = await res.json();
+            results[cpId] = json.data;
+          })
+        );
+
+        setChartData(results);
+      }
     } catch (err) {
       console.error('Analytics fetch error:', err);
       setError('Failed to load analytics data. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [timeRange, selectedChokepoints, shipTypeFilter, setIsLoading]);
+  }, [viewMode, timeRange, selectedChokepoints, selectedRoutes, priceSymbol, shipTypeFilter, setIsLoading]);
 
   useEffect(() => {
     fetchData();
@@ -95,12 +131,52 @@ export default function AnalyticsPage() {
             <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Chokepoints</label>
-            <ChokepointSelector
-              selected={selectedChokepoints}
-              onChange={setSelectedChokepoints}
-            />
+            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">View</label>
+            <div className="flex gap-1">
+              {(['chokepoint', 'route'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={
+                    viewMode === mode
+                      ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1'
+                      : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1'
+                  }
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
           </div>
+          {viewMode === 'chokepoint' && (
+            <>
+              <div>
+                <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Chokepoints</label>
+                <ChokepointSelector
+                  selected={selectedChokepoints}
+                  onChange={setSelectedChokepoints}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Price</label>
+                <div className="flex gap-1">
+                  {(['WTI', 'BRENT'] as const).map((symbol) => (
+                    <button
+                      key={symbol}
+                      onClick={() => setPriceSymbol(symbol)}
+                      className={
+                        priceSymbol === symbol
+                          ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1'
+                          : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1'
+                      }
+                    >
+                      {symbol}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
           <div>
             <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Ship Type</label>
             <div className="flex gap-1">
@@ -135,8 +211,8 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        {/* Charts */}
-        {!isLoading && !error && (
+        {/* Charts — chokepoint correlation view */}
+        {!isLoading && !error && viewMode === 'chokepoint' && (
           <ErrorBoundary>
             <div className="space-y-6">
               {selectedChokepoints.map((cpId) => {
@@ -147,9 +223,30 @@ export default function AnalyticsPage() {
                   <TrafficChart
                     key={cpId}
                     data={data}
-                    title={`${chokepoint.name} - Traffic vs WTI Price`}
+                    title={`${chokepoint.name} - Traffic vs ${priceSymbol} Price`}
                     showPrice={true}
-                    priceLabel="WTI"
+                    priceLabel={priceSymbol}
+                    height={350}
+                  />
+                );
+              })}
+            </div>
+          </ErrorBoundary>
+        )}
+
+        {/* Charts — route traffic view */}
+        {!isLoading && !error && viewMode === 'route' && (
+          <ErrorBoundary>
+            <div className="space-y-6">
+              {selectedRoutes.map((route) => {
+                const data = routeData[route] || [];
+
+                return (
+                  <TrafficChart
+                    key={route}
+                    data={data}
+                    title={`${ROUTE_LABELS[route]} - Vessel Traffic`}
+                    showPrice={false}
                     height={350}
                   />
                 );
@@ -159,9 +256,14 @@ export default function AnalyticsPage() {
         )}
 
         {/* Empty state */}
-        {!isLoading && !error && selectedChokepoints.length === 0 && (
+        {!isLoading && !error && viewMode === 'chokepoint' && selectedChokepoints.length === 0 && (
           <div className="flex items-center justify-center h-64 bg-gray-900 border border-amber-500/10">
             <p className="text-gray-400">Select at least one chokepoint to view analytics</p>
+          </div>
+        )}
+        {!isLoading && !error && viewMode === 'route' && selectedRoutes.length === 0 && (
+          <div className="flex items-center justify-center h-64 bg-gray-900 border border-amber-500/10">
+            <p className="text-gray-400">Select at least one route to view analytics</p>
           </div>
         )}
       </main>

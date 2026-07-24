@@ -5,7 +5,7 @@
  * Uses discriminated unions for type narrowing on anomaly details.
  */
 
-export type AnomalyType = 'going_dark' | 'loitering' | 'deviation' | 'speed' | 'repeat_going_dark' | 'sts_transfer';
+export type AnomalyType = 'going_dark' | 'loitering' | 'deviation' | 'speed' | 'repeat_going_dark' | 'sts_transfer' | 'spoofed_position';
 export type Confidence = 'confirmed' | 'suspected' | 'unknown';
 export type ShipCategory = 'tanker' | 'cargo' | 'other';
 
@@ -17,6 +17,7 @@ export const ANOMALY_TYPE_LABELS: Record<AnomalyType, string> = {
   speed: 'Speed Anomaly',
   repeat_going_dark: 'Repeat Going Dark',
   sts_transfer: 'STS Transfer',
+  spoofed_position: 'Spoofed Position',
 };
 
 /**
@@ -82,6 +83,19 @@ export interface StsTransferDetails {
 }
 
 /**
+ * Spoofed Position Anomaly Details
+ * When consecutive positions imply a physically impossible speed (>50 knots),
+ * indicating AIS position spoofing / teleportation rather than real movement.
+ */
+export interface SpoofedPositionDetails {
+  from: { lat: number; lon: number };
+  to: { lat: number; lon: number };
+  distanceKm: number;
+  elapsedMinutes: number;
+  impliedSpeedKnots: number;
+}
+
+/**
  * Anomaly record from database
  * Details field is a discriminated union based on anomaly type
  */
@@ -92,7 +106,7 @@ export interface Anomaly {
   confidence: Confidence;
   detectedAt: Date;
   resolvedAt: Date | null;
-  details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails | RepeatGoingDarkDetails | StsTransferDetails;
+  details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails | RepeatGoingDarkDetails | StsTransferDetails | SpoofedPositionDetails;
   /** Whether the vessel is on a sanctions list (M005-S03) */
   isSanctioned?: boolean;
   /** Risk category from sanctions data (M005-S03) */
@@ -116,7 +130,7 @@ export interface UpsertAnomalyInput {
   anomalyType: AnomalyType;
   confidence: Confidence;
   detectedAt: Date;
-  details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails | RepeatGoingDarkDetails | StsTransferDetails;
+  details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails | RepeatGoingDarkDetails | StsTransferDetails | SpoofedPositionDetails;
 }
 
 /**
@@ -142,4 +156,8 @@ export interface Alert {
   triggeredAt: Date;
   readAt: Date | null;
   details: object;
+  /** Vessel name from joined vessel data (display field, optional) */
+  vesselName?: string | null;
+  /** Vessel flag state from joined vessel data (display field, optional) */
+  flag?: string | null;
 }

@@ -38,6 +38,11 @@ export const CHOKEPOINTS: Record<string, Chokepoint> = {
     name: 'Suez Canal',
     bounds: { minLat: 29.5, maxLat: 32.5, minLon: 31.5, maxLon: 33.0 },
   },
+  gulf_of_aden: {
+    id: 'gulf_of_aden',
+    name: 'Gulf of Aden',
+    bounds: { minLat: 11.0, maxLat: 14.0, minLon: 43.0, maxLon: 48.0 },
+  },
 };
 
 /**

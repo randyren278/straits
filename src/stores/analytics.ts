@@ -15,6 +15,8 @@ interface AnalyticsStore {
   selectedRoutes: RouteRegion[];
   /** View mode: 'chokepoint' or 'route' grouping */
   viewMode: 'chokepoint' | 'route';
+  /** Oil price symbol for correlation overlay */
+  priceSymbol: 'WTI' | 'BRENT';
   /** Loading state for data fetches */
   isLoading: boolean;
   /** Ship type filter for traffic queries */
@@ -28,6 +30,8 @@ interface AnalyticsStore {
   setSelectedRoutes: (routes: RouteRegion[]) => void;
   /** Toggle between chokepoint and route view */
   setViewMode: (mode: 'chokepoint' | 'route') => void;
+  /** Set oil price symbol */
+  setPriceSymbol: (symbol: 'WTI' | 'BRENT') => void;
   /** Set loading state */
   setIsLoading: (loading: boolean) => void;
   /** Set ship type filter */
@@ -37,9 +41,10 @@ interface AnalyticsStore {
 export const useAnalyticsStore = create<AnalyticsStore>((set) => ({
   // Default state
   timeRange: '30d',
-  selectedChokepoints: ['hormuz', 'babel_mandeb', 'suez'], // All by default
+  selectedChokepoints: ['hormuz', 'babel_mandeb', 'suez', 'gulf_of_aden'], // All by default
   selectedRoutes: ['east_asia', 'europe', 'americas'], // Exclude 'unknown' by default
   viewMode: 'chokepoint',
+  priceSymbol: 'WTI',
   isLoading: false,
   shipTypeFilter: 'all',
 
@@ -48,6 +53,7 @@ export const useAnalyticsStore = create<AnalyticsStore>((set) => ({
   setSelectedChokepoints: (selectedChokepoints) => set({ selectedChokepoints }),
   setSelectedRoutes: (selectedRoutes) => set({ selectedRoutes }),
   setViewMode: (viewMode) => set({ viewMode }),
+  setPriceSymbol: (priceSymbol) => set({ priceSymbol }),
   setIsLoading: (isLoading) => set({ isLoading }),
   setShipTypeFilter: (shipTypeFilter) => set({ shipTypeFilter }),
 }));

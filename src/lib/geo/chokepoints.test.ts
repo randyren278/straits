@@ -53,8 +53,8 @@ describe('Chokepoints', () => {
   });
 
   describe('CHOKEPOINTS constant', () => {
-    it('contains three chokepoints', () => {
-      expect(Object.keys(CHOKEPOINTS)).toHaveLength(3);
+    it('contains four chokepoints', () => {
+      expect(Object.keys(CHOKEPOINTS)).toHaveLength(4);
     });
 
     it('has valid bounds for each chokepoint', () => {
@@ -115,7 +115,7 @@ describe('Chokepoints', () => {
       vi.clearAllMocks();
     });
 
-    it('returns stats for all three chokepoints', async () => {
+    it('returns stats for all four chokepoints', async () => {
       const { pool } = await import('../db');
       (pool.query as ReturnType<typeof vi.fn>).mockResolvedValue({
         rows: [{ total: 10, tankers: 5 }],
@@ -124,10 +124,11 @@ describe('Chokepoints', () => {
       const { getChokepointStats } = await import('./chokepoints');
       const stats = await getChokepointStats();
 
-      expect(stats).toHaveLength(3);
+      expect(stats).toHaveLength(4);
       expect(stats.map(s => s.id)).toContain('hormuz');
       expect(stats.map(s => s.id)).toContain('babel_mandeb');
       expect(stats.map(s => s.id)).toContain('suez');
+      expect(stats.map(s => s.id)).toContain('gulf_of_aden');
     });
 
     it('includes bounds in response', async () => {

@@ -1,91 +1,84 @@
 'use client';
 
 /**
- * Alert notification bell with dropdown.
- * Shows active anomalies with ship type filter (All / Tanker / Cargo / Other).
- * Filtering is display-only — detection logic is not changed.
- * Requirements: ANOM-02, ANOM-06, HIST-02, PANL-04
+ * Personal alert inbox bell with dropdown.
+ * Shows the signed-in user's alerts (per-user feed from /api/alerts) with an
+ * unread badge driven by the vessel store's unreadCount.
+ * Requirements: HIST-02, PANL-04
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useVesselStore } from '@/stores/vessel';
-import { AnomalyBadge } from './AnomalyBadge';
-import type { AnomalyType, Anomaly } from '@/types/anomaly';
+import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
+import { ANOMALY_TYPE_LABELS } from '@/types/anomaly';
+import type { AnomalyType, Alert } from '@/types/anomaly';
 
-type ShipTypeFilter = 'all' | 'tanker' | 'cargo' | 'other';
-
-const FILTER_BUTTONS: { value: ShipTypeFilter; label: string }[] = [
-  { value: 'all', label: 'ALL' },
-  { value: 'tanker', label: 'TANKER' },
-  { value: 'cargo', label: 'CARGO' },
-  { value: 'other', label: 'OTHER' },
-];
+/** Human-readable label for an alert type (falls back to the raw value). */
+function alertTypeLabel(alertType: string): string {
+  return ANOMALY_TYPE_LABELS[alertType as AnomalyType] ?? alertType;
+}
 
 export function NotificationBell() {
-  const { setMapCenter } = useVesselStore();
+  const { alerts, unreadCount, setAlerts, markAlertRead, setTargetVesselImo } = useVesselStore();
   const [isOpen, setIsOpen] = useState(false);
-  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
-  const [shipTypeFilter, setShipTypeFilter] = useState<ShipTypeFilter>('all');
+  const [userId, setUserId] = useLocalStorage<string>('tanker_tracker_user_id', '');
 
-  const fetchAnomalies = useCallback(async (filter: ShipTypeFilter) => {
-    try {
-      const url =
-        filter !== 'all'
-          ? `/api/anomalies?shipType=${filter}`
-          : '/api/anomalies';
-      const res = await fetch(url);
-      const data = await res.json();
-      setAnomalies(data.anomalies || []);
-    } catch (err) {
-      console.error('Failed to fetch anomalies:', err);
-    }
-  }, []);
-
-  // Fetch anomalies on mount and every 30 seconds (respects current filter)
+  // Generate and persist a user ID once the persisted value has loaded (if none exists)
   useEffect(() => {
+    if (!userId) {
+      setUserId(crypto.randomUUID());
+    }
+  }, [userId, setUserId]);
+
+  // Fetch the user's alerts on mount and every 30 seconds
+  useEffect(() => {
+    if (!userId) return;
+
     let cancelled = false;
-    const run = () => {
-      if (!cancelled) fetchAnomalies(shipTypeFilter);
+    const fetchAlerts = async () => {
+      try {
+        const res = await fetch('/api/alerts', {
+          headers: { 'X-User-Id': userId },
+        });
+        const data = await res.json();
+        if (!cancelled) setAlerts((data.alerts as Alert[]) || []);
+      } catch (err) {
+        console.error('Failed to fetch alerts:', err);
+      }
     };
+
     // Defer the initial fetch out of the synchronous effect body so the
-    // setState inside fetchAnomalies doesn't trigger a cascading render.
-    const initial = setTimeout(run, 0);
-    const interval = setInterval(run, 30000);
+    // setState inside setAlerts doesn't trigger a cascading render.
+    const initial = setTimeout(fetchAlerts, 0);
+    const interval = setInterval(fetchAlerts, 30000);
 
     return () => {
       cancelled = true;
       clearTimeout(initial);
       clearInterval(interval);
     };
-  }, [fetchAnomalies, shipTypeFilter]);
+  }, [userId, setAlerts]);
 
-  const handleFilterClick = (filter: ShipTypeFilter) => {
-    setShipTypeFilter(filter);
-    fetchAnomalies(filter);
-  };
-
-  const handleAnomalyClick = (anomaly: Anomaly) => {
-    const details = anomaly.details as unknown as Record<string, unknown>;
-    if (details?.lastPosition) {
-      const pos = details.lastPosition as { lat: number; lon: number };
-      setMapCenter({ lat: pos.lat, lon: pos.lon, zoom: 10 });
-    } else if (details?.centroid) {
-      const pos = details.centroid as { lat: number; lon: number };
-      setMapCenter({ lat: pos.lat, lon: pos.lon, zoom: 10 });
+  const handleAlertClick = async (alert: Alert) => {
+    if (!alert.readAt) {
+      markAlertRead(alert.id);
+      try {
+        await fetch(`/api/alerts/${alert.id}/read`, { method: 'POST' });
+      } catch (err) {
+        console.error('Failed to mark alert as read:', err);
+      }
     }
-
+    setTargetVesselImo(alert.imo);
     setIsOpen(false);
   };
-
-  const unreadCount = anomalies.length;
 
   return (
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-400 hover:text-white transition-colors"
-        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} active)` : ''}`}
+        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
         aria-expanded={isOpen}
       >
         <Bell className="w-5 h-5" />
@@ -110,86 +103,44 @@ export function NotificationBell() {
           <div
             className="absolute right-0 top-full mt-2 w-80 bg-black border border-amber-500/20 shadow-xl z-50 max-h-96 overflow-hidden"
             role="region"
-            aria-label="Anomaly alerts"
+            aria-label="Alert inbox"
           >
             <div className="p-3 border-b border-gray-700 flex justify-between items-center">
               <span className="font-semibold text-white">Alerts</span>
-              <span className="text-xs text-gray-500">{unreadCount} active</span>
-            </div>
-
-            {/* Ship type filter buttons */}
-            <div className="flex gap-1 px-3 py-2 border-b border-gray-700" role="group" aria-label="Filter by ship type">
-              {FILTER_BUTTONS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => handleFilterClick(value)}
-                  className={`px-2 py-0.5 text-xs font-mono uppercase border transition-colors ${
-                    shipTypeFilter === value
-                      ? 'border-amber-500 text-amber-500 bg-amber-500/10'
-                      : 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-300'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              <span className="text-xs text-gray-500">{unreadCount} unread</span>
             </div>
 
             <div className="overflow-y-auto max-h-72">
-              {anomalies.length === 0 ? (
+              {alerts.length === 0 ? (
                 <div className="p-4 text-gray-400 text-center">No alerts</div>
               ) : (
-                anomalies.slice(0, 20).map((anomaly) => (
+                alerts.slice(0, 20).map((alert) => (
                   <div
-                    key={anomaly.id}
-                    onClick={() => handleAnomalyClick(anomaly)}
+                    key={alert.id}
+                    onClick={() => handleAlertClick(alert)}
                     className="p-3 border-b border-gray-800 cursor-pointer hover:bg-gray-900 transition-colors"
                     role="button"
-                    aria-label={`Anomaly alert for vessel ${anomaly.imo}: ${anomaly.anomalyType}`}
+                    aria-label={`Alert for vessel ${alert.vesselName || alert.imo}: ${alertTypeLabel(alert.alertType)}`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-white">
-                          {anomaly.imo}
-                        </span>
-                        {anomaly.isSanctioned && (
-                          <span className={`text-[10px] font-mono px-1 py-0.5 ${
-                            anomaly.sanctionRiskCategory === 'mare.shadow;poi'
-                              ? 'bg-purple-900/40 text-purple-400 border border-purple-700/50'
-                              : anomaly.sanctionRiskCategory?.startsWith('mare.detained')
-                                ? 'bg-rose-900/40 text-rose-400 border border-rose-700/50'
-                                : 'bg-red-900/40 text-red-400 border border-red-700/50'
-                          }`}>
-                            {anomaly.sanctionRiskCategory === 'mare.shadow;poi' ? 'SHADOW'
-                              : anomaly.sanctionRiskCategory?.startsWith('mare.detained') ? 'DETAINED'
-                              : 'SANCTIONED'}
-                          </span>
+                        {!alert.readAt && (
+                          <span
+                            className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"
+                            aria-hidden="true"
+                          />
                         )}
-                      </div>
-                      {anomaly.anomalyType === 'sts_transfer' && anomaly.details && (
-                        <span className="text-xs text-gray-400 font-mono ml-1">
-                          + {(anomaly.details as { otherName?: string; otherImo?: string }).otherName
-                            || (anomaly.details as { otherImo?: string }).otherImo
-                            || 'unknown'}
+                        <span className="font-medium text-white">
+                          {alert.vesselName || alert.imo}
                         </span>
-                      )}
+                      </div>
                       <span className="text-xs text-gray-500">
-                        {formatDistanceToNow(new Date(anomaly.detectedAt), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(alert.triggeredAt), { addSuffix: true })}
                       </span>
                     </div>
-                    <div className="mt-1">
-                      <AnomalyBadge
-                        type={anomaly.anomalyType as AnomalyType}
-                        confidence={anomaly.confidence}
-                        size="sm"
-                      />
+                    <div className="mt-1 text-xs text-gray-400 font-mono uppercase tracking-wider">
+                      {alertTypeLabel(alert.alertType)}
                     </div>
-                    {anomaly.anomalyType === 'sts_transfer' && anomaly.details && (
-                      <div className="text-xs text-gray-500 mt-0.5 font-mono">
-                        Proximity with {(anomaly.details as { otherName?: string; otherImo?: string }).otherName
-                          || (anomaly.details as { otherImo?: string }).otherImo
-                          || 'unknown vessel'}
-                      </div>
-                    )}
                   </div>
                 ))
               )}
