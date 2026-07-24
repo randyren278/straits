@@ -1,4 +1,4 @@
-# 🛢️ Tanker Tracker
+# Tanker Tracker
 
 **A real-time geopolitical intelligence dashboard for Middle East maritime oil flows.**
 
@@ -6,7 +6,7 @@ Tanker Tracker fuses live AIS vessel positions, oil prices, sanctions data, geop
 
 ![Tanker Tracker dashboard](docs/screenshots/dashboard.png)
 
-> 🎬 **[Watch the 20-second launch video →](brag-output/brag.mp4)**
+> **[Watch the 20-second launch video →](brag-output/brag.mp4)**
 
 ---
 
@@ -69,11 +69,11 @@ Everything except the AIS feed is **keyless / free** — the dashboard runs with
 
 | Layer | Source | Key required? |
 |---|---|---|
-| Map tiles | MapLibre GL + CARTO dark-matter | ❌ none |
-| Oil prices | **FRED** (WTI `DCOILWTICO`, Brent `DCOILBRENTEU`) — primary; Alpha Vantage optional fallback | ❌ optional |
-| News | **Google News RSS** (keyless) | ❌ none |
-| Sanctions | **OpenSanctions** maritime dataset (CC BY-NC 4.0) | ❌ none |
-| AIS positions | **AISStream.io** WebSocket | ✅ free key |
+| Map tiles | MapLibre GL + CARTO dark-matter | None |
+| Oil prices | **FRED** (WTI `DCOILWTICO`, Brent `DCOILBRENTEU`) — primary; Alpha Vantage optional fallback | Optional |
+| News | **Google News RSS** (keyless) | None |
+| Sanctions | **OpenSanctions** maritime dataset (CC BY-NC 4.0) | None |
+| AIS positions | **AISStream.io** WebSocket | Free key |
 
 > The map, prices, and news layers were migrated off paid/rate-limited providers to free open-source equivalents without sacrificing quality or the terminal aesthetic.
 
