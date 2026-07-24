@@ -14,6 +14,7 @@ import { Shield, ExternalLink, MapPin, AlertTriangle, Users } from 'lucide-react
 import { format } from 'date-fns';
 import { AnomalyBadge } from '@/components/ui/AnomalyBadge';
 import { useVesselStore } from '@/stores/vessel';
+import { formatAnomalyDetails } from '@/lib/anomaly/format-details';
 import type { RiskFactors } from '@/lib/db/risk-scores';
 import type {
   AnomalyType,
@@ -59,6 +60,7 @@ interface AnomalyHistoryItem {
   confidence: string;
   detectedAt: string;
   resolvedAt: string | null;
+  details?: Record<string, unknown>;
 }
 
 interface DestChange {
@@ -272,7 +274,9 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
           </div>
           <div className="max-h-48 overflow-y-auto">
             {anomalyHistory.length > 0 ? (
-              anomalyHistory.map((a) => (
+              anomalyHistory.map((a) => {
+                const detailLine = formatAnomalyDetails(a.anomalyType as AnomalyType, a.details);
+                return (
                 <div key={a.id} className="px-3 py-1.5 border-b border-gray-800/50 text-xs">
                   <div className="flex items-center justify-between">
                     <AnomalyBadge
@@ -284,8 +288,12 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
                       {format(new Date(a.detectedAt), 'MM/dd HH:mm')}
                     </span>
                   </div>
+                  {detailLine && (
+                    <div className="text-gray-400 mt-0.5 font-mono">{detailLine}</div>
+                  )}
                 </div>
-              ))
+                );
+              })
             ) : (
               <div className="px-3 py-3">
                 <span className="text-xs text-gray-600 font-mono">No anomaly history</span>

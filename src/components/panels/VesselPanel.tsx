@@ -8,10 +8,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useVesselStore } from '@/stores/vessel';
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
-import { AlertTriangle, Eye, EyeOff, ChevronDown, ChevronRight, Shield, ExternalLink } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, ChevronDown, ChevronRight, Shield, ExternalLink, Download } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { AnomalyBadge } from '../ui/AnomalyBadge';
 import { decodeNavStatus, isDeclaredStationary } from '@/lib/ais/nav-status';
+import { formatAnomalyDetails } from '@/lib/anomaly/format-details';
 import type { AnomalyType, Confidence } from '@/types/anomaly';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
 import type { RiskFactors } from '@/lib/db/risk-scores';
@@ -442,7 +443,12 @@ export function VesselPanel() {
           </button>
           {expandedSections.anomalies && (
             <div className="max-h-48 overflow-y-auto">
-              {anomalyHistory.map((a) => (
+              {anomalyHistory.map((a) => {
+                // Type-aware detail line: surfaces per-type numbers from the details JSONB —
+                // e.g. deviation.deviationDegrees, sts_transfer.otherName/distanceKm,
+                // going_dark.gapMinutes, spoofed_position.impliedSpeedKnots.
+                const detailLine = formatAnomalyDetails(a.anomalyType as AnomalyType, a.details);
+                return (
                 <div key={a.id} className="px-3 py-1.5 border-b border-gray-800/50 text-xs">
                   <div className="flex items-center justify-between">
                     <AnomalyBadge
@@ -454,13 +460,17 @@ export function VesselPanel() {
                       {format(new Date(a.detectedAt), 'MM/dd HH:mm')}
                     </span>
                   </div>
+                  {detailLine && (
+                    <div className="text-gray-400 mt-0.5 font-mono">{detailLine}</div>
+                  )}
                   {a.resolvedAt && (
                     <div className="text-gray-600 mt-0.5 font-mono">
                       Resolved {format(new Date(a.resolvedAt), 'MM/dd HH:mm')}
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -502,7 +512,7 @@ export function VesselPanel() {
       )}
 
       {/* Track toggle */}
-      <div className="px-3 py-2">
+      <div className="px-3 py-2 space-y-1.5">
         <button
           onClick={() => setShowTrack(!showTrack)}
           aria-pressed={showTrack}
@@ -515,6 +525,16 @@ export function VesselPanel() {
         >
           {showTrack ? 'Hide Track' : 'Show Track History'}
         </button>
+        {vesselImo && (
+          <a
+            href={`/api/export/vessel/${vesselImo}`}
+            download
+            className="w-full py-1.5 flex items-center justify-center gap-2 font-mono text-xs uppercase tracking-widest transition-colors border border-gray-700 text-gray-500 hover:border-amber-500/40 hover:text-amber-500"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export Dossier
+          </a>
+        )}
       </div>
     </div>
   );
