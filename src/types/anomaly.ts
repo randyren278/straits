@@ -5,7 +5,7 @@
  * Uses discriminated unions for type narrowing on anomaly details.
  */
 
-export type AnomalyType = 'going_dark' | 'loitering' | 'deviation' | 'speed' | 'repeat_going_dark' | 'sts_transfer' | 'spoofed_position' | 'composite_diversion';
+export type AnomalyType = 'going_dark' | 'loitering' | 'deviation' | 'speed' | 'repeat_going_dark' | 'sts_transfer' | 'spoofed_position' | 'composite_diversion' | 'sts_predicted';
 export type Confidence = 'confirmed' | 'suspected' | 'unknown';
 export type ShipCategory = 'tanker' | 'cargo' | 'other';
 
@@ -19,6 +19,7 @@ export const ANOMALY_TYPE_LABELS: Record<AnomalyType, string> = {
   sts_transfer: 'STS Transfer',
   spoofed_position: 'Spoofed Position',
   composite_diversion: 'Composite Diversion',
+  sts_predicted: 'Predicted STS',
 };
 
 /**
@@ -116,6 +117,26 @@ export interface CompositeDiversionDetails {
 }
 
 /**
+ * Predicted Ship-to-Ship Transfer Anomaly Details
+ * When dead-reckoning two vessel tracks projects a closest-point-of-approach
+ * inside the STS proximity threshold within a short horizon, both parties are
+ * decelerating into the transfer speed band, and at least one is high-risk —
+ * a forward-looking rendezvous prediction (not yet a confirmed transfer).
+ */
+export interface StsPredictedDetails {
+  otherImo: string;
+  otherName: string;
+  /** Projected closest-point-of-approach distance in km. */
+  cpaDistanceKm: number;
+  /** Minutes until the projected CPA. */
+  timeToCpaMinutes: number;
+  /** Closing speed of the two vessels in knots at prediction time. */
+  closingSpeedKnots: number;
+  /** Whether at least one party is sanctioned / high-risk. */
+  sanctionedParty: boolean;
+}
+
+/**
  * Anomaly record from database
  * Details field is a discriminated union based on anomaly type
  */
@@ -126,7 +147,7 @@ export interface Anomaly {
   confidence: Confidence;
   detectedAt: Date;
   resolvedAt: Date | null;
-  details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails | RepeatGoingDarkDetails | StsTransferDetails | SpoofedPositionDetails | CompositeDiversionDetails;
+  details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails | RepeatGoingDarkDetails | StsTransferDetails | SpoofedPositionDetails | CompositeDiversionDetails | StsPredictedDetails;
   /** Whether the vessel is on a sanctions list (M005-S03) */
   isSanctioned?: boolean;
   /** Risk category from sanctions data (M005-S03) */
@@ -150,7 +171,7 @@ export interface UpsertAnomalyInput {
   anomalyType: AnomalyType;
   confidence: Confidence;
   detectedAt: Date;
-  details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails | RepeatGoingDarkDetails | StsTransferDetails | SpoofedPositionDetails | CompositeDiversionDetails;
+  details: GoingDarkDetails | LoiteringDetails | DeviationDetails | SpeedDetails | RepeatGoingDarkDetails | StsTransferDetails | SpoofedPositionDetails | CompositeDiversionDetails | StsPredictedDetails;
 }
 
 /**

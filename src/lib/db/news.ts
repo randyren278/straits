@@ -30,7 +30,9 @@ export async function insertNewsItem(item: NewsHeadline): Promise<void> {
 
 /**
  * Get the latest news headlines from the database.
- * Returns headlines ordered by publication date (newest first).
+ * Returns headlines ranked by relevance to the tracker (highest first),
+ * tie-broken by publication date (newest first) so the most operationally
+ * relevant items surface ahead of merely-recent noise.
  *
  * @param limit - Maximum number of headlines to return (default 15)
  * @returns Array of news headlines with relevance scores
@@ -45,7 +47,7 @@ export async function getLatestNews(limit: number = 15): Promise<NewsHeadline[]>
   }>(`
     SELECT title, source, url, published_at as "publishedAt", relevance_score as "relevanceScore"
     FROM news_items
-    ORDER BY published_at DESC
+    ORDER BY relevance_score DESC, published_at DESC
     LIMIT $1
   `, [limit]);
   return result.rows;

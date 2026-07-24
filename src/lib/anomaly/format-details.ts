@@ -60,6 +60,18 @@ export function formatAnomalyDetails(
       if (typeof speed !== 'number') return null;
       return `implied ${Math.round(speed)} kt (impossible)`;
     }
+    case 'sts_predicted': {
+      const name = typeof d.otherName === 'string' && d.otherName ? d.otherName : null;
+      const imo = typeof d.otherImo === 'string' && d.otherImo ? d.otherImo : null;
+      const partner = name || (imo ? `IMO ${imo}` : null);
+      const cpa = typeof d.cpaDistanceKm === 'number' ? `${d.cpaDistanceKm.toFixed(2)} km` : null;
+      const eta = typeof d.timeToCpaMinutes === 'number' ? formatGap(d.timeToCpaMinutes) : null;
+      if (!partner && !cpa) return null;
+      const who = partner ? ` w/ ${partner}` : '';
+      if (cpa && eta) return `CPA${who} ${cpa} in ${eta}`;
+      if (cpa) return `CPA${who} ${cpa}`;
+      return `predicted STS${who}`;
+    }
     case 'loitering': {
       const radius = typeof d.radiusKm === 'number' ? `${d.radiusKm.toFixed(1)} km radius` : null;
       const dur = typeof d.durationHours === 'number' ? `${d.durationHours.toFixed(1)}h` : null;

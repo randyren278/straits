@@ -4,10 +4,10 @@
  * Reusable anomaly badge component with color-coded styling.
  * Requirements: ANOM-01, ANOM-02
  */
-import { AlertTriangle, Radio, Navigation, Gauge, MapPin, GitBranch } from 'lucide-react';
+import { AlertTriangle, Radio, Navigation, Gauge, MapPin, GitBranch, Crosshair } from 'lucide-react';
 
 interface AnomalyBadgeProps {
-  type: 'going_dark' | 'loitering' | 'deviation' | 'speed' | 'repeat_going_dark' | 'sts_transfer' | 'spoofed_position' | 'composite_diversion';
+  type: 'going_dark' | 'loitering' | 'deviation' | 'speed' | 'repeat_going_dark' | 'sts_transfer' | 'spoofed_position' | 'composite_diversion' | 'sts_predicted';
   confidence: 'confirmed' | 'suspected' | 'unknown';
   size?: 'sm' | 'md';
 }
@@ -52,6 +52,11 @@ const BADGE_CONFIG = {
     confirmed: { bg: 'bg-rose-700', icon: GitBranch, label: 'DIVERT' },
     suspected: { bg: 'bg-rose-500', icon: GitBranch, label: 'DIVERT?' },
     unknown: { bg: 'bg-gray-500', icon: GitBranch, label: 'FLIP' },
+  },
+  sts_predicted: {
+    confirmed: { bg: 'bg-indigo-600', icon: Crosshair, label: 'STS PRED' },
+    suspected: { bg: 'bg-indigo-400', icon: Crosshair, label: 'STS PRED?' },
+    unknown: { bg: 'bg-gray-500', icon: Crosshair, label: 'CPA' },
   },
 };
 

@@ -60,7 +60,7 @@ describe('News Database', () => {
   });
 
   describe('getLatestNews', () => {
-    it('returns recent 15 headlines ordered by published_at', async () => {
+    it('returns recent 15 headlines ranked by relevance_score', async () => {
       const mockNews = [
         { title: 'Article 1', source: 'BBC', url: 'https://bbc.com/1', publishedAt: new Date(), relevanceScore: 2 },
         { title: 'Article 2', source: 'CNN', url: 'https://cnn.com/1', publishedAt: new Date(), relevanceScore: 3 },
@@ -71,7 +71,7 @@ describe('News Database', () => {
       const news = await getLatestNews();
 
       expect(pool.query).toHaveBeenCalledWith(
-        expect.stringContaining('ORDER BY published_at DESC'),
+        expect.stringContaining('ORDER BY relevance_score DESC, published_at DESC'),
         expect.arrayContaining([15])
       );
       expect(news.length).toBe(2);
