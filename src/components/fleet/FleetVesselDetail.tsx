@@ -227,7 +227,7 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
 
   return (
     <div className="bg-gray-900/40 border-t border-amber-500/10 px-4 py-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
 
         {/* Risk Score Section */}
         <div className="border border-amber-500/20 bg-black/40">
