@@ -60,11 +60,11 @@ export function DataFreshness() {
 
   return (
     <span
-      className={`text-sm ${freshness.colorClass} flex items-center gap-1`}
+      className={`text-sm font-mono whitespace-nowrap ${freshness.colorClass} flex items-center gap-1`}
       role="status"
       aria-label={`Data freshness: last updated ${freshness.label}`}
     >
-      <span className={`w-2 h-2 rounded-full ${freshness.dotColor}`} />
+      <span className={`w-2 h-2 ${freshness.dotColor}`} />
       {freshness.label}
     </span>
   );
