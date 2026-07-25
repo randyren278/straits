@@ -41,6 +41,9 @@ const COLORS = {
   axis: '#9ca3af',           // Light gray axis labels
 };
 
+// JetBrains Mono for all Recharts SVG text (axes, legend, tooltip) to match the terminal aesthetic.
+const MONO = 'var(--font-jetbrains), ui-monospace, monospace';
+
 /**
  * Format date for X-axis labels (MMM DD)
  */
@@ -59,18 +62,18 @@ export function TrafficChart({
   if (!data.length) {
     return (
       <div
-        className="flex items-center justify-center bg-black"
+        className="flex items-center justify-center bg-black border border-amber-500/20"
         style={{ height }}
       >
-        <p className="text-gray-400">No data available for selected range</p>
+        <p className="text-gray-400 font-mono text-sm">No data available for selected range</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-black p-4" role="img" aria-label={title || 'Vessel traffic chart'}>
+    <div className="bg-black p-4 border border-amber-500/20" role="img" aria-label={title || 'Vessel traffic chart'}>
       {title && (
-        <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
+        <h3 className="text-xs font-mono uppercase tracking-widest text-amber-500 mb-4">{title}</h3>
       )}
       <ResponsiveContainer width="100%" height={height}>
         <ComposedChart data={data}>
@@ -79,33 +82,22 @@ export function TrafficChart({
             dataKey="date"
             stroke={COLORS.axis}
             tickFormatter={formatDate}
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 10, fontFamily: MONO }}
+            minTickGap={24}
           />
           <YAxis
             yAxisId="left"
+            width={36}
             stroke={COLORS.axis}
-            tick={{ fontSize: 12 }}
-            label={{
-              value: 'Vessels',
-              angle: -90,
-              position: 'insideLeft',
-              fill: COLORS.axis,
-              fontSize: 12,
-            }}
+            tick={{ fontSize: 10, fontFamily: MONO }}
           />
           {showPrice && (
             <YAxis
               yAxisId="right"
               orientation="right"
+              width={36}
               stroke={COLORS.axis}
-              tick={{ fontSize: 12 }}
-              label={{
-                value: `${priceLabel} (USD)`,
-                angle: 90,
-                position: 'insideRight',
-                fill: COLORS.axis,
-                fontSize: 12,
-              }}
+              tick={{ fontSize: 10, fontFamily: MONO }}
             />
           )}
           <Tooltip
@@ -113,10 +105,12 @@ export function TrafficChart({
               backgroundColor: '#000000',
               border: '1px solid #374151',
               borderRadius: '0',
+              fontFamily: MONO,
+              fontSize: 11,
             }}
             labelFormatter={(label) => formatDate(String(label))}
           />
-          <Legend />
+          <Legend wrapperStyle={{ fontFamily: MONO, fontSize: 11 }} />
           <Area
             yAxisId="left"
             type="monotone"
