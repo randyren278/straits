@@ -56,21 +56,21 @@ export default function DashboardPage() {
   }, [setMapCenter]);
 
   return (
-    <div className="h-screen flex flex-col bg-black">
+    <div className="h-dvh flex flex-col bg-black">
       <Header
         onSearchSelect={handleSearchSelect}
         onChokepointSelect={handleChokepointSelect}
       />
-      <main className="flex-1 grid grid-cols-[1fr_320px] overflow-hidden max-md:flex max-md:flex-col max-md:overflow-y-auto">
+      <main className="flex-1 grid grid-cols-[1fr_320px] overflow-hidden max-lg:flex max-lg:flex-col max-lg:overflow-y-auto">
         {/* Left column: full-height map (min-height on mobile prevents collapse) */}
         <ErrorBoundary>
-          <div className="relative overflow-hidden max-md:min-h-[50vh]">
+          <div className="relative overflow-hidden max-lg:min-h-[70dvh]">
             <VesselMap />
           </div>
         </ErrorBoundary>
         {/* Right column: stacked panels */}
         <ErrorBoundary>
-          <div className="flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10 max-md:border-l-0 max-md:border-t max-md:border-amber-500/20">
+          <div className="flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10 max-lg:border-l-0 max-lg:border-t max-lg:border-amber-500/20">
             <ClusterPanel />
             <VesselPanel />
             <WatchlistPanel />
