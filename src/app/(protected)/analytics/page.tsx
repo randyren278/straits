@@ -227,7 +227,7 @@ export default function AnalyticsPage() {
         {/* Charts — chokepoint correlation view */}
         {!isLoading && !error && viewMode === 'chokepoint' && (
           <ErrorBoundary>
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               {selectedChokepoints.map((cpId) => {
                 const chokepoint = CHOKEPOINTS[cpId];
                 const data = chartData[cpId] || [];
@@ -250,7 +250,7 @@ export default function AnalyticsPage() {
         {/* Charts — route traffic view */}
         {!isLoading && !error && viewMode === 'route' && (
           <ErrorBoundary>
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               {selectedRoutes.map((route) => {
                 const data = routeData[route] || [];
 
