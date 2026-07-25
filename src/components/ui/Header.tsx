@@ -94,12 +94,16 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             </Link>
           </nav>
         </div>
-        {/* Controls row: hidden on mobile nav bar, wraps on tablet */}
+        {/* Controls row: map tooling only on dashboard; telemetry (bell + status) everywhere */}
         <div className="flex items-center gap-4 max-md:gap-2 max-md:flex-wrap max-md:px-0 max-md:py-2 max-md:border-t max-md:border-amber-500/10">
-          <SearchInput onSelectVessel={onSearchSelect} />
-          <DataFreshness />
-          <TankerFilter />
-          <AnomalyFilter />
+          {activeTab === 'dashboard' && (
+            <>
+              <SearchInput onSelectVessel={onSearchSelect} />
+              <DataFreshness />
+              <TankerFilter />
+              <AnomalyFilter />
+            </>
+          )}
           <NotificationBell />
           <StatusBar />
         </div>
