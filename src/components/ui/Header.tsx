@@ -54,7 +54,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
           <nav className="flex gap-1 ml-6 max-lg:ml-2">
             <Link
               href="/dashboard"
-              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
+              className={`inline-flex items-center whitespace-nowrap px-3 py-1 max-lg:min-h-[44px] max-lg:py-2.5 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
                 activeTab === 'dashboard'
                   ? 'border-amber-500 text-amber-500 bg-amber-500/10'
                   : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
@@ -64,7 +64,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             </Link>
             <Link
               href="/analytics"
-              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
+              className={`inline-flex items-center whitespace-nowrap px-3 py-1 max-lg:min-h-[44px] max-lg:py-2.5 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
                 activeTab === 'analytics'
                   ? 'border-amber-500 text-amber-500 bg-amber-500/10'
                   : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
@@ -74,7 +74,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             </Link>
             <Link
               href="/fleet"
-              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
+              className={`inline-flex items-center whitespace-nowrap px-3 py-1 max-lg:min-h-[44px] max-lg:py-2.5 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
                 activeTab === 'fleet'
                   ? 'border-amber-500 text-amber-500 bg-amber-500/10'
                   : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
@@ -84,7 +84,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             </Link>
             <Link
               href="/about"
-              className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
+              className={`inline-flex items-center whitespace-nowrap px-3 py-1 max-lg:min-h-[44px] max-lg:py-2.5 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
                 activeTab === 'about'
                   ? 'border-amber-500 text-amber-500 bg-amber-500/10'
                   : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'
