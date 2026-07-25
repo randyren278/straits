@@ -77,10 +77,7 @@ brag-output/
 CLAUDE.md
 .gsd/
 .planning/
-.checkpoints/
 .bg-shell/
 .claude/
 PLAN.md
-PLAN-mobile-reach.md
 .ui-baseline/
-scripts/checkpoint_runner.py
