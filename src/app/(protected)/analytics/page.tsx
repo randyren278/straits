@@ -54,6 +54,8 @@ export default function AnalyticsPage() {
   // Route view: traffic data keyed by route region.
   const [routeData, setRouteData] = useState<Record<string, TrafficWithPrices[]>>({});
   const [error, setError] = useState<string | null>(null);
+  // Filter panel: collapsed by default on mobile; always shown on desktop via CSS (lg:block).
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Fetch data for the active view (chokepoint correlation or route traffic)
   const fetchData = useCallback(async () => {
@@ -124,8 +126,18 @@ export default function AnalyticsPage() {
           </p>
         </div>
 
-        {/* Controls */}
-        <div className="flex flex-wrap gap-4 items-center mb-6 p-3 bg-gray-900 border border-amber-500/20">
+        {/* Controls — collapsed by default on mobile so charts lead the fold; always shown on desktop */}
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((v) => !v)}
+            aria-expanded={filtersOpen}
+            className="md:hidden w-full flex items-center justify-between min-h-[44px] px-3 border border-amber-500/20 bg-gray-900 text-xs font-mono uppercase tracking-widest text-amber-500"
+          >
+            <span>Filters · {timeRange.toUpperCase()} · {viewMode === 'chokepoint' ? `${selectedChokepoints.length} CP` : 'ROUTE'} · {priceSymbol}</span>
+            <span>{filtersOpen ? '▾' : '▸'}</span>
+          </button>
+          <div className={`${filtersOpen ? 'flex' : 'hidden'} md:flex flex-wrap gap-4 items-center max-md:mt-2 p-3 bg-gray-900 border border-amber-500/20`}>
           <div>
             <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Time Range</label>
             <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
@@ -195,6 +207,7 @@ export default function AnalyticsPage() {
               ))}
             </div>
           </div>
+        </div>
         </div>
 
         {/* Error state */}
