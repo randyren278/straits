@@ -49,11 +49,12 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
       <div className="h-14 flex items-center justify-between px-4 max-lg:h-auto max-lg:flex-col max-lg:items-stretch max-lg:gap-0">
         {/* Top row: logo + nav (always visible) */}
         <div className="flex items-center max-lg:justify-between max-lg:h-12 max-lg:w-full">
-          <Link href="/dashboard" className="flex items-center gap-2">
+          <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
             <StraitsMark size={20} className="shrink-0" />
-            <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">Straits</h1>
+            {/* Wordmark hidden on narrow phones so all 4 nav tabs fit without clipping */}
+            <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500 max-sm:hidden">Straits</h1>
           </Link>
-          <nav className="flex gap-1 ml-6 max-lg:ml-2">
+          <nav className="flex gap-1 ml-6 max-lg:ml-2 max-lg:min-w-0 max-lg:overflow-x-auto">
             <Link
               href="/dashboard"
               className={`inline-flex items-center whitespace-nowrap px-3 py-1 max-lg:min-h-[44px] max-lg:py-2.5 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
