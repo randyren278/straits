@@ -209,7 +209,9 @@ function collectWindow(): Promise<{ positions: Map<string, Pos>; statics: Map<st
     });
 
     ws.on('error', (err: Error) => {
-      console.error('WebSocket error:', err.message);
+      // Offline / DNS failure / AISStream down all land here. Not fatal: the
+      // window just ends empty and launchd retries in 10 minutes.
+      warn(`AIS websocket error: ${err.message}`);
       // Don't reconnect (this is one-shot); just end the window early.
       clearTimeout(windowTimer);
       finish();
@@ -460,6 +462,12 @@ async function main(): Promise<void> {
     const { positions, statics } = await collectWindow();
     status.uniqueVessels = positions.size;
     console.log(`Window closed: ${status.messagesReceived} msgs, ${positions.size} unique positions, ${statics.size} static records`);
+
+    // An empty window is a real condition (no network, AISStream down, a quiet
+    // patch of ocean), not a crash — but it must not read as a clean run.
+    if (status.messagesReceived === 0) {
+      warn('no AIS messages this window — offline, or AISStream unreachable');
+    }
 
     // Core: landing AIS data is what "ok" means.
     await upsertVessels(statics);   // vessels first (anomaly FK targets)

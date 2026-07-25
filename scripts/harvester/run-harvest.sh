@@ -27,17 +27,37 @@ cd "$REPO" || { echo "$(date -u +%FT%TZ) FATAL: repo not found at $REPO" >>"$LOG
 
 # Single-flight: the scheduled run and a manual "Run harvest now" must not
 # overlap (two harvests double-insert the same window and fight over the DB).
-# mkdir is atomic on macOS; a lock whose PID is gone is stale and reclaimed.
+# mkdir is atomic on macOS.
 LOCK_DIR="$LOG_DIR/harvest.lock"
+
+# A lock is stale if it is older than any possible harvest, OR its owner is
+# gone. Age is checked FIRST and is decisive, because PID liveness alone is not
+# trustworthy: a hard power-off leaves the lock behind (the EXIT trap never
+# runs), and after the reboot that PID number is very likely reused by an
+# unrelated process — kill -0 would then succeed forever and wedge the harvester
+# permanently. The harvest is hard-capped at HARVEST_HARD_TIMEOUT_MS (360s), so
+# 15 minutes is ~2.5x any legitimate run.
+LOCK_MAX_AGE_SEC=900
+lock_is_stale() {
+  local mtime age pid
+  mtime=$(stat -f %m "$LOCK_DIR" 2>/dev/null || echo 0)
+  age=$(( $(date +%s) - mtime ))
+  [ "$age" -gt "$LOCK_MAX_AGE_SEC" ] && return 0
+  pid=$(cat "$LOCK_DIR/pid" 2>/dev/null || echo "")
+  [ -z "$pid" ] && return 0
+  kill -0 "$pid" 2>/dev/null || return 0
+  return 1
+}
+
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  LOCK_PID=$(cat "$LOCK_DIR/pid" 2>/dev/null || echo "")
-  if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
-    echo "----- $(date -u +%FT%TZ) harvest skipped (already running, pid $LOCK_PID) -----" >>"$LOG"
+  if lock_is_stale; then
+    echo "----- $(date -u +%FT%TZ) reclaiming stale lock -----" >>"$LOG"
+    rm -rf "$LOCK_DIR"
+    mkdir "$LOCK_DIR" || { echo "$(date -u +%FT%TZ) FATAL: cannot acquire lock" >>"$LOG"; exit 1; }
+  else
+    echo "----- $(date -u +%FT%TZ) harvest skipped (already running, pid $(cat "$LOCK_DIR/pid" 2>/dev/null)) -----" >>"$LOG"
     exit 0
   fi
-  echo "----- $(date -u +%FT%TZ) reclaiming stale lock -----" >>"$LOG"
-  rm -rf "$LOCK_DIR"
-  mkdir "$LOCK_DIR" || { echo "$(date -u +%FT%TZ) FATAL: cannot acquire lock" >>"$LOG"; exit 1; }
 fi
 echo $$ > "$LOCK_DIR/pid"
 trap 'rm -rf "$LOCK_DIR"' EXIT

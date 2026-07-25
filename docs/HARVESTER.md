@@ -66,12 +66,49 @@ feed down. Four mechanisms, in the order they engage:
 4. **Single-flight lock.** `run-harvest.sh` takes an atomic `mkdir` lock in
    `~/.straits-harvester/harvest.lock`, so a manual "Run harvest now" during a
    scheduled run exits immediately instead of double-inserting the window. A
-   lock whose PID is gone is reclaimed as stale.
+   lock is stale if it is **older than 15 minutes** (checked first, and
+   decisive) or its owning PID is gone — see the reboot case below for why age
+   has to win.
 
 **Self-revival:** `launchd` restarts the process every 10 minutes, which covers
 crashes. The gap it does *not* cover is the agent being unloaded or wedged, so
 the SwiftBar plugin kickstarts the job whenever the last run is more than 30
 minutes old (without `-k`, so a legitimately running harvest is never killed).
+
+### Laptop closed, or no Wi-Fi
+
+Neither is an error state, and neither requires any intervention.
+
+**Mac asleep or powered off.** Nothing runs — expected, since the harvester
+lives here. On wake, `launchd` coalesces every missed fire into a single run
+(no backfill: AIS is a live broadcast with no replay, so the gap in track
+history is permanent and that is by design). On boot or login, `RunAtLoad`
+fires a run immediately. If SwiftBar is up, it also sees a `lastRun` older than
+30 minutes and kickstarts, so you get data back without waiting out the
+10-minute interval.
+
+The subtle failure here is the lock, not the schedule: a hard power-off leaves
+`harvest.lock` behind because the cleanup trap never runs, and after a reboot
+its PID number is likely reused by an unrelated process. Liveness alone would
+then read as "already running" *forever*. That is why staleness is decided by
+**age first** — any lock older than 15 minutes is stale regardless of who
+appears to own it, since a harvest is hard-capped at 6.
+
+**No Wi-Fi.** The websocket fails, the window ends empty, and both bulk writes
+return early without touching the DB — so the run still exits 0 rather than
+crashing. Both facts are recorded as warnings (`AIS websocket error: …` and
+`no AIS messages this window — offline, or AISStream unreachable`), so the menu
+bar goes amber with the reason named instead of quietly showing a clean run
+that collected nothing. The next fire reconnects from scratch; nothing carries
+over. If the network is up but Supabase is unreachable, the AIS write itself
+fails, `withDbRetry` retries, and only then does the run go red — which is
+correct, because that *is* a real failure.
+
+> **One caveat that no amount of local hardening fixes:** Supabase's free tier
+> pauses a project after ~7 days with no activity. If the Mac stays off that
+> long, the harvester will fail on return until you resume the project from the
+> Supabase dashboard. The 10-minute write cadence is what normally keeps it
+> awake.
 
 **Health signals** in `status.json`: `warnings[]` names each degraded step,
 `consecutiveFailures` counts runs since the last good one (the menu bar
