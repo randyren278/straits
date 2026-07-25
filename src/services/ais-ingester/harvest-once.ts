@@ -30,6 +30,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { pool } from '../../lib/db';
+import { withDbRetry } from './db-retry';
 
 // Anomaly detectors (run once, not on cron) — same set as detection-jobs.ts
 import { detectGoingDark } from '../../lib/detection/going-dark';
@@ -193,8 +194,10 @@ async function upsertVessels(statics: Map<string, Meta>): Promise<void> {
   // Prior destinations in one round-trip so we can log mid-voyage changes.
   const imos = rows.map((r) => r.imo);
   const prev = new Map<string, string | null>();
-  const { rows: prevRows } = await pool.query<{ imo: string; destination: string | null }>(
-    `SELECT imo, destination FROM vessels WHERE imo = ANY($1)`, [imos]
+  const { rows: prevRows } = await withDbRetry('vessels prior-destination select', () =>
+    pool.query<{ imo: string; destination: string | null }>(
+      `SELECT imo, destination FROM vessels WHERE imo = ANY($1)`, [imos]
+    )
   );
   for (const r of prevRows) prev.set(r.imo, r.destination);
 
@@ -207,16 +210,18 @@ async function upsertVessels(statics: Map<string, Meta>): Promise<void> {
       return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, NOW())`;
     }).join(', ');
     const params = chunk.flatMap((v) => [v.imo, v.mmsi, v.name, v.shipType, v.destination]);
-    await pool.query(
-      `INSERT INTO vessels (imo, mmsi, name, ship_type, destination, last_seen)
-       VALUES ${values}
-       ON CONFLICT (imo) DO UPDATE SET
-         mmsi = EXCLUDED.mmsi,
-         name = EXCLUDED.name,
-         ship_type = COALESCE(EXCLUDED.ship_type, vessels.ship_type),
-         destination = COALESCE(EXCLUDED.destination, vessels.destination),
-         last_seen = NOW()`,
-      params
+    await withDbRetry(`vessels upsert chunk ${i / CHUNK + 1}`, () =>
+      pool.query(
+        `INSERT INTO vessels (imo, mmsi, name, ship_type, destination, last_seen)
+         VALUES ${values}
+         ON CONFLICT (imo) DO UPDATE SET
+           mmsi = EXCLUDED.mmsi,
+           name = EXCLUDED.name,
+           ship_type = COALESCE(EXCLUDED.ship_type, vessels.ship_type),
+           destination = COALESCE(EXCLUDED.destination, vessels.destination),
+           last_seen = NOW()`,
+        params
+      )
     );
   }
   status.vesselsUpserted = rows.length;
@@ -233,9 +238,11 @@ async function upsertVessels(statics: Map<string, Meta>): Promise<void> {
       return `($${b + 1}, $${b + 2}, $${b + 3})`;
     }).join(', ');
     const params = changes.flatMap((v) => [v.imo, prev.get(v.imo)!, v.destination!]);
-    await pool.query(
-      `INSERT INTO vessel_destination_changes (imo, previous_destination, new_destination)
-       VALUES ${values}`, params
+    await withDbRetry('destination-change insert', () =>
+      pool.query(
+        `INSERT INTO vessel_destination_changes (imo, previous_destination, new_destination)
+         VALUES ${values}`, params
+      )
     );
     status.destinationChanges = changes.length;
   }
@@ -256,10 +263,12 @@ async function insertPositions(positions: Map<string, Pos>): Promise<void> {
       p.time, p.mmsi, p.imo, p.latitude, p.longitude,
       p.speed, p.course, p.heading, p.navStatus, p.lowConfidence,
     ]);
-    await pool.query(
-      `INSERT INTO vessel_positions
-       (time, mmsi, imo, latitude, longitude, speed, course, heading, nav_status, low_confidence)
-       VALUES ${values}`, params
+    await withDbRetry(`positions insert chunk ${i / CHUNK + 1}`, () =>
+      pool.query(
+        `INSERT INTO vessel_positions
+         (time, mmsi, imo, latitude, longitude, speed, course, heading, nav_status, low_confidence)
+         VALUES ${values}`, params
+      )
     );
   }
   status.positionsInserted = rows.length;
