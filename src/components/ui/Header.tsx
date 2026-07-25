@@ -97,12 +97,15 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             </Link>
           </nav>
         </div>
-        {/* Controls: search on its own line (mobile); rest in a single non-wrapping scroll strip */}
+        {/* Controls: search on its own line (mobile); rest below it */}
         <div className="flex items-center gap-4 max-lg:flex-col max-lg:items-stretch max-lg:gap-2 max-lg:px-0 max-lg:py-2 max-lg:border-t max-lg:border-amber-500/10">
           {activeTab === 'dashboard' && (
             <SearchInput onSelectVessel={onSearchSelect} />
           )}
-          <div className="flex items-center gap-4 max-lg:gap-3 max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:w-full [&>*]:shrink-0">
+          {/* Mobile: these wrap onto as many rows as they need. They used to sit in a
+              horizontal scroll strip, which hid ~310px of controls off the right edge
+              of a 390px phone with no visible cue that anything was there. */}
+          <div className="flex items-center gap-4 max-lg:flex-wrap max-lg:gap-x-3 max-lg:gap-y-2 max-lg:w-full [&>*]:shrink-0">
             {activeTab === 'dashboard' && (
               <>
                 <DataFreshness />
@@ -116,7 +119,9 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
         </div>
       </div>
       {activeTab === 'dashboard' && (
-        <div className="flex items-start px-4 py-2 border-t border-amber-500/10">
+        /* Mobile: toggle sits above the widgets, not inline to their left where it
+           stole 108px of an already-tight row. */
+        <div className="flex items-start px-4 py-2 border-t border-amber-500/10 max-lg:flex-col max-lg:gap-1">
           {/* Mobile: collapsed behind a toggle to reclaim the fold. Desktop: always shown. */}
           <button
             onClick={() => setChokepointsOpen((v) => !v)}
