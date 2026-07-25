@@ -43,8 +43,10 @@ export default function AboutPage() {
               <p className="text-gray-300 text-sm mb-1">
                 Vessel stops broadcasting AIS signal while in a known coverage zone. Normal gaps in open ocean are excluded — only gaps detected within monitored regional bounding boxes are flagged.
               </p>
-              <div className="text-gray-500 text-xs font-mono">
-                Suspected: 2–4 hour signal gap &nbsp;|&nbsp; Confirmed: &gt;4 hour signal gap
+              <div className="text-gray-500 text-xs font-mono flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-2">
+                <span>Suspected: 2–4 hour signal gap</span>
+                <span className="hidden sm:inline text-amber-500/40">|</span>
+                <span>Confirmed: &gt;4 hour signal gap</span>
               </div>
             </div>
 
@@ -54,8 +56,12 @@ export default function AboutPage() {
               <p className="text-gray-300 text-sm mb-1">
                 Vessel moving below 3 knots outside a known anchorage area, remaining within a 5 nautical mile radius for an extended period. Indicates possible at-sea waiting for a clandestine transfer or rendezvous.
               </p>
-              <div className="text-gray-500 text-xs font-mono">
-                Speed: &lt;3 knots &nbsp;|&nbsp; Radius: 5 nm &nbsp;|&nbsp; Outside known anchorages
+              <div className="text-gray-500 text-xs font-mono flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-2">
+                <span>Speed: &lt;3 knots</span>
+                <span className="hidden sm:inline text-amber-500/40">|</span>
+                <span>Radius: 5 nm</span>
+                <span className="hidden sm:inline text-amber-500/40">|</span>
+                <span>Outside known anchorages</span>
               </div>
             </div>
 
@@ -65,8 +71,10 @@ export default function AboutPage() {
               <p className="text-gray-300 text-sm mb-1">
                 Vessel speed drops below 3 knots outside port or anchorage areas. May indicate drifting, a disabled vessel, or intentional speed reduction to avoid detection windows.
               </p>
-              <div className="text-gray-500 text-xs font-mono">
-                Speed: &lt;3 knots &nbsp;|&nbsp; Outside port / anchorage zones
+              <div className="text-gray-500 text-xs font-mono flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-2">
+                <span>Speed: &lt;3 knots</span>
+                <span className="hidden sm:inline text-amber-500/40">|</span>
+                <span>Outside port / anchorage zones</span>
               </div>
             </div>
 
@@ -76,8 +84,12 @@ export default function AboutPage() {
               <p className="text-gray-300 text-sm mb-1">
                 Vessel heading contradicts its declared AIS destination. Detected by geocoding the declared destination via Nominatim and comparing actual heading to expected bearing. A deviation is confirmed when all positions over a 2-hour window show inconsistent heading.
               </p>
-              <div className="text-gray-500 text-xs font-mono">
-                Window: 2 hours &nbsp;|&nbsp; All positions must deviate &nbsp;|&nbsp; Geocoding: Nominatim / OpenStreetMap
+              <div className="text-gray-500 text-xs font-mono flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-2">
+                <span>Window: 2 hours</span>
+                <span className="hidden sm:inline text-amber-500/40">|</span>
+                <span>All positions must deviate</span>
+                <span className="hidden sm:inline text-amber-500/40">|</span>
+                <span>Geocoding: Nominatim / OpenStreetMap</span>
               </div>
             </div>
 
@@ -87,8 +99,10 @@ export default function AboutPage() {
               <p className="text-gray-300 text-sm mb-1">
                 Vessel has gone dark 3 or more times within a rolling 30-day window. Pattern strongly indicates deliberate AIS manipulation rather than equipment failure or communication blackspots.
               </p>
-              <div className="text-gray-500 text-xs font-mono">
-                Threshold: 3+ going-dark events &nbsp;|&nbsp; Window: 30 days rolling
+              <div className="text-gray-500 text-xs font-mono flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-2">
+                <span>Threshold: 3+ going-dark events</span>
+                <span className="hidden sm:inline text-amber-500/40">|</span>
+                <span>Window: 30 days rolling</span>
               </div>
             </div>
 
@@ -98,8 +112,10 @@ export default function AboutPage() {
               <p className="text-gray-300 text-sm mb-1">
                 Two vessels detected within 0.5 nautical miles of each other for 30 or more consecutive minutes. Ship-to-ship transfers at sea are a primary method for sanctions evasion and oil laundering — cargo is transferred between vessels to obscure origin.
               </p>
-              <div className="text-gray-500 text-xs font-mono">
-                Proximity: &lt;0.5 nm &nbsp;|&nbsp; Duration: 30+ consecutive minutes
+              <div className="text-gray-500 text-xs font-mono flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-2">
+                <span>Proximity: &lt;0.5 nm</span>
+                <span className="hidden sm:inline text-amber-500/40">|</span>
+                <span>Duration: 30+ consecutive minutes</span>
               </div>
             </div>
 
