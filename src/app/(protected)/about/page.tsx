@@ -8,12 +8,20 @@
 
 import { Header } from '@/components/ui/Header';
 
+const RISK_ROWS = [
+  { factor: 'Going Dark History', points: '8 pts / event', note: 'Capped at 40 pts (5 events max contribution)' },
+  { factor: 'Sanctions Match', points: '25 pts', note: 'Binary — vessel IMO appears in OpenSanctions database' },
+  { factor: 'Flag State Risk', points: '15 pts', note: 'High-risk flags: IR, RU, VE, KP, PA, CM, KM' },
+  { factor: 'Loitering History', points: '10 pts', note: 'Binary — any loitering event in past 90 days' },
+  { factor: 'STS Transfer History', points: '10 pts', note: 'Binary — any STS transfer event on record' },
+];
+
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <Header />
 
-      <main className="p-6 max-w-4xl mx-auto">
+      <main className="p-6 max-w-7xl mx-auto max-md:p-3">
         {/* Page title */}
         <div className="mb-6">
           <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">About Straits</h1>
@@ -107,7 +115,7 @@ export default function AboutPage() {
             <p className="text-gray-300 text-sm mb-4">
               A composite score (0–100) that aggregates evasion signals per vessel. Higher scores indicate a stronger pattern of behavior associated with sanctions evasion or illicit oil trade. The score updates whenever new anomaly events are detected.
             </p>
-            <table className="w-full font-mono text-sm" style={{ borderCollapse: 'collapse' }}>
+            <table className="hidden md:table w-full font-mono text-sm" style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr className="border-b border-amber-500/20">
                   <th className="py-2 px-3 text-left text-xs text-amber-500 uppercase tracking-wider">Factor</th>
@@ -148,6 +156,23 @@ export default function AboutPage() {
                 </tr>
               </tbody>
             </table>
+
+            {/* Mobile stacked view — full-width notes, readable on a phone */}
+            <div className="md:hidden space-y-2">
+              {RISK_ROWS.map((r) => (
+                <div key={r.factor} className="border border-amber-500/20 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-300 text-sm">{r.factor}</span>
+                    <span className="text-amber-500 text-sm">{r.points}</span>
+                  </div>
+                  <div className="text-gray-500 text-xs mt-1">{r.note}</div>
+                </div>
+              ))}
+              <div className="flex items-center justify-between border-t border-amber-500/20 pt-2 px-3">
+                <span className="text-amber-500 font-bold text-sm">Total Maximum</span>
+                <span className="text-amber-500 font-bold text-sm">100 pts</span>
+              </div>
+            </div>
           </div>
         </div>
 
