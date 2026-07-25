@@ -25,6 +25,23 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PAT
 
 cd "$REPO" || { echo "$(date -u +%FT%TZ) FATAL: repo not found at $REPO" >>"$LOG"; exit 1; }
 
+# Single-flight: the scheduled run and a manual "Run harvest now" must not
+# overlap (two harvests double-insert the same window and fight over the DB).
+# mkdir is atomic on macOS; a lock whose PID is gone is stale and reclaimed.
+LOCK_DIR="$LOG_DIR/harvest.lock"
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  LOCK_PID=$(cat "$LOCK_DIR/pid" 2>/dev/null || echo "")
+  if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
+    echo "----- $(date -u +%FT%TZ) harvest skipped (already running, pid $LOCK_PID) -----" >>"$LOG"
+    exit 0
+  fi
+  echo "----- $(date -u +%FT%TZ) reclaiming stale lock -----" >>"$LOG"
+  rm -rf "$LOCK_DIR"
+  mkdir "$LOCK_DIR" || { echo "$(date -u +%FT%TZ) FATAL: cannot acquire lock" >>"$LOG"; exit 1; }
+fi
+echo $$ > "$LOCK_DIR/pid"
+trap 'rm -rf "$LOCK_DIR"' EXIT
+
 echo "----- $(date -u +%FT%TZ) harvest start -----" >>"$LOG"
 
 # --env-file loads .env.harvester (DATABASE_URL + AISSTREAM_API_KEY + FRED_API_KEY).

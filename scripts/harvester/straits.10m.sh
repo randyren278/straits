@@ -42,6 +42,15 @@ read_json() {
   fi
 }
 
+# warnings is an array — count it, and list the entries one per line.
+read_warnings() {
+  if command -v jq >/dev/null 2>&1; then
+    jq -r '(.warnings // [])[]' "$STATUS" 2>/dev/null
+  else
+    python3 -c "import json; print('\n'.join(json.load(open('$STATUS')).get('warnings') or []))" 2>/dev/null
+  fi
+}
+
 OK=$(read_json '.ok' 'ok')
 LAST=$(read_json '.lastRun' 'lastRun')
 INSERTED=$(read_json '.positionsInserted' 'positionsInserted')
@@ -53,6 +62,11 @@ DBMB=$(read_json '.dbSizeMB' 'dbSizeMB')
 NEWS=$(read_json '.newsRefreshed' 'newsRefreshed')
 PRUNED=$(read_json '.pruned' 'pruned')
 ERR=$(read_json '.error' 'error')
+FAILS=$(read_json '.consecutiveFailures' 'consecutiveFailures')
+LASTOK=$(read_json '.lastOkRun' 'lastOkRun')
+WARNINGS=$(read_warnings)
+WARN_COUNT=0
+[ -n "$WARNINGS" ] && WARN_COUNT=$(printf '%s\n' "$WARNINGS" | wc -l | tr -d ' ')
 
 # --- freshness: minutes since last run (status stores UTC, e.g. 2026-07-24T21:04:38.511Z) ---
 AGE_MIN="?"
@@ -67,10 +81,21 @@ if [ -n "$LAST" ]; then
   fi
 fi
 
-# --- menu-bar line: green if last run ok & recent, amber if stale, red if failed ---
+# --- self-revival: if no run has landed in 30+ min, launchd's StartInterval is
+# not firing (agent unloaded, Mac was asleep, job wedged). Nudge it. No -k, so a
+# legitimately running harvest is never killed; run-harvest.sh's lock handles
+# the rest. Backgrounded so the menu never blocks on it.
+if [ "$AGE_MIN" != "?" ] && [ "$AGE_MIN" -gt 30 ] 2>/dev/null; then
+  ( launchctl kickstart "gui/$(id -u)/local.straits.harvester" >/dev/null 2>&1 & ) 2>/dev/null
+  REVIVED="yes"
+fi
+
+# --- menu-bar line: green if ok & recent, amber if degraded or stale, red if failed ---
 if [ "$OK" = "true" ] || [ "$OK" = "True" ]; then
   if [ "$AGE_MIN" != "?" ] && [ "$AGE_MIN" -gt 30 ] 2>/dev/null; then
     echo "🚢 ${INSERTED:-0} | color=orange"   # ran ok but data is stale (>30m)
+  elif [ "$WARN_COUNT" -gt 0 ] 2>/dev/null; then
+    echo "🚢 ${INSERTED:-0} ⚠ | color=orange" # AIS landed, some step degraded
   else
     echo "🚢 ${INSERTED:-0} | color=green"
   fi
@@ -81,14 +106,28 @@ fi
 echo "---"
 echo "STRAITS · AIS Harvester | size=11 color=gray"
 if [ "$OK" = "true" ] || [ "$OK" = "True" ]; then
-  echo "Last run: ${AGE_MIN}m ago | color=gray"
+  if [ "$WARN_COUNT" -gt 0 ] 2>/dev/null; then
+    echo "Last run OK (${AGE_MIN}m ago) · ${WARN_COUNT} degraded | color=orange"
+  else
+    echo "Last run: ${AGE_MIN}m ago | color=gray"
+  fi
 else
   echo "Last run FAILED: ${ERR:-unknown} | color=red"
+  [ -n "$FAILS" ] && [ "$FAILS" -gt 1 ] 2>/dev/null && echo "Failing for ${FAILS} runs in a row | color=red"
+  [ -n "$LASTOK" ] && echo "Last good run: $LASTOK | size=11 color=gray"
+fi
+[ -n "$REVIVED" ] && echo "Stale >30m — kickstarted the agent | color=orange size=11"
+# Name the degraded steps rather than a generic "failed".
+if [ -n "$WARNINGS" ]; then
+  echo "---"
+  printf '%s\n' "$WARNINGS" | while IFS= read -r w; do
+    [ -n "$w" ] && echo "⚠ $w | size=11 color=orange"
+  done
 fi
 echo "---"
 echo "Positions inserted: ${INSERTED:-0}  (of ${UNIQUE:-0} unique)"
 echo "Messages this window: ${MSGS:-0}"
-echo "Active anomalies: ${ANOM:-0}"
+echo "Active anomalies: ${ANOM:-— (detectors did not run)}"
 echo "News refreshed: ${NEWS:-0}"
 echo "Pruned (>7d): ${PRUNED:-0}"
 echo "---"

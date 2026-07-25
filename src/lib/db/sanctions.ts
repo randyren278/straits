@@ -134,26 +134,59 @@ export async function upsertSanction(entry: SanctionEntry): Promise<void> {
  * Batch upsert sanctions entries with stale cleanup.
  *
  * Strategy:
- * 1. Upsert all entries within a single transaction (individual INSERTs)
+ * 1. Upsert all entries within a single transaction, chunked into multi-row
+ *    INSERTs (500 rows per statement)
  * 2. Delete entries not present in the current fetch (stale cleanup)
  *
- * Using individual upserts in a transaction rather than unnest because
- * PostgreSQL unnest can't handle arrays of arrays (text[][]) from node-pg.
- * ~16,900 individual INSERTs in a transaction completes in <10 seconds.
+ * Chunking matters over the network: one statement per entry meant ~16,900
+ * round-trips, which at the Supabase pooler's ~25ms RTT took ~7 minutes and
+ * blew past the harvester's hard timeout, so the transaction never committed.
+ * At 500 rows per statement the same list is ~34 round-trips.
  *
  * @param entries - Full list of sanction entries from the latest CSV fetch
  * @returns Object with counts of upserted and deleted entries
  */
+const SANCTIONS_CHUNK_SIZE = 500;
+
 export async function batchUpsertSanctions(
   entries: SanctionEntry[]
 ): Promise<{ upserted: number; deleted: number }> {
   if (entries.length === 0) return { upserted: 0, deleted: 0 };
 
+  // Multi-row ON CONFLICT fails if one statement touches the same IMO twice
+  // ("cannot affect row a second time"), so collapse duplicates first.
+  const byImo = new Map<string, SanctionEntry>();
+  for (const entry of entries) byImo.set(entry.imo, entry);
+  const rows = [...byImo.values()];
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    for (const entry of entries) {
+    const cols = 12;
+    for (let i = 0; i < rows.length; i += SANCTIONS_CHUNK_SIZE) {
+      const chunk = rows.slice(i, i + SANCTIONS_CHUNK_SIZE);
+      const values = chunk
+        .map((_, j) => {
+          const b = j * cols;
+          return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}, $${b + 8}, $${b + 9}, $${b + 10}, $${b + 11}, $${b + 12}, NOW())`;
+        })
+        .join(', ');
+      const params = chunk.flatMap((entry) => [
+        entry.imo,
+        entry.authority,
+        entry.reason,
+        entry.sourceUrl,
+        entry.riskCategory || null,
+        entry.datasets.length > 0 ? entry.datasets : null,
+        entry.flag || null,
+        entry.mmsi || null,
+        entry.aliases.length > 0 ? entry.aliases : null,
+        entry.opensanctionsUrl || null,
+        entry.vesselType || null,
+        entry.name || null,
+      ]);
+
       await client.query(
         `
         INSERT INTO vessel_sanctions (
@@ -161,7 +194,7 @@ export async function batchUpsertSanctions(
           risk_category, datasets, flag, mmsi, aliases, opensanctions_url, vessel_type, name,
           updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+        VALUES ${values}
         ON CONFLICT (imo) DO UPDATE SET
           sanctioning_authority = EXCLUDED.sanctioning_authority,
           reason = EXCLUDED.reason,
@@ -176,25 +209,12 @@ export async function batchUpsertSanctions(
           name = EXCLUDED.name,
           updated_at = NOW()
         `,
-        [
-          entry.imo,
-          entry.authority,
-          entry.reason,
-          entry.sourceUrl,
-          entry.riskCategory || null,
-          entry.datasets.length > 0 ? entry.datasets : null,
-          entry.flag || null,
-          entry.mmsi || null,
-          entry.aliases.length > 0 ? entry.aliases : null,
-          entry.opensanctionsUrl || null,
-          entry.vesselType || null,
-          entry.name || null,
-        ]
+        params
       );
     }
 
     // Delete stale entries — vessels no longer in the latest fetch
-    const allImos = entries.map((e) => e.imo);
+    const allImos = rows.map((e) => e.imo);
     const deleteResult = await client.query(
       `DELETE FROM vessel_sanctions WHERE imo != ALL($1::text[])`,
       [allImos]
@@ -202,7 +222,7 @@ export async function batchUpsertSanctions(
     const deleted = deleteResult.rowCount ?? 0;
 
     await client.query('COMMIT');
-    return { upserted: entries.length, deleted };
+    return { upserted: rows.length, deleted };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

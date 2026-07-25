@@ -8,11 +8,20 @@
  *   1. Connect to AISStream, collect messages for HARVEST_WINDOW_MS (~90s)
  *   2. Dedupe to the LATEST position per vessel this window (10-min-resolution
  *      tracks — keeps Supabase free-tier storage bounded vs. raw firehose)
- *   3. Bulk-upsert vessels + bulk-insert positions
- *   4. Run the anomaly detectors once, and refresh prices/news/sanctions
- *      (each freshness-gated so a 10-min cadence never hammers the APIs)
- *   5. Prune vessel_positions older than RETENTION_DAYS (default 7)
- *   6. Write status.json (for the SwiftBar menu bar), then exit 0/1
+ *   3. Bulk-upsert vessels + bulk-insert positions  ← the core; success is
+ *      judged on this alone
+ *   4. Run the anomaly detectors once
+ *   5. Prune vessel_positions older than RETENTION_DAYS (default 7) + measure
+ *   6. Refresh prices/news/sanctions (each freshness-gated so a 10-min cadence
+ *      never hammers the APIs)
+ *   7. Write status.json (for the SwiftBar menu bar), then exit 0/1
+ *
+ * Steps 4-6 each run under a time budget against the hard deadline and are
+ * SKIPPED (recorded as a warning) rather than allowed to overrun. Housekeeping
+ * comes before enrichment so the cheap, always-wanted work can't be starved by
+ * a slow external API. A run that lands positions reports ok=true even if
+ * enrichment was skipped — the menu bar shows amber for that, red only when
+ * the AIS core itself failed.
  *
  * It reuses the SAME db pool + detector/refresh functions as the daemon, so
  * behavior stays identical — it just drives them once instead of on cron.
@@ -21,12 +30,12 @@
  *   DATABASE_URL          Supabase transaction pooler (:6543) + ?sslmode=no-verify
  *   AISSTREAM_API_KEY     free AISStream key
  *   HARVEST_WINDOW_MS     collection window (default 90000)
- *   HARVEST_HARD_TIMEOUT_MS  safety kill (default 240000)
+ *   HARVEST_HARD_TIMEOUT_MS  safety kill (default 300000)
  *   RETENTION_DAYS        prune horizon (default 7)
  *   STRAITS_STATE_DIR     where status.json is written (default ~/.straits-harvester)
  */
 import WebSocket from 'ws';
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { pool } from '../../lib/db';
@@ -52,7 +61,7 @@ import { batchUpsertSanctions, migrateSanctionsSchema } from '../../lib/db/sanct
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const WINDOW_MS = Number(process.env.HARVEST_WINDOW_MS ?? 90_000);
-const HARD_TIMEOUT_MS = Number(process.env.HARVEST_HARD_TIMEOUT_MS ?? 240_000);
+const HARD_TIMEOUT_MS = Number(process.env.HARVEST_HARD_TIMEOUT_MS ?? 360_000);
 const RETENTION_DAYS = Number(process.env.RETENTION_DAYS ?? 7);
 const STATE_DIR = process.env.STRAITS_STATE_DIR || join(homedir(), '.straits-harvester');
 const STATUS_PATH = join(STATE_DIR, 'status.json');
@@ -93,18 +102,35 @@ type Status = {
   lastRun: string; ok: boolean; error: string | null; durationMs: number;
   windowMs: number; messagesReceived: number; uniqueVessels: number;
   positionsInserted: number; vesselsUpserted: number; destinationChanges: number;
-  anomalies: number; pricesRefreshed: boolean; newsRefreshed: number;
+  /** null when the detector pass didn't finish — "unknown", not "zero". */
+  anomalies: number | null; pricesRefreshed: boolean; newsRefreshed: number;
   sanctionsRefreshed: boolean; pruned: number;
   positionsTotal: number | null; dbSizeMB: number | null; positionsSizeMB: number | null;
+  /** Non-fatal step failures/skips this run — surfaced in the menu bar as amber. */
+  warnings: string[];
+  /** Runs since the last ok=true one; drives menu-bar escalation. */
+  consecutiveFailures: number;
+  /** ISO timestamp of the last run whose AIS core succeeded. */
+  lastOkRun: string | null;
 };
 const status: Status = {
   lastRun: '', ok: false, error: null, durationMs: 0,
   windowMs: WINDOW_MS, messagesReceived: 0, uniqueVessels: 0,
   positionsInserted: 0, vesselsUpserted: 0, destinationChanges: 0,
-  anomalies: 0, pricesRefreshed: false, newsRefreshed: 0,
+  anomalies: null, pricesRefreshed: false, newsRefreshed: 0,
   sanctionsRefreshed: false, pruned: 0,
   positionsTotal: null, dbSizeMB: null, positionsSizeMB: null,
+  warnings: [], consecutiveFailures: 0, lastOkRun: null,
 };
+
+/** Previous run's status, for the failure streak + last-ok carry-forward. */
+function readPrevStatus(): Partial<Status> {
+  try {
+    return JSON.parse(readFileSync(STATUS_PATH, 'utf8')) as Partial<Status>;
+  } catch {
+    return {};
+  }
+}
 
 function writeStatus(startedAt: number): void {
   status.durationMs = Date.now() - startedAt;
@@ -114,6 +140,12 @@ function writeStatus(startedAt: number): void {
   } catch (err) {
     console.error('Failed to write status:', (err as Error).message);
   }
+}
+
+/** Record a non-fatal problem: logged, kept in status, never fails the run. */
+function warn(message: string): void {
+  console.warn(`WARN: ${message}`);
+  status.warnings.push(message);
 }
 
 // ── Collect a bounded window of AIS messages ──────────────────────────────────
@@ -274,33 +306,65 @@ async function insertPositions(positions: Map<string, Pos>): Promise<void> {
   status.positionsInserted = rows.length;
 }
 
+// ── Time-budgeted steps ───────────────────────────────────────────────────────
+/** Absolute wall-clock deadline (set in main from HARD_TIMEOUT_MS). */
+let deadline = Number.POSITIVE_INFINITY;
+
+/**
+ * Run a non-core step under a time budget.
+ *
+ * Skipped (not failed) when the time left before the hard deadline can't cover
+ * the budget, and abandoned if it overruns. Either way the harvest continues
+ * and the problem lands in status.warnings — these steps never decide ok/not-ok.
+ * This is what stops one slow external dependency from killing the whole run.
+ */
+async function step(name: string, budgetMs: number, fn: () => Promise<void>): Promise<void> {
+  const remaining = deadline - Date.now();
+  if (remaining < budgetMs) {
+    warn(`${name} skipped — ${Math.round(remaining / 1000)}s left, needs ${Math.round(budgetMs / 1000)}s`);
+    return;
+  }
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([
+      fn(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`exceeded ${Math.round(budgetMs / 1000)}s budget`)),
+          budgetMs
+        );
+      }),
+    ]);
+  } catch (err) {
+    warn(`${name} failed — ${(err as Error).message}`);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 // ── Run all detectors once ────────────────────────────────────────────────────
 async function runDetectors(): Promise<void> {
-  try {
-    const going = await detectGoingDark();
-    await generateAlertsForNewAnomalies('going_dark');
+  const going = await detectGoingDark();
+  await generateAlertsForNewAnomalies('going_dark');
 
-    const results = await Promise.allSettled([
-      detectLoitering(), detectSpeedAnomaly(), detectDeviation(),
-      detectRepeatGoingDark(), detectStsTransfers(), detectSpoofedPositions(),
-    ]);
-    const counts = results.map((r) => (r.status === 'fulfilled' ? r.value : 0));
-    const routeTotal = counts.reduce((a, b) => a + b, 0);
+  const results = await Promise.allSettled([
+    detectLoitering(), detectSpeedAnomaly(), detectDeviation(),
+    detectRepeatGoingDark(), detectStsTransfers(), detectSpoofedPositions(),
+  ]);
+  const counts = results.map((r) => (r.status === 'fulfilled' ? r.value : 0));
+  const routeTotal = counts.reduce((a, b) => a + b, 0);
 
-    await computeRiskScores();
-    await Promise.allSettled([
-      generateAlertsForNewAnomalies('loitering'),
-      generateAlertsForNewAnomalies('speed'),
-      generateAlertsForNewAnomalies('deviation'),
-      generateAlertsForNewAnomalies('repeat_going_dark'),
-      generateAlertsForNewAnomalies('sts_transfer'),
-      generateAlertsForNewAnomalies('spoofed_position'),
-    ]);
-    status.anomalies = going + routeTotal;
-    console.log(`Detectors: ${going} going_dark + ${routeTotal} route anomalies`);
-  } catch (err) {
-    console.error('Detector pass error:', (err as Error).message);
-  }
+  await computeRiskScores();
+  await Promise.allSettled([
+    generateAlertsForNewAnomalies('loitering'),
+    generateAlertsForNewAnomalies('speed'),
+    generateAlertsForNewAnomalies('deviation'),
+    generateAlertsForNewAnomalies('repeat_going_dark'),
+    generateAlertsForNewAnomalies('sts_transfer'),
+    generateAlertsForNewAnomalies('spoofed_position'),
+  ]);
+  status.anomalies = going + routeTotal;
+  console.log(`Detectors: ${going} going_dark + ${routeTotal} route anomalies`);
 }
 
 // ── Freshness-gated enrichment refresh ────────────────────────────────────────
@@ -313,66 +377,66 @@ async function isStale(sql: string, minutes: number): Promise<boolean> {
   } catch { return true; }
 }
 
-async function refreshEnrichment(): Promise<void> {
-  // Prices: FRED, refresh at most every 3h.
-  if (await isStale(`SELECT MAX(fetched_at) AS ts FROM oil_prices`, 180)) {
-    try {
-      const prices = await fetchOilPrices();
-      for (const p of prices) await insertPrice(p);
-      status.pricesRefreshed = prices.length > 0;
-      console.log(`Prices refreshed: ${prices.length}`);
-    } catch (err) { console.error('Prices refresh error:', (err as Error).message); }
-  }
-  // News: keyless RSS, refresh at most every 25m.
-  if (await isStale(`SELECT MAX(created_at) AS ts FROM news_items`, 25)) {
-    try {
-      const news = await fetchNews();
-      for (const n of news) await insertNewsItem(n);
-      status.newsRefreshed = news.length;
-      console.log(`News refreshed: ${news.length}`);
-    } catch (err) { console.error('News refresh error:', (err as Error).message); }
-  }
-  // Sanctions: big CSV, refresh at most every 20h (≈daily).
-  if (await isStale(`SELECT MAX(updated_at) AS ts FROM vessel_sanctions`, 20 * 60)) {
-    try {
-      await migrateSanctionsSchema();
-      const entries = await fetchSanctionsList();
-      const res = await batchUpsertSanctions(entries);
-      status.sanctionsRefreshed = true;
-      console.log(`Sanctions refreshed: ${res.upserted} upserted, ${res.deleted} removed`);
-    } catch (err) { console.error('Sanctions refresh error:', (err as Error).message); }
-  }
+/** Prices: FRED, refresh at most every 3h. */
+async function refreshPrices(): Promise<void> {
+  if (!(await isStale(`SELECT MAX(fetched_at) AS ts FROM oil_prices`, 180))) return;
+  const prices = await fetchOilPrices();
+  for (const p of prices) await insertPrice(p);
+  status.pricesRefreshed = prices.length > 0;
+  console.log(`Prices refreshed: ${prices.length}`);
+}
+
+/** News: keyless RSS, refresh at most every 25m. */
+async function refreshNews(): Promise<void> {
+  if (!(await isStale(`SELECT MAX(created_at) AS ts FROM news_items`, 25))) return;
+  const news = await fetchNews();
+  for (const n of news) await insertNewsItem(n);
+  status.newsRefreshed = news.length;
+  console.log(`News refreshed: ${news.length}`);
+}
+
+/** Sanctions: ~21k-row CSV, refresh at most every 20h (≈daily). */
+async function refreshSanctions(): Promise<void> {
+  if (!(await isStale(`SELECT MAX(updated_at) AS ts FROM vessel_sanctions`, 20 * 60))) return;
+  await migrateSanctionsSchema();
+  const entries = await fetchSanctionsList();
+  const res = await batchUpsertSanctions(entries);
+  status.sanctionsRefreshed = true;
+  console.log(`Sanctions refreshed: ${res.upserted} upserted, ${res.deleted} removed`);
 }
 
 // ── Prune + size metrics ──────────────────────────────────────────────────────
 async function pruneAndMeasure(): Promise<void> {
-  try {
-    const res = await pool.query(
-      `DELETE FROM vessel_positions WHERE time < NOW() - ($1 || ' days')::interval`,
-      [String(RETENTION_DAYS)]
-    );
-    status.pruned = res.rowCount ?? 0;
-    console.log(`Pruned ${status.pruned} positions older than ${RETENTION_DAYS}d`);
-  } catch (err) { console.error('Prune error:', (err as Error).message); }
+  const res = await pool.query(
+    `DELETE FROM vessel_positions WHERE time < NOW() - ($1 || ' days')::interval`,
+    [String(RETENTION_DAYS)]
+  );
+  status.pruned = res.rowCount ?? 0;
+  console.log(`Pruned ${status.pruned} positions older than ${RETENTION_DAYS}d`);
 
-  try {
-    const { rows } = await pool.query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM vessel_positions`);
-    status.positionsTotal = parseInt(rows[0].c, 10);
-  } catch { /* best-effort */ }
-  try {
-    const { rows } = await pool.query<{ db: string; tbl: string }>(
-      `SELECT pg_database_size(current_database())::text AS db,
-              pg_total_relation_size('vessel_positions')::text AS tbl`
-    );
-    status.dbSizeMB = Math.round(parseInt(rows[0].db, 10) / 1e5) / 10;
-    status.positionsSizeMB = Math.round(parseInt(rows[0].tbl, 10) / 1e5) / 10;
-  } catch { /* best-effort */ }
+  const { rows: countRows } = await pool.query<{ c: string }>(
+    `SELECT COUNT(*)::text AS c FROM vessel_positions`
+  );
+  status.positionsTotal = parseInt(countRows[0].c, 10);
+
+  const { rows: sizeRows } = await pool.query<{ db: string; tbl: string }>(
+    `SELECT pg_database_size(current_database())::text AS db,
+            pg_total_relation_size('vessel_positions')::text AS tbl`
+  );
+  status.dbSizeMB = Math.round(parseInt(sizeRows[0].db, 10) / 1e5) / 10;
+  status.positionsSizeMB = Math.round(parseInt(sizeRows[0].tbl, 10) / 1e5) / 10;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
   const startedAt = Date.now();
+  deadline = startedAt + HARD_TIMEOUT_MS;
   status.lastRun = new Date(startedAt).toISOString();
+
+  const prev = readPrevStatus();
+  const prevFailures = prev.consecutiveFailures ?? 0;
+  status.consecutiveFailures = prevFailures + 1; // cleared below once the core lands
+  status.lastOkRun = prev.lastOkRun ?? null;
 
   if (!process.env.DATABASE_URL || !process.env.AISSTREAM_API_KEY) {
     status.error = 'DATABASE_URL and AISSTREAM_API_KEY are required';
@@ -381,12 +445,14 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Safety valve: guarantee termination even if a socket/query hangs.
+  // Safety valve: guarantee termination even if a socket/query hangs. The
+  // budgets above should make this unreachable; it stays as a backstop, and it
+  // preserves whatever the core already achieved rather than reporting red.
   const killer = setTimeout(() => {
     status.error = 'hard timeout';
     console.error('Hard timeout reached — forcing exit');
     writeStatus(startedAt);
-    process.exit(1);
+    process.exit(status.ok ? 0 : 1);
   }, HARD_TIMEOUT_MS);
   killer.unref();
 
@@ -395,14 +461,26 @@ async function main(): Promise<void> {
     status.uniqueVessels = positions.size;
     console.log(`Window closed: ${status.messagesReceived} msgs, ${positions.size} unique positions, ${statics.size} static records`);
 
+    // Core: landing AIS data is what "ok" means.
     await upsertVessels(statics);   // vessels first (anomaly FK targets)
     await insertPositions(positions);
-    await runDetectors();
-    await refreshEnrichment();
-    await pruneAndMeasure();
-
     status.ok = true;
-    console.log(`Harvest OK in ${Date.now() - startedAt}ms`);
+    status.consecutiveFailures = 0;
+    status.lastOkRun = status.lastRun;
+
+    // Everything past here is best-effort and time-budgeted. Housekeeping runs
+    // before enrichment so a slow external API can't starve the prune.
+    // Budgets are sized from measured cost, not guessed: the detector pass is
+    // the expensive one (~50-120s over the pooler); prune/prices/news/sanctions
+    // are all seconds, so they get modest ceilings and the detectors get room.
+    await step('detectors', 150_000, runDetectors);
+    await step('prune + measure', 30_000, pruneAndMeasure);
+    await step('prices refresh', 20_000, refreshPrices);
+    await step('news refresh', 30_000, refreshNews);
+    await step('sanctions refresh', 60_000, refreshSanctions);
+
+    if (status.warnings.length > 0) status.error = `${status.warnings.length} step(s) degraded`;
+    console.log(`Harvest OK in ${Date.now() - startedAt}ms (${status.warnings.length} warnings)`);
   } catch (err) {
     status.ok = false;
     status.error = (err as Error).message;

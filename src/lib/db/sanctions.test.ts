@@ -118,11 +118,27 @@ describe('Sanctions CRUD', () => {
         if (sql.startsWith('DELETE')) return 'DELETE';
         return sql;
       });
+      // Both entries fit in one chunked INSERT.
       expect(calls[0]).toBe('BEGIN');
       expect(calls[1]).toBe('INSERT');
-      expect(calls[2]).toBe('INSERT');
-      expect(calls[3]).toBe('DELETE');
-      expect(calls[4]).toBe('COMMIT');
+      expect(calls[2]).toBe('DELETE');
+      expect(calls[3]).toBe('COMMIT');
+    });
+
+    it('batches upserts into multi-row statements', async () => {
+      // 1,200 entries must not become 1,200 round-trips — over a remote pooler
+      // (~25ms RTT) the full 16.9k list would blow past the harvest hard timeout.
+      const entries = Array.from({ length: 1200 }, (_, i) =>
+        makeSanctionEntry({ imo: String(1000000 + i) })
+      );
+
+      const result = await batchUpsertSanctions(entries);
+
+      const inserts = mockClient.query.mock.calls.filter((c: unknown[]) =>
+        (c[0] as string).trim().startsWith('INSERT')
+      );
+      expect(inserts).toHaveLength(3); // ceil(1200 / 500)
+      expect(result.upserted).toBe(1200);
     });
 
     it('deletes stale entries not in current fetch', async () => {
