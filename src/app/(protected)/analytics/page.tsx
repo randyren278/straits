@@ -144,15 +144,15 @@ export default function AnalyticsPage() {
           </div>
           <div>
             <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">View</label>
-            <div className="flex gap-1">
+            <div className="flex gap-1 max-md:gap-2">
               {(['chokepoint', 'route'] as const).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
                   className={
                     viewMode === mode
-                      ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1'
-                      : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1'
+                      ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1 max-md:min-h-[44px] max-md:px-3 inline-flex items-center'
+                      : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1 max-md:min-h-[44px] max-md:px-3 inline-flex items-center'
                   }
                 >
                   {mode}
@@ -171,15 +171,15 @@ export default function AnalyticsPage() {
               </div>
               <div>
                 <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Price</label>
-                <div className="flex gap-1">
+                <div className="flex gap-1 max-md:gap-2">
                   {(['WTI', 'BRENT'] as const).map((symbol) => (
                     <button
                       key={symbol}
                       onClick={() => setPriceSymbol(symbol)}
                       className={
                         priceSymbol === symbol
-                          ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1'
-                          : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1'
+                          ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1 max-md:min-h-[44px] max-md:px-3 inline-flex items-center'
+                          : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1 max-md:min-h-[44px] max-md:px-3 inline-flex items-center'
                       }
                     >
                       {symbol}
@@ -191,15 +191,15 @@ export default function AnalyticsPage() {
           )}
           <div>
             <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Ship Type</label>
-            <div className="flex gap-1">
+            <div className="flex gap-1 max-md:gap-2">
               {(['all', 'tanker', 'cargo', 'other'] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setShipTypeFilter(f)}
                   className={
                     shipTypeFilter === f
-                      ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1'
-                      : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1'
+                      ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1 max-md:min-h-[44px] max-md:px-3 inline-flex items-center'
+                      : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1 max-md:min-h-[44px] max-md:px-3 inline-flex items-center'
                   }
                 >
                   {f}
