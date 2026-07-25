@@ -11,3 +11,18 @@
      maps the Tailwind font-mono utility to it. */
   --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
 }
+
+/* MapLibre attribution — override the default white rounded pill to match the
+   terminal aesthetic (Tailwind utilities don't apply to vendor DOM, so literal
+   values; amber-500 = rgb(245 158 11)). */
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  background: rgba(0, 0, 0, 0.7) !important;
+  color: rgb(245 158 11) !important;
+  border: 1px solid rgba(245, 158, 11, 0.2) !important;
+  border-radius: 0 !important;
+  font-family: var(--font-jetbrains), ui-monospace, monospace !important;
+  font-size: 9px !important;
+}
+.maplibregl-ctrl-attrib a { color: rgb(245 158 11) !important; }
+.maplibregl-ctrl-attrib-button { filter: invert(1) sepia(1) saturate(5) hue-rotate(5deg) !important; }
