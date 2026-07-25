@@ -57,7 +57,7 @@ export function NewsPanel() {
         onClick={() => setCollapsed(!collapsed)}
         aria-expanded={!collapsed}
         aria-label={collapsed ? 'Expand intel feed' : 'Collapse intel feed'}
-        className="w-full px-3 py-1.5 border-b border-amber-500/20 flex items-center justify-between hover:bg-white/5 transition-colors"
+        className="w-full px-3 py-1.5 max-lg:min-h-[44px] border-b border-amber-500/20 flex items-center justify-between hover:bg-white/5 transition-colors"
       >
         <span className="text-xs text-amber-500 font-mono uppercase tracking-widest">INTEL FEED</span>
         {collapsed ? <ChevronDown className="w-3 h-3 text-amber-500/60" /> : <ChevronUp className="w-3 h-3 text-amber-500/60" />}

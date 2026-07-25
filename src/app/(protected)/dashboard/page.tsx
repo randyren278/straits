@@ -67,18 +67,15 @@ export default function DashboardPage() {
         <ErrorBoundary>
           <div className="relative overflow-hidden max-lg:min-h-[70dvh]">
             <VesselMap />
-            {/* Mobile: selected vessel surfaces as a bottom sheet over the map
-                (the stacked column below the fold is invisible when tapping a ship) */}
-            {selectedVessel && (
-              <div className="hidden max-lg:block absolute inset-x-0 bottom-0 z-20 max-h-[70%] overflow-y-auto bg-black border-t border-amber-500/40 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]">
-                <VesselPanel />
-              </div>
-            )}
           </div>
         </ErrorBoundary>
         {/* Right column: stacked panels */}
         <ErrorBoundary>
-          <div className="flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10 max-lg:border-l-0 max-lg:border-t max-lg:border-amber-500/20">
+          {/* Mobile: must NOT be its own scroll container. A scrolling flex child
+              of a fixed-height main gets min-height:0, which let this rail shrink
+              to 0px while holding ~700px of panels — unreachable, not merely below
+              the fold. Natural height here lets main do the scrolling instead. */}
+          <div className="flex flex-col overflow-y-auto max-lg:overflow-visible bg-black border-l border-amber-500/20 divide-y divide-amber-500/10 max-lg:border-l-0 max-lg:border-t max-lg:border-amber-500/20">
             <ClusterPanel />
             {/* Desktop only — on mobile the vessel detail renders in the map bottom sheet above.
                 Gated on selectedVessel so the empty wrapper doesn't add a stray divide-y line. */}
@@ -93,6 +90,15 @@ export default function DashboardPage() {
           </div>
         </ErrorBoundary>
       </main>
+      {/* Mobile: the vessel sheet is anchored to the viewport, not to the map.
+          The map is 70dvh tall and starts below a ~265px header, so its bottom
+          edge sits past the fold — a sheet anchored there was up to 58% off
+          screen on a landscape phone. Sibling of main so nothing clips it. */}
+      {selectedVessel && (
+        <div className="hidden max-lg:block fixed inset-x-0 bottom-0 z-30 max-h-[70dvh] overflow-y-auto bg-black border-t border-amber-500/40 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]">
+          <VesselPanel />
+        </div>
+      )}
     </div>
   );
 }

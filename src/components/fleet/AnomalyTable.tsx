@@ -67,7 +67,7 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                 <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
                   Vessel Name
                 </th>
-                <th className="max-md:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
+                <th className="max-lg:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
                   IMO
                 </th>
                 <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
@@ -76,7 +76,7 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                 <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
                   Risk Score
                 </th>
-                <th className="max-md:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
+                <th className="max-lg:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
                   Confidence
                 </th>
                 <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
@@ -100,10 +100,10 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                     aria-label={`${anomaly.vesselName || anomaly.imo}: expand for intelligence dossier`}
                     onClick={() => setExpandedImo(prev => prev === anomaly.imo ? null : anomaly.imo)}
                   >
-                  <td className="px-4 py-2 max-md:py-3.5 text-sm font-mono text-gray-300">
+                  <td className="px-4 py-2 max-lg:py-3.5 text-sm font-mono text-gray-300">
                     {anomaly.vesselName || '—'}
                   </td>
-                  <td className="max-md:hidden px-4 py-2 text-sm font-mono text-gray-400">
+                  <td className="max-lg:hidden px-4 py-2 text-sm font-mono text-gray-400">
                     {anomaly.imo}
                   </td>
                   <td className="px-4 py-2 text-sm font-mono text-gray-400">
@@ -126,7 +126,7 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                       '—'
                     )}
                   </td>
-                  <td className="max-md:hidden px-4 py-2">
+                  <td className="max-lg:hidden px-4 py-2">
                     <AnomalyBadge type={anomaly.anomalyType} confidence={anomaly.confidence} />
                   </td>
                   <td className="px-4 py-2 text-sm font-mono text-gray-500">

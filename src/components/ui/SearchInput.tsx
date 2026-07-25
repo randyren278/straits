@@ -29,6 +29,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
   const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const justSelectedRef = useRef(false);
 
   // Debounced search
   useEffect(() => {
@@ -44,7 +45,11 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
         const data = await res.json();
         setResults(data.results || []);
         setActiveIndex(-1);
-        setIsOpen(true);
+        // Selecting a result sets the query to that vessel's name, which
+        // re-triggers this search. Without the guard the list reopens ~300ms
+        // after the user picked something, so selection looked like a no-op.
+        if (justSelectedRef.current) justSelectedRef.current = false;
+        else setIsOpen(true);
       } catch (error) {
         console.error('Search failed:', error);
         setResults([]);
@@ -69,6 +74,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
   }, []);
 
   const handleSelect = (result: SearchResult) => {
+    justSelectedRef.current = true;
     setQuery(result.name);
     setIsOpen(false);
     onSelectVessel?.(result);
@@ -112,7 +118,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
           onKeyDown={handleKeyDown}
           placeholder="Search vessel..."
           aria-label="Search vessels by name, IMO, or MMSI"
-          className="w-48 max-lg:w-full pl-9 pr-8 py-1.5 bg-black border border-gray-700 text-sm font-mono text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+          className="w-48 max-lg:w-full pl-9 pr-8 py-1.5 max-lg:min-h-[44px] bg-black border border-gray-700 text-sm font-mono text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
         />
         {query && (
           <button

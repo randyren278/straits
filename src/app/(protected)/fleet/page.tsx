@@ -90,7 +90,7 @@ export default function FleetPage() {
     <div className="min-h-screen bg-black text-white">
       <Header />
 
-      <main className="p-6 max-w-7xl mx-auto max-md:p-3">
+      <main className="p-6 max-w-7xl mx-auto max-lg:p-3">
         {/* Page title */}
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
@@ -107,13 +107,13 @@ export default function FleetPage() {
           <div className="flex gap-2 shrink-0">
             <a
               href="/api/export?format=csv"
-              className="inline-flex items-center max-md:min-h-[44px] px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-amber-500/40 text-amber-500 hover:bg-amber-500/10 transition-colors"
+              className="inline-flex items-center max-lg:min-h-[44px] px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-amber-500/40 text-amber-500 hover:bg-amber-500/10 transition-colors"
             >
               Export CSV
             </a>
             <a
               href="/api/export?format=json"
-              className="inline-flex items-center max-md:min-h-[44px] px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-gray-600/50 text-gray-400 hover:bg-gray-800/50 transition-colors"
+              className="inline-flex items-center max-lg:min-h-[44px] px-3 py-1.5 text-xs font-mono uppercase tracking-wider border border-gray-600/50 text-gray-400 hover:bg-gray-800/50 transition-colors"
             >
               JSON
             </a>
@@ -122,7 +122,7 @@ export default function FleetPage() {
 
         {/* Mobile-only anomaly-type overview (desktop shows counts in section headers) */}
         {!loading && !error && anomalies.length > 0 && (
-          <div className="hidden max-md:flex flex-wrap gap-x-4 gap-y-1 mb-4 px-3 py-2 border border-amber-500/20 bg-gray-900/40 text-xs font-mono uppercase tracking-wider text-gray-400">
+          <div className="hidden max-lg:flex flex-wrap gap-x-4 gap-y-1 mb-4 px-3 py-2 border border-amber-500/20 bg-gray-900/40 text-xs font-mono uppercase tracking-wider text-gray-400">
             {groups.map(({ type, items }) => (
               <span key={type}>{ANOMALY_TYPE_LABELS[type]} <span className="text-amber-500">{items.length}</span></span>
             ))}

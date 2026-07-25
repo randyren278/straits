@@ -21,7 +21,7 @@ export default function AboutPage() {
     <div className="min-h-screen bg-black text-white">
       <Header />
 
-      <main className="p-6 max-w-7xl mx-auto max-md:p-3">
+      <main className="p-6 max-w-7xl mx-auto max-lg:p-3">
         {/* Page title */}
         <div className="mb-6">
           <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">About Straits</h1>
@@ -131,7 +131,7 @@ export default function AboutPage() {
             <p className="text-gray-300 text-sm mb-4">
               A composite score (0–100) that aggregates evasion signals per vessel. Higher scores indicate a stronger pattern of behavior associated with sanctions evasion or illicit oil trade. The score updates whenever new anomaly events are detected.
             </p>
-            <table className="hidden md:table w-full font-mono text-sm" style={{ borderCollapse: 'collapse' }}>
+            <table className="hidden lg:table w-full font-mono text-sm" style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr className="border-b border-amber-500/20">
                   <th className="py-2 px-3 text-left text-xs text-amber-500 uppercase tracking-wider">Factor</th>
@@ -174,7 +174,7 @@ export default function AboutPage() {
             </table>
 
             {/* Mobile stacked view — full-width notes, readable on a phone */}
-            <div className="md:hidden space-y-2">
+            <div className="lg:hidden space-y-2">
               {RISK_ROWS.map((r) => (
                 <div key={r.factor} className="border border-amber-500/20 p-3">
                   <div className="flex items-center justify-between">

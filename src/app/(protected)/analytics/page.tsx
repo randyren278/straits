@@ -117,7 +117,7 @@ export default function AnalyticsPage() {
     <div className="min-h-screen bg-black text-white">
       <Header />
 
-      <main className="p-6 max-w-7xl mx-auto max-md:p-3">
+      <main className="p-6 max-w-7xl mx-auto max-lg:p-3">
         {/* Page title and description */}
         <div className="mb-6">
           <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">Historical Analytics</h1>
@@ -132,27 +132,27 @@ export default function AnalyticsPage() {
             type="button"
             onClick={() => setFiltersOpen((v) => !v)}
             aria-expanded={filtersOpen}
-            className="md:hidden w-full flex items-center justify-between min-h-[44px] px-3 border border-amber-500/20 bg-gray-900 text-xs font-mono uppercase tracking-widest text-amber-500"
+            className="lg:hidden w-full flex items-center justify-between min-h-[44px] px-3 border border-amber-500/20 bg-gray-900 text-xs font-mono uppercase tracking-widest text-amber-500"
           >
             <span>Filters · {timeRange.toUpperCase()} · {viewMode === 'chokepoint' ? `${selectedChokepoints.length} CP` : 'ROUTE'} · {priceSymbol}</span>
             <span>{filtersOpen ? '▾' : '▸'}</span>
           </button>
-          <div className={`${filtersOpen ? 'flex' : 'hidden'} md:flex flex-wrap gap-4 items-center max-md:mt-2 p-3 bg-gray-900 border border-amber-500/20`}>
+          <div className={`${filtersOpen ? 'flex' : 'hidden'} lg:flex flex-wrap gap-4 items-center max-lg:mt-2 p-3 bg-gray-900 border border-amber-500/20`}>
           <div>
             <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Time Range</label>
             <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
           </div>
           <div>
             <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">View</label>
-            <div className="flex gap-1 max-md:gap-2">
+            <div className="flex gap-1 max-lg:gap-2">
               {(['chokepoint', 'route'] as const).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
                   className={
                     viewMode === mode
-                      ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1 max-md:min-h-[44px] max-md:px-3 inline-flex items-center'
-                      : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1 max-md:min-h-[44px] max-md:px-3 inline-flex items-center'
+                      ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1 max-lg:min-h-[44px] max-lg:px-3 inline-flex items-center'
+                      : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1 max-lg:min-h-[44px] max-lg:px-3 inline-flex items-center'
                   }
                 >
                   {mode}
@@ -171,15 +171,15 @@ export default function AnalyticsPage() {
               </div>
               <div>
                 <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Price</label>
-                <div className="flex gap-1 max-md:gap-2">
+                <div className="flex gap-1 max-lg:gap-2">
                   {(['WTI', 'BRENT'] as const).map((symbol) => (
                     <button
                       key={symbol}
                       onClick={() => setPriceSymbol(symbol)}
                       className={
                         priceSymbol === symbol
-                          ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1 max-md:min-h-[44px] max-md:px-3 inline-flex items-center'
-                          : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1 max-md:min-h-[44px] max-md:px-3 inline-flex items-center'
+                          ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1 max-lg:min-h-[44px] max-lg:px-3 inline-flex items-center'
+                          : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1 max-lg:min-h-[44px] max-lg:px-3 inline-flex items-center'
                       }
                     >
                       {symbol}
@@ -191,15 +191,15 @@ export default function AnalyticsPage() {
           )}
           <div>
             <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-1">Ship Type</label>
-            <div className="flex gap-1 max-md:gap-2">
+            <div className="flex gap-1 max-lg:gap-2">
               {(['all', 'tanker', 'cargo', 'other'] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setShipTypeFilter(f)}
                   className={
                     shipTypeFilter === f
-                      ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1 max-md:min-h-[44px] max-md:px-3 inline-flex items-center'
-                      : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1 max-md:min-h-[44px] max-md:px-3 inline-flex items-center'
+                      ? 'border border-amber-500 bg-amber-500/10 text-amber-500 text-xs font-mono uppercase tracking-wider px-2 py-1 max-lg:min-h-[44px] max-lg:px-3 inline-flex items-center'
+                      : 'border border-gray-700 text-gray-400 hover:border-amber-500/50 hover:text-gray-300 text-xs font-mono uppercase tracking-wider px-2 py-1 max-lg:min-h-[44px] max-lg:px-3 inline-flex items-center'
                   }
                 >
                   {f}
@@ -227,7 +227,7 @@ export default function AnalyticsPage() {
         {/* Charts — chokepoint correlation view */}
         {!isLoading && !error && viewMode === 'chokepoint' && (
           <ErrorBoundary>
-            <div className="space-y-4 md:space-y-6">
+            <div className="space-y-4 lg:space-y-6">
               {selectedChokepoints.map((cpId) => {
                 const chokepoint = CHOKEPOINTS[cpId];
                 const data = chartData[cpId] || [];
@@ -250,7 +250,7 @@ export default function AnalyticsPage() {
         {/* Charts — route traffic view */}
         {!isLoading && !error && viewMode === 'route' && (
           <ErrorBoundary>
-            <div className="space-y-4 md:space-y-6">
+            <div className="space-y-4 lg:space-y-6">
               {selectedRoutes.map((route) => {
                 const data = routeData[route] || [];
 

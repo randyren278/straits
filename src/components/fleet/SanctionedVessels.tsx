@@ -40,7 +40,7 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
       </div>
 
       {/* Desktop table (md+) — clips Sanction Category on phones, so mobile uses the card list below */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="hidden lg:block overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr className="border-t border-red-500/10">
@@ -124,7 +124,7 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
       </div>
 
       {/* Mobile card list (<md) — Sanction Category always visible (the table clips it on phones) */}
-      <div className="md:hidden divide-y divide-red-500/10">
+      <div className="lg:hidden divide-y divide-red-500/10">
         {vessels.map((vessel) => (
           <React.Fragment key={vessel.imo}>
             <button
