@@ -6,7 +6,7 @@
  * unread badge driven by the vessel store's unreadCount.
  * Requirements: HIST-02, PANL-04
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Bell } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useVesselStore } from '@/stores/vessel';
@@ -19,10 +19,50 @@ function alertTypeLabel(alertType: string): string {
   return ANOMALY_TYPE_LABELS[alertType as AnomalyType] ?? alertType;
 }
 
+/** Gap kept between the dropdown and the viewport edges. */
+const EDGE_MARGIN = 8;
+/** Preferred width; narrowed on phones that can't fit it. */
+const PREFERRED_WIDTH = 320;
+
 export function NotificationBell() {
   const { alerts, unreadCount, setAlerts, markAlertRead, setTargetVesselImo } = useVesselStore();
   const [isOpen, setIsOpen] = useState(false);
   const [userId, setUserId] = useLocalStorage<string>('tanker_tracker_user_id', '');
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [placement, setPlacement] = useState<{ left: number; width: number; maxHeight: number } | null>(null);
+
+  // Place the dropdown against the viewport rather than blindly right-aligning
+  // it to the bell. The bell sits at different x-positions per route (the fleet
+  // header has no search or filters), and a fixed right-0 anchor put most of a
+  // 320px panel off the left edge there. Runs before paint, so nothing flashes.
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+
+    const place = () => {
+      const anchor = wrapRef.current?.getBoundingClientRect();
+      if (!anchor) return;
+      const vw = document.documentElement.clientWidth;
+      const vh = document.documentElement.clientHeight;
+      const width = Math.min(PREFERRED_WIDTH, vw - EDGE_MARGIN * 2);
+      // Prefer right-aligned to the bell, then clamp into the viewport.
+      const preferred = anchor.right - width;
+      const clamped = Math.min(
+        Math.max(preferred, EDGE_MARGIN),
+        vw - width - EDGE_MARGIN
+      );
+      setPlacement({
+        // Offset is relative to the anchor, since the panel is absolutely
+        // positioned inside it and must scroll along with the header.
+        left: clamped - anchor.left,
+        width,
+        maxHeight: Math.max(vh - anchor.bottom - EDGE_MARGIN * 2, 160),
+      });
+    };
+
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [isOpen]);
 
   // Generate and persist a user ID once the persisted value has loaded (if none exists)
   useEffect(() => {
@@ -74,7 +114,7 @@ export function NotificationBell() {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={wrapRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-400 hover:text-white transition-colors"
@@ -101,16 +141,22 @@ export function NotificationBell() {
 
           {/* Dropdown */}
           <div
-            className="absolute right-0 top-full mt-2 w-80 bg-black border border-amber-500/20 shadow-xl z-50 max-h-96 overflow-hidden"
+            className="absolute top-full mt-2 bg-black border border-amber-500/20 shadow-xl z-50 flex flex-col overflow-hidden"
+            style={
+              placement
+                ? { left: placement.left, width: placement.width, maxHeight: placement.maxHeight }
+                : { right: 0, width: PREFERRED_WIDTH, maxHeight: 384 }
+            }
             role="region"
             aria-label="Alert inbox"
           >
-            <div className="p-3 border-b border-gray-700 flex justify-between items-center">
+            <div className="p-3 border-b border-gray-700 flex justify-between items-center shrink-0">
               <span className="font-semibold text-white">Alerts</span>
               <span className="text-xs text-gray-500">{unreadCount} unread</span>
             </div>
 
-            <div className="overflow-y-auto max-h-72">
+            {/* Grows into whatever height the viewport actually left us. */}
+            <div className="overflow-y-auto flex-1 min-h-0">
               {alerts.length === 0 ? (
                 <div className="p-4 text-gray-400 text-center">No alerts</div>
               ) : (
