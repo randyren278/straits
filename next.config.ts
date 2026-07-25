@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
 
   // Empty turbopack config to use Turbopack (Next.js 16 default)
   turbopack: {},
+
+  // Hide the dev-mode indicator badge (bottom-left "N") for clean UI/screenshots.
+  devIndicators: false,
 }
 
 export default nextConfig
