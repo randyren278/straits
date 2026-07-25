@@ -18,6 +18,7 @@ import { useVesselStore } from '@/stores/vessel';
 export default function DashboardPage() {
   const setMapCenter = useVesselStore((state) => state.setMapCenter);
   const setTargetVesselImo = useVesselStore((state) => state.setTargetVesselImo);
+  const selectedVessel = useVesselStore((state) => state.selectedVessel);
 
   // Handle vessel selection from search - fly to vessel position
   const handleSearchSelect = useCallback((result: {
@@ -66,13 +67,26 @@ export default function DashboardPage() {
         <ErrorBoundary>
           <div className="relative overflow-hidden max-lg:min-h-[70dvh]">
             <VesselMap />
+            {/* Mobile: selected vessel surfaces as a bottom sheet over the map
+                (the stacked column below the fold is invisible when tapping a ship) */}
+            {selectedVessel && (
+              <div className="hidden max-lg:block absolute inset-x-0 bottom-0 z-20 max-h-[70%] overflow-y-auto bg-black border-t border-amber-500/40 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]">
+                <VesselPanel />
+              </div>
+            )}
           </div>
         </ErrorBoundary>
         {/* Right column: stacked panels */}
         <ErrorBoundary>
           <div className="flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10 max-lg:border-l-0 max-lg:border-t max-lg:border-amber-500/20">
             <ClusterPanel />
-            <VesselPanel />
+            {/* Desktop only — on mobile the vessel detail renders in the map bottom sheet above.
+                Gated on selectedVessel so the empty wrapper doesn't add a stray divide-y line. */}
+            {selectedVessel && (
+              <div className="max-lg:hidden">
+                <VesselPanel />
+              </div>
+            )}
             <WatchlistPanel />
             <OilPricePanel />
             <NewsPanel />
