@@ -54,21 +54,16 @@ describe('SanctionedVessels', () => {
   it('renders vessel data correctly — names, IMOs, flags, and categories appear', () => {
     render(<SanctionedVessels vessels={mockSanctionedVessels} />);
 
-    // Vessel names
-    expect(screen.getByText('SHADOW RUNNER')).toBeInTheDocument();
-    expect(screen.getByText('DARK PHANTOM')).toBeInTheDocument();
-
-    // IMO numbers
-    expect(screen.getByText('1111111')).toBeInTheDocument();
-    expect(screen.getByText('2222222')).toBeInTheDocument();
-
-    // Flags
-    expect(screen.getByText('IR')).toBeInTheDocument();
-    expect(screen.getByText('SY')).toBeInTheDocument();
-
-    // Sanction categories
-    expect(screen.getByText('SDN List')).toBeInTheDocument();
-    expect(screen.getByText('EU Sanctions')).toBeInTheDocument();
+    // Dual-render (mobile card + desktop table) means each datum can appear more than once.
+    expect(screen.getAllByText('SHADOW RUNNER').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('DARK PHANTOM').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('1111111').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('2222222').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('IR').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('SY').length).toBeGreaterThanOrEqual(1);
+    // Sanction category is the critical datum — must appear (card list surfaces it on mobile).
+    expect(screen.getAllByText('SDN List').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('EU Sanctions').length).toBeGreaterThanOrEqual(1);
   });
 
   it('returns null for empty array — nothing renders', () => {
@@ -89,13 +84,9 @@ describe('SanctionedVessels', () => {
   it('colors risk score red when ≥70, amber when ≥40', () => {
     render(<SanctionedVessels vessels={mockSanctionedVessels} />);
 
-    // Risk score 85 → red-400
-    const highRisk = screen.getByText('85');
-    expect(highRisk.className).toContain('text-red-400');
-
-    // Risk score 45 → amber-400
-    const medRisk = screen.getByText('45');
-    expect(medRisk.className).toContain('text-amber-400');
+    // At least one rendering of the score (table cell or card badge) carries the color class.
+    expect(screen.getAllByText('85').some((el) => el.className.includes('text-red-400'))).toBe(true);
+    expect(screen.getAllByText('45').some((el) => el.className.includes('text-amber-400'))).toBe(true);
   });
 
   it('renders the SANCTIONED VESSELS header label', () => {
@@ -106,7 +97,7 @@ describe('SanctionedVessels', () => {
   it('shows a single vessel correctly', () => {
     render(<SanctionedVessels vessels={[mockSanctionedVessels[0]]} />);
     expect(screen.getByText('[1]')).toBeInTheDocument();
-    expect(screen.getByText('SHADOW RUNNER')).toBeInTheDocument();
-    expect(screen.queryByText('DARK PHANTOM')).not.toBeInTheDocument();
+    expect(screen.getAllByText('SHADOW RUNNER').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryAllByText('DARK PHANTOM')).toHaveLength(0);
   });
 });
