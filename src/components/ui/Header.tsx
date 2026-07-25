@@ -44,14 +44,14 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
   return (
     <header className="bg-black border-b border-amber-500/20">
       {/* Desktop: single row. Mobile: title + nav row, controls below */}
-      <div className="h-14 flex items-center justify-between px-4 max-md:h-auto max-md:flex-col max-md:items-stretch max-md:gap-0">
+      <div className="h-14 flex items-center justify-between px-4 max-lg:h-auto max-lg:flex-col max-lg:items-stretch max-lg:gap-0">
         {/* Top row: logo + nav (always visible) */}
-        <div className="flex items-center max-md:justify-between max-md:h-12 max-md:w-full">
+        <div className="flex items-center max-lg:justify-between max-lg:h-12 max-lg:w-full">
           <Link href="/dashboard" className="flex items-center gap-2">
             <StraitsMark size={20} className="shrink-0" />
             <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">Straits</h1>
           </Link>
-          <nav className="flex gap-1 ml-6 max-md:ml-2">
+          <nav className="flex gap-1 ml-6 max-lg:ml-2">
             <Link
               href="/dashboard"
               className={`px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors max-sm:px-2 ${
@@ -95,7 +95,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
           </nav>
         </div>
         {/* Controls row: map tooling only on dashboard; telemetry (bell + status) everywhere */}
-        <div className="flex items-center gap-4 max-md:gap-2 max-md:flex-wrap max-md:px-0 max-md:py-2 max-md:border-t max-md:border-amber-500/10">
+        <div className="flex items-center gap-4 max-lg:gap-2 max-lg:flex-wrap max-lg:px-0 max-lg:py-2 max-lg:border-t max-lg:border-amber-500/10">
           {activeTab === 'dashboard' && (
             <>
               <SearchInput onSelectVessel={onSearchSelect} />
