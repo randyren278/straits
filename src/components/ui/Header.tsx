@@ -7,6 +7,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { DataFreshness } from './DataFreshness';
 import { TankerFilter } from './TankerFilter';
 import { SearchInput } from './SearchInput';
@@ -40,6 +41,7 @@ interface HeaderProps {
 export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
   const pathname = usePathname();
   const activeTab = pathname === '/fleet' ? 'fleet' : pathname === '/analytics' ? 'analytics' : pathname === '/about' ? 'about' : 'dashboard';
+  const [chokepointsOpen, setChokepointsOpen] = useState(false);
 
   return (
     <header className="bg-black border-b border-amber-500/20">
@@ -94,23 +96,37 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             </Link>
           </nav>
         </div>
-        {/* Controls row: map tooling only on dashboard; telemetry (bell + status) everywhere */}
-        <div className="flex items-center gap-4 max-lg:gap-2 max-lg:flex-wrap max-lg:px-0 max-lg:py-2 max-lg:border-t max-lg:border-amber-500/10">
+        {/* Controls: search on its own line (mobile); rest in a single non-wrapping scroll strip */}
+        <div className="flex items-center gap-4 max-lg:flex-col max-lg:items-stretch max-lg:gap-2 max-lg:px-0 max-lg:py-2 max-lg:border-t max-lg:border-amber-500/10">
           {activeTab === 'dashboard' && (
-            <>
-              <SearchInput onSelectVessel={onSearchSelect} />
-              <DataFreshness />
-              <TankerFilter />
-              <AnomalyFilter />
-            </>
+            <SearchInput onSelectVessel={onSearchSelect} />
           )}
-          <NotificationBell />
-          <StatusBar />
+          <div className="flex items-center gap-4 max-lg:gap-3 max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:w-full [&>*]:shrink-0">
+            {activeTab === 'dashboard' && (
+              <>
+                <DataFreshness />
+                <TankerFilter />
+                <AnomalyFilter />
+              </>
+            )}
+            <NotificationBell />
+            <StatusBar />
+          </div>
         </div>
       </div>
       {activeTab === 'dashboard' && (
-        <div className="flex items-start px-4 py-2 border-t border-amber-500/10 max-md:overflow-x-auto">
-          <ChokepointWidgets onSelect={onChokepointSelect} />
+        <div className="flex items-start px-4 py-2 border-t border-amber-500/10">
+          {/* Mobile: collapsed behind a toggle to reclaim the fold. Desktop: always shown. */}
+          <button
+            onClick={() => setChokepointsOpen((v) => !v)}
+            aria-expanded={chokepointsOpen}
+            className="hidden max-lg:inline-flex items-center gap-1 min-h-[44px] text-xs font-mono uppercase tracking-widest text-amber-500"
+          >
+            Chokepoints {chokepointsOpen ? '▾' : '▸'}
+          </button>
+          <div className={`${chokepointsOpen ? 'max-lg:block' : 'max-lg:hidden'} lg:block w-full`}>
+            <ChokepointWidgets onSelect={onChokepointSelect} />
+          </div>
         </div>
       )}
     </header>

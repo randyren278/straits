@@ -100,7 +100,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative max-lg:w-full">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
@@ -112,7 +112,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
           onKeyDown={handleKeyDown}
           placeholder="Search vessel..."
           aria-label="Search vessels by name, IMO, or MMSI"
-          className="w-48 pl-9 pr-8 py-1.5 bg-black border border-gray-700 text-sm font-mono text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+          className="w-48 max-lg:w-full pl-9 pr-8 py-1.5 bg-black border border-gray-700 text-sm font-mono text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
         />
         {query && (
           <button

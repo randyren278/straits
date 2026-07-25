@@ -122,11 +122,11 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
   if (loading) return null;
 
   return (
-    <div className="flex gap-2 max-md:overflow-x-auto max-md:pb-1">
+    <div className="flex gap-2 max-lg:overflow-x-auto max-lg:pb-1 max-lg:pr-6 max-lg:snap-x">
       {chokepoints.map((cp) => (
         <div
           key={cp.id}
-          className="relative bg-black border border-amber-500/20 min-w-[160px] max-w-[200px] max-md:flex-shrink-0"
+          className="relative bg-black border border-amber-500/20 min-w-[150px] max-w-[200px] max-lg:min-w-[140px] max-lg:snap-start flex-shrink-0"
         >
           <button
             onClick={() => {
