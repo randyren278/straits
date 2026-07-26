@@ -52,6 +52,12 @@ read_warnings() {
 }
 
 OK=$(read_json '.ok' 'ok')
+# jq's `//` operator treats false itself as empty — a failed run must read as
+# "false" (red), not as unreadable (orange). Corrupt JSON still yields "".
+if [ -z "$OK" ] && command -v jq >/dev/null 2>&1; then
+  OK=$(jq -r '.ok | tostring' "$STATUS" 2>/dev/null)
+  [ "$OK" = "null" ] && OK=""
+fi
 LAST=$(read_json '.lastRun' 'lastRun')
 INSERTED=$(read_json '.positionsInserted' 'positionsInserted')
 UNIQUE=$(read_json '.uniqueVessels' 'uniqueVessels')
@@ -70,15 +76,19 @@ WARN_COUNT=0
 
 # --- freshness: minutes since last run (status stores UTC, e.g. 2026-07-24T21:04:38.511Z) ---
 AGE_MIN="?"
+LAST_EPOCH=""
 if [ -n "$LAST" ]; then
   # Strip fractional seconds + trailing Z, then parse as UTC.
   LAST_CLEAN="${LAST%.*}"; LAST_CLEAN="${LAST_CLEAN%Z}"
   LAST_EPOCH=$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "$LAST_CLEAN" "+%s" 2>/dev/null || echo "")
-  if [ -n "$LAST_EPOCH" ]; then
-    NOW_EPOCH=$(date "+%s")
-    AGE_MIN=$(( (NOW_EPOCH - LAST_EPOCH) / 60 ))
-    [ "$AGE_MIN" -lt 0 ] 2>/dev/null && AGE_MIN=0
-  fi
+fi
+# A corrupt/unparsable status.json must not disarm the watchdog below — fall
+# back to the file's own mtime (it's rewritten at the end of every run).
+[ -z "$LAST_EPOCH" ] && LAST_EPOCH=$(stat -f %m "$STATUS" 2>/dev/null || echo "")
+if [ -n "$LAST_EPOCH" ]; then
+  NOW_EPOCH=$(date "+%s")
+  AGE_MIN=$(( (NOW_EPOCH - LAST_EPOCH) / 60 ))
+  [ "$AGE_MIN" -lt 0 ] 2>/dev/null && AGE_MIN=0
 fi
 
 # --- self-revival: if no run has landed in 30+ min, launchd's StartInterval is
@@ -99,6 +109,8 @@ if [ "$OK" = "true" ] || [ "$OK" = "True" ]; then
   else
     echo "🚢 ${INSERTED:-0} | color=green"
   fi
+elif [ -z "$OK" ]; then
+  echo "🚢 ? | color=orange"                  # status.json unreadable — not a verdict either way
 else
   echo "🚢 ✗ | color=red"
 fi
@@ -111,6 +123,8 @@ if [ "$OK" = "true" ] || [ "$OK" = "True" ]; then
   else
     echo "Last run: ${AGE_MIN}m ago | color=gray"
   fi
+elif [ -z "$OK" ]; then
+  echo "status.json unreadable — next run rewrites it (${AGE_MIN}m old) | color=orange"
 else
   echo "Last run FAILED: ${ERR:-unknown} | color=red"
   [ -n "$FAILS" ] && [ "$FAILS" -gt 1 ] 2>/dev/null && echo "Failing for ${FAILS} runs in a row | color=red"

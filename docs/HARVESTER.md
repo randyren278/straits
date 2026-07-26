@@ -62,7 +62,10 @@ feed down. Four mechanisms, in the order they engage:
 3. **`HARVEST_HARD_TIMEOUT_MS` (default 360s) is a backstop, not the plan.** It
    force-exits a wedged run, preserving whatever the core already achieved. It
    stays well under the 600s `StartInterval` so a wedged run delays at most one
-   scheduled harvest.
+   scheduled harvest. It is enforced by polling the wall clock, not a single
+   `setTimeout`: Node timers pause during system sleep, so a lid-close mid-run
+   once stretched the "360s" cap to 743s of wall clock. The poll's first tick
+   after wake sees the expired deadline and exits.
 4. **Single-flight lock.** `run-harvest.sh` takes an atomic `mkdir` lock in
    `~/.straits-harvester/harvest.lock`, so a manual "Run harvest now" during a
    scheduled run exits immediately instead of double-inserting the window. A
@@ -97,12 +100,21 @@ appears to own it, since a harvest is hard-capped at 6.
 **No Wi-Fi.** The websocket fails, the window ends empty, and both bulk writes
 return early without touching the DB — so the run still exits 0 rather than
 crashing. Both facts are recorded as warnings (`AIS websocket error: …` and
-`no AIS messages this window — offline, or AISStream unreachable`), so the menu
-bar goes amber with the reason named instead of quietly showing a clean run
-that collected nothing. The next fire reconnects from scratch; nothing carries
-over. If the network is up but Supabase is unreachable, the AIS write itself
-fails, `withDbRetry` retries, and only then does the run go red — which is
-correct, because that *is* a real failure.
+`no AIS positions this window (N msgs) — …`), so the menu bar goes amber with
+the reason named instead of quietly showing a clean run that collected
+nothing. The empty-window check gates on **positions landed, not messages
+received** — a darkwake window once collected a single static record and
+reported a clean green run with zero positions on the map. The next fire
+reconnects from scratch; nothing carries over. If the network is up but
+Supabase is unreachable, the AIS write itself fails, `withDbRetry` retries,
+and only then does the run go red — which is correct, because that *is* a
+real failure.
+
+**Corrupt state can't wedge the loop.** `status.json` is written atomically
+(tmp + rename), so a power cut mid-write can't truncate it. If it is somehow
+unreadable anyway, the menu bar shows an explicit `🚢 ?` (orange) rather than
+a false verdict, and the SwiftBar watchdog falls back to the file's mtime for
+its staleness check — a corrupt status file can never disarm self-revival.
 
 > **One caveat that no amount of local hardening fixes:** Supabase's free tier
 > pauses a project after ~7 days with no activity. If the Mac stays off that
@@ -152,10 +164,13 @@ HARVEST_HARD_TIMEOUT_MS=360000
 RETENTION_DAYS=7
 ```
 
-`ALPHA_VANTAGE_API_KEY` is the documented fallback when FRED errors, but it is
-**not set** here — so a FRED failure currently falls through to the last known
-prices in the DB (logged as a warning, harmless). Set the key if you want a real
-second source.
+`FRED_API_KEY` is genuinely optional: without a key (or with a malformed one —
+FRED requires exactly 32 lowercase alphanumerics and rejects anything else with
+400) prices come from the **keyless `fredgraph.csv` endpoint**, which serves the
+same series. `ALPHA_VANTAGE_API_KEY` is a further fallback, also unset here. If
+every source fails (e.g. offline), the harvester records a `prices refresh`
+warning and leaves the freshness gate open — it never re-stamps stale DB rows
+as fresh, which once hid a misconfigured key for weeks behind a "live" badge.
 
 `DATABASE_URL` is the Supabase **transaction pooler (:6543)**, which is correct
 for a short-lived writer, and points at the SAME database the deployed app reads.
@@ -179,8 +194,9 @@ open -a SwiftBar          # first launch: point it at ~/.swiftbar-plugins
 scripts/harvester/install-harvester.sh   # re-run to drop in the plugin
 ```
 
-A 🚢 icon shows positions-inserted: **green** = healthy, **orange** = stale >30m
-or some step degraded (`⚠` suffix), **red** = the AIS core failed. The dropdown
+A 🚢 icon shows positions-inserted: **green** = healthy, **orange** = stale >30m,
+some step degraded (`⚠` suffix), or status unreadable (`?`), **red** = the AIS
+core failed. The dropdown
 names each degraded step, shows the failure streak and last good run, and has:
 open dashboard, run harvest now, view log.
 

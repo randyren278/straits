@@ -19,7 +19,15 @@ export type { OilPriceData, OilPricePoint };
  * @throws Error on API failure
  */
 export async function fetchFREDPrices(): Promise<OilPriceData[]> {
-  const apiKey = process.env.FRED_API_KEY;
+  // FRED rejects anything but a 32-char lowercase-alphanumeric key with 400,
+  // and rejects keyless observations requests the same way — so a malformed
+  // key must not be sent, and "no key" must not mean "no prices". The keyless
+  // fredgraph.csv endpoint serves the same series and is the fallback both ways.
+  const rawKey = process.env.FRED_API_KEY;
+  const apiKey = rawKey && /^[a-z0-9]{32}$/.test(rawKey) ? rawKey : undefined;
+  if (rawKey && !apiKey) {
+    console.warn('FRED_API_KEY is malformed (FRED requires 32 lowercase alphanumerics) — using the keyless CSV endpoint');
+  }
 
   const series = [
     { symbol: 'WTI' as const, id: 'DCOILWTICO' },
@@ -28,19 +36,46 @@ export async function fetchFREDPrices(): Promise<OilPriceData[]> {
 
   const results = await Promise.all(
     series.map(async ({ symbol, id }) => {
-      const url = apiKey
-        ? `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${apiKey}&file_type=json&limit=30&sort_order=desc`
-        : `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&file_type=json&limit=30&sort_order=desc`;
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`FRED ${symbol}: ${res.status}`);
-
-      const data = await res.json();
-      return parseFREDResponse(data, symbol);
+      if (apiKey) {
+        try {
+          const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${apiKey}&file_type=json&limit=30&sort_order=desc`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`FRED ${symbol}: ${res.status}`);
+          return parseFREDResponse(await res.json(), symbol);
+        } catch {
+          console.warn(`FRED ${symbol} keyed request failed — falling back to the keyless CSV`);
+        }
+      }
+      return parseFREDResponse(await fetchFredgraphCsv(id, symbol), symbol);
     })
   );
 
   return results;
+}
+
+/**
+ * Keyless fallback: fredgraph.csv serves the full history of a series with no
+ * API key. Returns the tail reshaped like the observations API (most recent
+ * first) so parseFREDResponse handles both paths identically.
+ */
+async function fetchFredgraphCsv(
+  id: string,
+  symbol: string
+): Promise<{ observations: Array<{ date: string; value: string }> }> {
+  const res = await fetch(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`);
+  if (!res.ok) throw new Error(`FRED CSV ${symbol}: ${res.status}`);
+  const text = await res.text();
+
+  const lines = text.trim().split(/\r?\n/).slice(1); // drop header row
+  const observations = lines
+    .slice(-60) // enough tail to yield 30 rows after '.' (holiday) filtering
+    .map((line) => {
+      const [date, value] = line.split(',');
+      return { date, value };
+    })
+    .reverse()
+    .slice(0, 30);
+  return { observations };
 }
 
 /**

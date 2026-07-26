@@ -30,12 +30,12 @@
  *   DATABASE_URL          Supabase transaction pooler (:6543) + ?sslmode=no-verify
  *   AISSTREAM_API_KEY     free AISStream key
  *   HARVEST_WINDOW_MS     collection window (default 90000)
- *   HARVEST_HARD_TIMEOUT_MS  safety kill (default 300000)
+ *   HARVEST_HARD_TIMEOUT_MS  safety kill, wall-clock (default 360000)
  *   RETENTION_DAYS        prune horizon (default 7)
  *   STRAITS_STATE_DIR     where status.json is written (default ~/.straits-harvester)
  */
 import WebSocket from 'ws';
-import { mkdirSync, writeFileSync, readFileSync } from 'fs';
+import { mkdirSync, writeFileSync, readFileSync, renameSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { pool } from '../../lib/db';
@@ -51,8 +51,12 @@ import { detectSpoofedPositions } from '../../lib/detection/teleport';
 import { computeRiskScores } from '../../lib/detection/risk-score';
 import { generateAlertsForNewAnomalies } from '../../lib/db/alerts';
 
-// Enrichment refreshers (freshness-gated below) — same set as refresh-jobs.ts
-import { fetchOilPrices } from '../../lib/prices/fetcher';
+// Enrichment refreshers (freshness-gated below) — same set as refresh-jobs.ts.
+// Prices deliberately bypass fetchOilPrices(): its last resort re-reads the DB
+// and re-inserts, which re-stamps fetched_at and hides a dead source behind a
+// "live" freshness gate. Here a total failure must throw so step() records it.
+import { fetchFREDPrices } from '../../lib/external/fred';
+import { fetchAlphaVantagePrices, type OilPriceData } from '../../lib/external/alphavantage';
 import { insertPrice } from '../../lib/db/prices';
 import { fetchNews } from '../../lib/news/fetcher';
 import { insertNewsItem } from '../../lib/db/news';
@@ -136,7 +140,11 @@ function writeStatus(startedAt: number): void {
   status.durationMs = Date.now() - startedAt;
   try {
     mkdirSync(STATE_DIR, { recursive: true });
-    writeFileSync(STATUS_PATH, JSON.stringify(status, null, 2));
+    // Write-then-rename so a power cut mid-write can't leave a truncated
+    // status.json — the SwiftBar plugin and the next run's readPrevStatus
+    // both depend on this file parsing.
+    writeFileSync(`${STATUS_PATH}.tmp`, JSON.stringify(status, null, 2));
+    renameSync(`${STATUS_PATH}.tmp`, STATUS_PATH);
   } catch (err) {
     console.error('Failed to write status:', (err as Error).message);
   }
@@ -379,10 +387,21 @@ async function isStale(sql: string, minutes: number): Promise<boolean> {
   } catch { return true; }
 }
 
-/** Prices: FRED, refresh at most every 3h. */
+/** Prices: FRED (keyed API → keyless CSV) with Alpha Vantage fallback, every 3h.
+ * Both failing throws, so the gate stays open and the warning goes amber —
+ * never re-stamp stale rows as fresh. */
 async function refreshPrices(): Promise<void> {
   if (!(await isStale(`SELECT MAX(fetched_at) AS ts FROM oil_prices`, 180))) return;
-  const prices = await fetchOilPrices();
+  let prices: OilPriceData[];
+  try {
+    prices = await fetchFREDPrices();
+  } catch (fredErr) {
+    try {
+      prices = await fetchAlphaVantagePrices();
+    } catch (avErr) {
+      throw new Error(`FRED: ${(fredErr as Error).message}; Alpha Vantage: ${(avErr as Error).message}`);
+    }
+  }
   for (const p of prices) await insertPrice(p);
   status.pricesRefreshed = prices.length > 0;
   console.log(`Prices refreshed: ${prices.length}`);
@@ -450,12 +469,17 @@ async function main(): Promise<void> {
   // Safety valve: guarantee termination even if a socket/query hangs. The
   // budgets above should make this unreachable; it stays as a backstop, and it
   // preserves whatever the core already achieved rather than reporting red.
-  const killer = setTimeout(() => {
+  // Poll wall clock instead of a single setTimeout: Node timers pause while
+  // the Mac sleeps, so a lid-close mid-run stretched the "360s" cap by exactly
+  // the sleep duration (observed: 743s) and overlapped the next fire. With a
+  // polling interval, the first tick after wake sees the expired deadline.
+  const killer = setInterval(() => {
+    if (Date.now() - startedAt < HARD_TIMEOUT_MS) return;
     status.error = 'hard timeout';
     console.error('Hard timeout reached — forcing exit');
     writeStatus(startedAt);
     process.exit(status.ok ? 0 : 1);
-  }, HARD_TIMEOUT_MS);
+  }, 5_000);
   killer.unref();
 
   try {
@@ -463,10 +487,12 @@ async function main(): Promise<void> {
     status.uniqueVessels = positions.size;
     console.log(`Window closed: ${status.messagesReceived} msgs, ${positions.size} unique positions, ${statics.size} static records`);
 
-    // An empty window is a real condition (no network, AISStream down, a quiet
-    // patch of ocean), not a crash — but it must not read as a clean run.
-    if (status.messagesReceived === 0) {
-      warn('no AIS messages this window — offline, or AISStream unreachable');
+    // An empty window is a real condition (no network, AISStream down, a
+    // darkwake half-sleep, a quiet patch of ocean), not a crash — but it must
+    // not read as a clean run. Gate on positions, not raw messages: a window
+    // can receive a stray static record and still land nothing on the map.
+    if (positions.size === 0) {
+      warn(`no AIS positions this window (${status.messagesReceived} msgs) — offline, AISStream unreachable, or Mac half-asleep`);
     }
 
     // Core: landing AIS data is what "ok" means.
@@ -495,7 +521,7 @@ async function main(): Promise<void> {
     console.error('Harvest failed:', err);
   } finally {
     writeStatus(startedAt);
-    clearTimeout(killer);
+    clearInterval(killer);
     try { await pool.end(); } catch { /* ignore */ }
   }
   process.exit(status.ok ? 0 : 1);
