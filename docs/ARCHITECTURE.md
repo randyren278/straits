@@ -19,38 +19,22 @@ The data pipeline runs left to right: AIS positions come in over a WebSocket,
 land in Postgres, get scanned by detectors, and are served to the UI through API
 routes.
 
-```
-                         ┌────────────────────────────────────────────┐
-   AISStream.io  ──ws──▶ │  Ingest                                      │
-   (PositionReport,      │  parse → filter (speed>50kt drop,            │
-    ShipStaticData)      │  jamming-zone lowConfidence) → dedupe/MMSI   │
-                         └───────────────┬──────────────────────────────┘
-                                         │ bulk upsert (IMO-keyed)
-                                         ▼
-   FRED / AlphaVantage ─┐      ┌───────────────────────┐
-   Google News RSS      ├─────▶│  PostgreSQL            │
-   OpenSanctions CSV    ┘      │  vessels, positions,   │
-   (refresh jobs)             │  sanctions, anomalies, │
-                              │  prices, news, alerts, │
-                              │  risk_scores, ...      │
-                              └───────┬──────────┬──────┘
-                                      │          │
-                        detectors read│          │API routes read
-                                      ▼          ▼
-                        ┌───────────────────┐  ┌──────────────────────┐
-                        │ Detection engine  │  │ Next.js API routes    │
-                        │ going-dark, STS,  │  │ /api/vessels, /status │
-                        │ loitering, ... →  │  │ /anomalies, /brief,   │
-                        │ risk score →      │  │ /analytics, /export   │
-                        │ alerts            │  └──────────┬───────────┘
-                        └───────────────────┘             │
-                                                          ▼
-                                              ┌───────────────────────┐
-                                              │ Frontend (MapLibre +   │
-                                              │ Zustand + Recharts)    │
-                                              │ map, panels, fleet,    │
-                                              │ analytics, alerts inbox│
-                                              └───────────────────────┘
+```mermaid
+flowchart TD
+    AIS["AISStream.io — ws\nPositionReport, ShipStaticData"]
+    ENRICH["FRED / Alpha Vantage\nGoogle News RSS\nOpenSanctions CSV\n(refresh jobs)"]
+    INGEST["Ingest\nparse → filter (speed>50kt drop,\njamming-zone lowConfidence) → dedupe/MMSI"]
+    DB[("PostgreSQL\nvessels, positions, sanctions, anomalies,\nprices, news, alerts, risk_scores, ...")]
+    DETECT["Detection engine\ngoing-dark, STS, loitering, ... →\nrisk score → alerts"]
+    API["Next.js API routes\n/api/vessels, /status, /anomalies,\n/brief, /analytics, /export"]
+    FRONTEND["Frontend — MapLibre + Zustand + Recharts\nmap, panels, fleet, analytics, alerts inbox"]
+
+    AIS --> INGEST
+    INGEST -->|"bulk upsert, IMO-keyed"| DB
+    ENRICH --> DB
+    DB -->|"detectors read"| DETECT
+    DB -->|"API routes read"| API
+    API --> FRONTEND
 ```
 
 ### Two runtimes
