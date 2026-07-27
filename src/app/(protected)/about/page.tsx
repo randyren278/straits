@@ -10,10 +10,10 @@ import { Header } from '@/components/ui/Header';
 
 const RISK_ROWS = [
   { factor: 'Going Dark History', points: '8 pts / event', note: 'Capped at 40 pts (5 events max contribution)' },
-  { factor: 'Sanctions Match', points: '25 pts', note: 'Binary — vessel IMO appears in OpenSanctions database' },
+  { factor: 'Sanctions Match', points: '25 pts', note: 'Binary: vessel IMO appears in OpenSanctions database' },
   { factor: 'Flag State Risk', points: '15 pts', note: 'High-risk flags: IR, RU, VE, KP, PA, CM, KM' },
-  { factor: 'Loitering History', points: '10 pts', note: 'Binary — any loitering event in past 90 days' },
-  { factor: 'STS Transfer History', points: '10 pts', note: 'Binary — any STS transfer event on record' },
+  { factor: 'Loitering History', points: '10 pts', note: 'Binary: any loitering event in past 90 days' },
+  { factor: 'STS Transfer History', points: '10 pts', note: 'Binary: any STS transfer event on record' },
 ];
 
 export default function AboutPage() {
@@ -41,10 +41,10 @@ export default function AboutPage() {
             <div>
               <div className="text-amber-500 font-mono text-sm mb-1">GOING DARK</div>
               <p className="text-gray-300 text-sm mb-1">
-                Vessel stops broadcasting AIS signal while in a known coverage zone. Normal gaps in open ocean are excluded — only gaps detected within monitored regional bounding boxes are flagged.
+                Vessel stops broadcasting AIS signal while in a known coverage zone. Normal gaps in open ocean are excluded. Only gaps detected within monitored regional bounding boxes are flagged.
               </p>
               <div className="text-gray-500 text-xs font-mono flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-2">
-                <span>Suspected: 2–4 hour signal gap</span>
+                <span>Suspected: 2-4 hour signal gap</span>
                 <span className="hidden sm:inline text-amber-500/40">|</span>
                 <span>Confirmed: &gt;4 hour signal gap</span>
               </div>
@@ -110,7 +110,7 @@ export default function AboutPage() {
             <div>
               <div className="text-amber-500 font-mono text-sm mb-1">STS TRANSFER</div>
               <p className="text-gray-300 text-sm mb-1">
-                Two vessels detected within 0.5 nautical miles of each other for 30 or more consecutive minutes. Ship-to-ship transfers at sea are a primary method for sanctions evasion and oil laundering — cargo is transferred between vessels to obscure origin.
+                Two vessels detected within 0.5 nautical miles of each other for 30 or more consecutive minutes. Ship-to-ship transfers at sea are a primary method for sanctions evasion and oil laundering: cargo is transferred between vessels to obscure origin.
               </p>
               <div className="text-gray-500 text-xs font-mono flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-2">
                 <span>Proximity: &lt;0.5 nm</span>
@@ -129,7 +129,7 @@ export default function AboutPage() {
           </div>
           <div className="p-4">
             <p className="text-gray-300 text-sm mb-4">
-              A composite score (0–100) that aggregates evasion signals per vessel. Higher scores indicate a stronger pattern of behavior associated with sanctions evasion or illicit oil trade. The score updates whenever new anomaly events are detected.
+              A composite score (0-100) that aggregates evasion signals per vessel. Higher scores indicate a stronger pattern of behavior associated with sanctions evasion or illicit oil trade. The score updates whenever new anomaly events are detected.
             </p>
             <table className="hidden lg:table w-full font-mono text-sm" style={{ borderCollapse: 'collapse' }}>
               <thead>
@@ -148,7 +148,7 @@ export default function AboutPage() {
                 <tr className="border-b border-amber-500/10">
                   <td className="py-2 px-3 text-gray-300">Sanctions Match</td>
                   <td className="py-2 px-3 text-right text-gray-300">25 pts</td>
-                  <td className="py-2 px-3 text-gray-500 text-xs">Binary — vessel IMO appears in OpenSanctions database</td>
+                  <td className="py-2 px-3 text-gray-500 text-xs">Binary: vessel IMO appears in OpenSanctions database</td>
                 </tr>
                 <tr className="border-b border-amber-500/10">
                   <td className="py-2 px-3 text-gray-300">Flag State Risk</td>
@@ -158,12 +158,12 @@ export default function AboutPage() {
                 <tr className="border-b border-amber-500/10">
                   <td className="py-2 px-3 text-gray-300">Loitering History</td>
                   <td className="py-2 px-3 text-right text-gray-300">10 pts</td>
-                  <td className="py-2 px-3 text-gray-500 text-xs">Binary — any loitering event in past 90 days</td>
+                  <td className="py-2 px-3 text-gray-500 text-xs">Binary: any loitering event in past 90 days</td>
                 </tr>
                 <tr className="border-b border-amber-500/10">
                   <td className="py-2 px-3 text-gray-300">STS Transfer History</td>
                   <td className="py-2 px-3 text-right text-gray-300">10 pts</td>
-                  <td className="py-2 px-3 text-gray-500 text-xs">Binary — any STS transfer event on record</td>
+                  <td className="py-2 px-3 text-gray-500 text-xs">Binary: any STS transfer event on record</td>
                 </tr>
                 <tr>
                   <td className="py-2 px-3 text-amber-500 font-bold">Total Maximum</td>
@@ -199,25 +199,25 @@ export default function AboutPage() {
           </div>
           <div className="p-4 space-y-2">
             <div className="text-sm text-gray-300">
-              <span className="text-amber-500">aisstream.io</span> — AIS vessel positions via WebSocket, near real-time
+              <span className="text-amber-500">aisstream.io</span>: AIS vessel positions via WebSocket, near real-time
             </div>
             <div className="text-sm text-gray-300">
-              <span className="text-amber-500">MapLibre + CARTO</span> — Keyless basemap rendering, no access token required
+              <span className="text-amber-500">MapLibre + CARTO</span>: Keyless basemap rendering, no access token required
             </div>
             <div className="text-sm text-gray-300">
-              <span className="text-amber-500">OpenSanctions</span> — Sanctions database, daily refresh, IMO-matched (CC BY-NC 4.0)
+              <span className="text-amber-500">OpenSanctions</span>: Sanctions database, daily refresh, IMO-matched (CC BY-NC 4.0)
             </div>
             <div className="text-sm text-gray-300">
-              <span className="text-amber-500">FRED</span> — Oil prices (primary), Federal Reserve Economic Data, API key optional
+              <span className="text-amber-500">FRED</span>: Oil prices (primary), Federal Reserve Economic Data, API key optional
             </div>
             <div className="text-sm text-gray-300">
-              <span className="text-amber-500">Alpha Vantage</span> — Oil prices (optional fallback), 25 requests/day free tier
+              <span className="text-amber-500">Alpha Vantage</span>: Oil prices (optional fallback), 25 requests/day free tier
             </div>
             <div className="text-sm text-gray-300">
-              <span className="text-amber-500">Google News RSS</span> — Geopolitical news headlines via keyless RSS, keyword-filtered for Middle East and oil
+              <span className="text-amber-500">Google News RSS</span>: Geopolitical news headlines via keyless RSS, keyword-filtered for Middle East and oil
             </div>
             <div className="text-sm text-gray-300">
-              <span className="text-amber-500">Nominatim</span> — Destination geocoding via OpenStreetMap, used for route deviation detection
+              <span className="text-amber-500">Nominatim</span>: Destination geocoding via OpenStreetMap, used for route deviation detection
             </div>
           </div>
         </div>
