@@ -4,7 +4,7 @@
  * Dashboard page with interactive vessel map.
  * Requirements: MAP-01, MAP-02, MAP-03, MAP-04, MAP-05, MAP-06, MAP-07, MAP-08, INTL-02, INTL-03, ANOM-01, HIST-02
  */
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { VesselMap } from '@/components/map/VesselMap';
 import { VesselPanel } from '@/components/panels/VesselPanel';
 import { ClusterPanel } from '@/components/panels/ClusterPanel';
@@ -14,11 +14,41 @@ import { WatchlistPanel } from '@/components/panels/WatchlistPanel';
 import { Header } from '@/components/ui/Header';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useVesselStore } from '@/stores/vessel';
+import { MobileSheet, type Chokepoint } from '@/components/dashboard/MobileSheet';
+import { MapFilterChips } from '@/components/map/MapFilterChips';
 
 export default function DashboardPage() {
   const setMapCenter = useVesselStore((state) => state.setMapCenter);
   const setTargetVesselImo = useVesselStore((state) => state.setTargetVesselImo);
   const selectedVessel = useVesselStore((state) => state.selectedVessel);
+
+  const [chokepoints, setChokepoints] = useState<Chokepoint[]>([]);
+
+  // One fetch for both the desktop widgets and the mobile sheet strip.
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/chokepoints');
+        if (!res.ok) return;
+        const data = await res.json();
+        // Verified against src/app/api/chokepoints/route.ts and the
+        // ChokepointData interface in ChokepointWidget.tsx: the response is
+        // { chokepoints: [{ id, name, totalVessels, tankerCount }] }.
+        setChokepoints(
+          (data.chokepoints ?? []).map((c: { name: string; tankerCount: number; totalVessels: number }) => ({
+            name: c.name,
+            tankers: c.tankerCount,
+            total: c.totalVessels,
+          })),
+        );
+      } catch {
+        // Leave the strip empty rather than failing the page.
+      }
+    }
+    load();
+    const interval = setInterval(load, 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Handle vessel selection from search - fly to vessel position
   const handleSearchSelect = useCallback((result: {
@@ -62,40 +92,43 @@ export default function DashboardPage() {
         onSearchSelect={handleSearchSelect}
         onChokepointSelect={handleChokepointSelect}
       />
-      <main className="flex-1 grid grid-cols-[1fr_320px] overflow-hidden max-lg:flex max-lg:flex-col max-lg:overflow-y-auto">
-        {/* Left column: full-height map (min-height on mobile prevents collapse) */}
+      <main className="flex-1 grid grid-cols-[1fr_320px] overflow-hidden max-lg:flex max-lg:flex-col">
         <ErrorBoundary>
-          <div className="relative overflow-hidden max-lg:min-h-[70dvh]">
+          {/* Mobile: the map fills everything between the header and the sheet.
+              It no longer needs min-h, because main no longer scrolls. */}
+          <div className="relative overflow-hidden max-lg:flex-1 max-lg:min-h-0">
             <VesselMap />
+            <MapFilterChips />
           </div>
         </ErrorBoundary>
-        {/* Right column: stacked panels */}
+
         <ErrorBoundary>
-          {/* Mobile: must NOT be its own scroll container. A scrolling flex child
-              of a fixed-height main gets min-height:0, which let this rail shrink
-              to 0px while holding ~700px of panels — unreachable, not merely below
-              the fold. Natural height here lets main do the scrolling instead. */}
-          <div className="flex flex-col overflow-y-auto max-lg:overflow-visible bg-black border-l border-amber-500/20 divide-y divide-amber-500/10 max-lg:border-l-0 max-lg:border-t max-lg:border-amber-500/20">
+          <div
+            data-testid="panel-rail"
+            className="max-lg:hidden flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10"
+          >
             <ClusterPanel />
-            {/* Desktop only — on mobile the vessel detail renders in the map bottom sheet above.
-                Gated on selectedVessel so the empty wrapper doesn't add a stray divide-y line. */}
-            {selectedVessel && (
-              <div className="max-lg:hidden">
-                <VesselPanel />
-              </div>
-            )}
+            {selectedVessel && <VesselPanel />}
             <WatchlistPanel />
             <OilPricePanel />
             <NewsPanel />
           </div>
         </ErrorBoundary>
       </main>
-      {/* Mobile: the vessel sheet is anchored to the viewport, not to the map.
-          The map is 70dvh tall and starts below a ~265px header, so its bottom
-          edge sits past the fold — a sheet anchored there was up to 58% off
-          screen on a landscape phone. Sibling of main so nothing clips it. */}
+
+      <MobileSheet
+        chokepoints={chokepoints}
+        collapsed={!!selectedVessel}
+        panels={{ prices: <OilPricePanel />, intel: <NewsPanel /> }}
+      />
+
+      {/* Sits above the bottom nav. At bottom-0 the nav would cover its
+          controls, and the two would fight for the same edge. */}
       {selectedVessel && (
-        <div className="hidden max-lg:block fixed inset-x-0 bottom-0 z-30 max-h-[70dvh] overflow-y-auto bg-black border-t border-amber-500/40 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]">
+        <div
+          data-testid="vessel-sheet"
+          className="hidden max-lg:block fixed inset-x-0 bottom-[var(--straits-nav-h)] z-40 max-h-[60dvh] overflow-y-auto bg-black border-t border-amber-500/40 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]"
+        >
           <VesselPanel />
         </div>
       )}
