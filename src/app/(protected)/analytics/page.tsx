@@ -117,7 +117,7 @@ export default function AnalyticsPage() {
     <div className="min-h-screen bg-black text-white">
       <Header />
 
-      <main className="p-6 max-w-7xl mx-auto max-lg:p-3">
+      <main className="p-6 max-w-7xl mx-auto max-lg:p-3 max-lg:pb-[calc(var(--straits-nav-h)+1rem)]">
         {/* Page title and description */}
         <div className="mb-6">
           <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">Historical Analytics</h1>

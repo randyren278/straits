@@ -21,7 +21,7 @@ export default function AboutPage() {
     <div className="min-h-screen bg-black text-white">
       <Header />
 
-      <main className="p-6 max-w-7xl mx-auto max-lg:p-3">
+      <main className="p-6 max-w-7xl mx-auto max-lg:p-3 max-lg:pb-[calc(var(--straits-nav-h)+1rem)]">
         {/* Page title */}
         <div className="mb-6">
           <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">About Straits</h1>

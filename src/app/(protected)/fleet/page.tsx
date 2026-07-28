@@ -122,7 +122,7 @@ export default function FleetPage() {
     <div className="min-h-screen bg-black text-white">
       <Header />
 
-      <main className="p-6 max-w-7xl mx-auto max-lg:p-3">
+      <main className="p-6 max-w-7xl mx-auto max-lg:p-3 max-lg:pb-[calc(var(--straits-nav-h)+1rem)]">
         {/* Page title */}
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
