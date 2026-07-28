@@ -78,7 +78,28 @@ async function run() {
       );
       check(`${label}/${id}: single selected tab`, m.selected === 1, `${m.selected} aria-selected`);
       check(`${label}/${id}: single mounted panel`, m.panels === 1, `${m.panels} tabpanel(s)`);
+
+      // Only the active panel is mounted, so any aria-controls must resolve.
+      const dangling = await page.$$eval('[role="tab"][aria-controls]', (els) =>
+        els.map((e) => e.getAttribute('aria-controls')).filter((target) => !document.getElementById(target)),
+      );
+      check(`${label}/${id}: no dangling aria-controls`, dangling.length === 0, dangling.length ? dangling.join(', ') : 'all resolve');
     }
+
+    // Focus must follow arrow-key selection, or roving tabindex strands the
+    // keyboard user on a button that is no longer selected.
+    await page.focus(`#fleet-tab-${ids[0]}`);
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(150);
+    const focusFollowed = await page.evaluate(() => {
+      const el = document.activeElement;
+      return { id: el?.id ?? '(none)', selected: el?.getAttribute('aria-selected') };
+    });
+    check(
+      `${label}: focus follows arrow-key selection`,
+      focusFollowed.selected === 'true',
+      `focus on ${focusFollowed.id} (aria-selected=${focusFollowed.selected})`,
+    );
 
     if (label === 'mobile') {
       const heights = await page.$$eval('[role="tab"]', (els) =>

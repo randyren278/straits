@@ -43,6 +43,32 @@ describe('FleetTabs', () => {
     expect(tab).toHaveAttribute('aria-controls', 'fleet-panel-loitering');
   });
 
+  it('omits aria-controls on tabs whose panel is not mounted', () => {
+    render(<FleetTabs tabs={tabs} activeId="loitering" onChange={() => {}} />);
+
+    // Only the active panel exists in the DOM, so an inactive tab pointing at
+    // its own panel id would be a dangling IDREF.
+    expect(screen.getByRole('tab', { name: /Loitering/ })).toHaveAttribute(
+      'aria-controls',
+      'fleet-panel-loitering',
+    );
+    expect(screen.getByRole('tab', { name: /Sanctioned/ })).not.toHaveAttribute('aria-controls');
+    expect(screen.getByRole('tab', { name: /Speed Anomaly/ })).not.toHaveAttribute('aria-controls');
+  });
+
+  it('moves DOM focus to the newly selected tab on arrow keys', async () => {
+    const user = userEvent.setup();
+    render(<FleetTabs tabs={tabs} activeId="loitering" onChange={() => {}} />);
+
+    screen.getByRole('tab', { name: /Loitering/ }).focus();
+
+    await user.keyboard('{ArrowRight}');
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: /Speed Anomaly/ }));
+
+    await user.keyboard('{Home}');
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: /Sanctioned/ }));
+  });
+
   it('emits the clicked tab id', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

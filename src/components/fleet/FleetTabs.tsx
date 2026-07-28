@@ -39,7 +39,15 @@ export function FleetTabs({ tabs, activeId, onChange }: FleetTabsProps) {
 
     if (next === null) return;
     event.preventDefault();
-    onChange(tabs[next].id);
+
+    const nextId = tabs[next].id;
+    onChange(nextId);
+
+    // Focus must follow selection. Roving tabindex drops the previously focused
+    // button to tabIndex -1, so without this the focus ring and screen-reader
+    // cursor stay on a tab that is no longer selected, and the next Tab press
+    // leaves from the wrong place.
+    document.getElementById(`fleet-tab-${nextId}`)?.focus();
   }
 
   return (
@@ -73,7 +81,9 @@ export function FleetTabs({ tabs, activeId, onChange }: FleetTabsProps) {
             type="button"
             role="tab"
             id={`fleet-tab-${tab.id}`}
-            aria-controls={`fleet-panel-${tab.id}`}
+            // Only the active panel is mounted, so pointing at an inactive
+            // tab's panel id would be a dangling IDREF.
+            aria-controls={active ? `fleet-panel-${tab.id}` : undefined}
             aria-selected={active}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(tab.id)}
