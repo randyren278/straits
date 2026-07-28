@@ -23,6 +23,34 @@ function check(name, pass, detail) {
   console.log(`${pass ? 'PASS' : 'FAIL'}  ${name} — ${detail}`);
 }
 
+/**
+ * A <tr role="button"> is neither focusable nor keyboard-operable by default,
+ * so the dossier would be mouse-only without an explicit tabIndex and key
+ * handling — a WCAG 2.1.1 failure.
+ */
+async function checkKeyboardReachable(page) {
+  const rows = await page.$$eval('[role="tabpanel"] tr[role="button"]', (els) =>
+    els.map((e) => e.getAttribute('tabindex')),
+  );
+  const unreachable = rows.filter((t) => t === null || Number(t) < 0).length;
+  check(
+    'dossier: rows are keyboard reachable',
+    rows.length > 0 && unreachable === 0,
+    `${rows.length} rows, ${unreachable} without a focusable tabindex`,
+  );
+
+  // Prove Enter actually activates, not just that the row can be focused.
+  // Assert the toggle, since a row may already be open when this runs.
+  const before = await page.$eval('[role="tabpanel"] tr[role="button"]', (el) => {
+    el.focus();
+    return el.getAttribute('aria-expanded');
+  });
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  const after = await page.$eval('[role="tabpanel"] tr[role="button"]', (el) => el.getAttribute('aria-expanded'));
+  check('dossier: Enter toggles the dossier', before !== after, `aria-expanded ${before} → ${after}`);
+}
+
 async function tabIds(page) {
   return page.$$eval('[role="tab"]', (els) => els.map((e) => e.id.replace('fleet-tab-', '')));
 }
@@ -166,6 +194,7 @@ async function run() {
     await page.waitForTimeout(400);
     const expandedOnly = await page.$$eval('[role="tabpanel"] tr[aria-expanded="true"]', (e) => e.length);
     check('dossier: row expands', expandedOnly === 1, `${expandedOnly} expanded rows`);
+    await checkKeyboardReachable(page);
   } else {
     check('paging: pager present when rows exceed page size', hasPager, `${totalRows} rows rendered, pager ${hasPager ? 'present' : 'MISSING'}`);
 

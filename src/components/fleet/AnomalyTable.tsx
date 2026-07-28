@@ -11,6 +11,7 @@ import { AnomalyBadge } from '@/components/ui/AnomalyBadge';
 import { FleetVesselDetail } from '@/components/fleet/FleetVesselDetail';
 import { TablePager } from '@/components/fleet/TablePager';
 import { SortableHeader, MobileSortBar } from '@/components/fleet/SortControls';
+import { handleRowKeyDown } from '@/components/fleet/rowActivation';
 import { useTableView, type SortColumn } from '@/lib/hooks/useTableView';
 import type { Anomaly, AnomalyType } from '@/types/anomaly';
 
@@ -113,9 +114,15 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                   data-imo={anomaly.imo}
                   data-anomaly-id={anomaly.id}
                   role="button"
+                  tabIndex={0}
                   aria-expanded={expandedImo === anomaly.imo}
                   aria-label={`${anomaly.vesselName || anomaly.imo}: expand for intelligence dossier`}
                   onClick={() => setExpandedImo((prev) => (prev === anomaly.imo ? null : anomaly.imo))}
+                  onKeyDown={(e) =>
+                    handleRowKeyDown(e, () =>
+                      setExpandedImo((prev) => (prev === anomaly.imo ? null : anomaly.imo)),
+                    )
+                  }
                 >
                   <td className="px-4 py-2 max-lg:py-3.5 text-sm font-mono text-gray-300">
                     {anomaly.vesselName || '—'}

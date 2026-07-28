@@ -88,6 +88,28 @@ describe('AnomalyTable', () => {
     expect(screen.getByRole('table').querySelectorAll('tbody tr[data-imo]')).toHaveLength(15);
   });
 
+  it('opens the dossier from the keyboard with Enter and Space', async () => {
+    const user = userEvent.setup();
+    render(<AnomalyTable anomalyType="loitering" anomalies={many} />);
+
+    // <tr role="button"> is not natively focusable or keyboard-operable, so
+    // without an explicit tabIndex and key handling the dossier is mouse-only.
+    const row = screen.getAllByRole('button', { name: /expand for intelligence dossier/ })[0];
+    expect(row).toHaveAttribute('tabindex', '0');
+
+    row.focus();
+    expect(document.activeElement).toBe(row);
+
+    await user.keyboard('{Enter}');
+    expect(row).toHaveAttribute('aria-expanded', 'true');
+
+    await user.keyboard('{Enter}');
+    expect(row).toHaveAttribute('aria-expanded', 'false');
+
+    await user.keyboard(' ');
+    expect(row).toHaveAttribute('aria-expanded', 'true');
+  });
+
   it('collapses an open dossier when the page changes', async () => {
     const user = userEvent.setup();
     render(<AnomalyTable anomalyType="loitering" anomalies={many} />);

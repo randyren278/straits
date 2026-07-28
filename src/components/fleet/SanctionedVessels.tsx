@@ -11,6 +11,7 @@ import React, { useState } from 'react';
 import { FleetVesselDetail } from '@/components/fleet/FleetVesselDetail';
 import { TablePager } from '@/components/fleet/TablePager';
 import { SortableHeader, MobileSortBar } from '@/components/fleet/SortControls';
+import { handleRowKeyDown } from '@/components/fleet/rowActivation';
 import { useTableView, type SortColumn } from '@/lib/hooks/useTableView';
 import type { Anomaly } from '@/types/anomaly';
 
@@ -105,8 +106,14 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
                   data-imo={vessel.imo}
                   aria-expanded={expandedImo === vessel.imo}
                   role="button"
+                  tabIndex={0}
                   aria-label={`${vessel.vesselName || vessel.imo}: expand for intelligence dossier`}
                   onClick={() => setExpandedImo(prev => prev === vessel.imo ? null : vessel.imo)}
+                  onKeyDown={(e) =>
+                    handleRowKeyDown(e, () =>
+                      setExpandedImo((prev) => (prev === vessel.imo ? null : vessel.imo)),
+                    )
+                  }
                 >
                   <td className="px-4 py-2 text-sm font-mono text-gray-300">
                     {vessel.vesselName || '—'}
