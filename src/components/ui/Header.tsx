@@ -14,7 +14,7 @@ import { SearchInput } from './SearchInput';
 import { ChokepointWidgets } from './ChokepointWidget';
 import { NotificationBell } from './NotificationBell';
 import { AnomalyFilter } from './AnomalyFilter';
-import { StatusBar } from './StatusBar';
+import { StatusChip } from './StatusChip';
 import { StraitsMark } from './StraitsMark';
 
 interface SearchResult {
@@ -121,7 +121,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
               </>
             )}
             <NotificationBell />
-            <StatusBar />
+            <StatusChip />
           </div>
         </div>
       </div>
