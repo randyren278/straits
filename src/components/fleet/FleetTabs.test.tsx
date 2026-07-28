@@ -87,4 +87,26 @@ describe('FleetTabs', () => {
     await user.keyboard('{End}');
     expect(onChange).toHaveBeenCalledWith('speed');
   });
+
+  it('wraps to the last tab when pressing ArrowLeft on the first tab', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<FleetTabs tabs={tabs} activeId="sanctioned" onChange={onChange} />);
+
+    screen.getByRole('tab', { name: /Sanctioned/ }).focus();
+
+    await user.keyboard('{ArrowLeft}');
+    expect(onChange).toHaveBeenCalledWith('speed');
+  });
+
+  it('wraps to the first tab when pressing ArrowRight on the last tab', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<FleetTabs tabs={tabs} activeId="speed" onChange={onChange} />);
+
+    screen.getByRole('tab', { name: /Speed Anomaly/ }).focus();
+
+    await user.keyboard('{ArrowRight}');
+    expect(onChange).toHaveBeenCalledWith('sanctioned');
+  });
 });
