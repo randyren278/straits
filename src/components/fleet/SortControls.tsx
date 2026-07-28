@@ -7,6 +7,8 @@
  */
 'use client';
 
+import { useId } from 'react';
+
 import type { SortColumn, SortDir } from '@/lib/hooks/useTableView';
 
 interface SortableHeaderProps {
@@ -58,6 +60,7 @@ interface MobileSortBarProps {
 }
 
 export function MobileSortBar({ columns, activeKey, dir, onSort, accent = 'amber' }: MobileSortBarProps) {
+  const selectId = useId();
   const accentText = accent === 'red' ? 'text-red-400' : 'text-amber-500';
   const accentBorder = accent === 'red' ? 'border-red-500/30' : 'border-amber-500/30';
 
@@ -78,11 +81,11 @@ export function MobileSortBar({ columns, activeKey, dir, onSort, accent = 'amber
 
   return (
     <div className={`lg:hidden flex items-center justify-end gap-2 border-b ${accentBorder} bg-gray-900/30 px-3 py-2`}>
-      <label htmlFor="fleet-mobile-sort" className="text-xs font-mono uppercase tracking-wider text-gray-500">
+      <label htmlFor={selectId} className="text-xs font-mono uppercase tracking-wider text-gray-500">
         Sort
       </label>
       <select
-        id="fleet-mobile-sort"
+        id={selectId}
         value={`${activeKey}:${dir}`}
         onChange={(e) => handleChange(e.target.value)}
         className={`min-h-[44px] bg-black border ${accentBorder} ${accentText} px-2 py-1 text-xs font-mono uppercase tracking-wider`}

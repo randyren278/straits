@@ -123,4 +123,23 @@ describe('MobileSortBar', () => {
     expect(onSort).toHaveBeenCalledTimes(1);
     expect(onSort).toHaveBeenNthCalledWith(1, 'riskScore');
   });
+
+  it('generates unique ids for each instance', () => {
+    render(
+      <div>
+        <MobileSortBar columns={[nameColumn, riskColumn]} activeKey="riskScore" dir="desc" onSort={() => {}} />
+        <MobileSortBar columns={[nameColumn, riskColumn]} activeKey="vesselName" dir="asc" onSort={() => {}} />
+      </div>,
+    );
+
+    const comboboxes = screen.getAllByRole('combobox', { name: /sort/i });
+    expect(comboboxes).toHaveLength(2);
+
+    const id1 = comboboxes[0].getAttribute('id');
+    const id2 = comboboxes[1].getAttribute('id');
+
+    expect(id1).toBeTruthy();
+    expect(id2).toBeTruthy();
+    expect(id1).not.toEqual(id2);
+  });
 });
