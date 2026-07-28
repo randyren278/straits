@@ -1,19 +1,23 @@
 /**
  * Fleet Overview Page (M006-S01)
  *
- * Displays all active anomalies grouped by type in collapsible tables.
- * Fetches from /api/anomalies and groups client-side by anomalyType.
+ * Tabbed view of active anomalies: one tab per anomaly type plus a
+ * sanctioned-vessels tab. One panel is mounted at a time and each caps
+ * rendering at 25 rows, keeping the page near a single screen.
  * Terminal aesthetic: bg-black, amber accents, font-mono, no border-radius.
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/ui/Header';
 import { AnomalyTable } from '@/components/fleet/AnomalyTable';
 import { SanctionedVessels } from '@/components/fleet/SanctionedVessels';
+import { FleetTabs, type FleetTab } from '@/components/fleet/FleetTabs';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import type { Anomaly, AnomalyType } from '@/types/anomaly';
 import { ANOMALY_TYPE_LABELS } from '@/types/anomaly';
+
+const SANCTIONED_TAB_ID = 'sanctioned';
 
 /** Group anomalies by type and sort groups by count descending */
 function groupByType(anomalies: Anomaly[]): Array<{ type: AnomalyType; items: Anomaly[] }> {
@@ -33,10 +37,23 @@ function groupByType(anomalies: Anomaly[]): Array<{ type: AnomalyType; items: An
     .sort((a, b) => b.items.length - a.items.length);
 }
 
+/** Deduplicate sanctioned vessels by IMO, keeping the highest risk score */
+function dedupeSanctioned(anomalies: Anomaly[]): Anomaly[] {
+  const byImo = new Map<string, Anomaly>();
+  for (const a of anomalies.filter((x) => x.isSanctioned)) {
+    const existing = byImo.get(a.imo);
+    if (!existing || (a.riskScore ?? 0) > (existing.riskScore ?? 0)) {
+      byImo.set(a.imo, a);
+    }
+  }
+  return Array.from(byImo.values());
+}
+
 export default function FleetPage() {
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTab, setSelectedTab] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,23 +85,38 @@ export default function FleetPage() {
     }
 
     fetchAnomalies();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const groups = groupByType(anomalies);
+  const groups = useMemo(() => groupByType(anomalies), [anomalies]);
+  const sanctionedVessels = useMemo(() => dedupeSanctioned(anomalies), [anomalies]);
 
-  // Deduplicate sanctioned vessels by IMO, keeping the highest risk score
-  const sanctionedVessels = (() => {
-    const sanctioned = anomalies.filter(a => a.isSanctioned);
-    const byImo = new Map<string, Anomaly>();
-    for (const a of sanctioned) {
-      const existing = byImo.get(a.imo);
-      if (!existing || (a.riskScore ?? 0) > (existing.riskScore ?? 0)) {
-        byImo.set(a.imo, a);
-      }
+  const tabs = useMemo<FleetTab[]>(() => {
+    const list: FleetTab[] = [];
+    if (sanctionedVessels.length > 0) {
+      list.push({
+        id: SANCTIONED_TAB_ID,
+        label: 'Sanctioned',
+        count: sanctionedVessels.length,
+        accent: 'red',
+      });
     }
-    return Array.from(byImo.values());
-  })();
+    for (const { type, items } of groups) {
+      list.push({ id: type, label: ANOMALY_TYPE_LABELS[type], count: items.length });
+    }
+    return list;
+  }, [groups, sanctionedVessels]);
+
+  // Derived, not stored: falls back to the first tab (Sanctioned when present,
+  // otherwise the largest category) both on first load and whenever a refetch
+  // removes the tab that was selected.
+  const activeTab = selectedTab && tabs.some((t) => t.id === selectedTab)
+    ? selectedTab
+    : tabs[0]?.id ?? null;
+
+  const activeGroup = groups.find((g) => g.type === activeTab);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -94,9 +126,7 @@ export default function FleetPage() {
         {/* Page title */}
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">
-              FLEET OVERVIEW
-            </h1>
+            <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">FLEET OVERVIEW</h1>
             {!loading && !error && (
               <p className="text-xs text-gray-600 mt-0.5 font-mono">
                 {anomalies.length} active anomalies across {groups.length} categories
@@ -120,15 +150,6 @@ export default function FleetPage() {
           </div>
         </div>
 
-        {/* Mobile-only anomaly-type overview (desktop shows counts in section headers) */}
-        {!loading && !error && anomalies.length > 0 && (
-          <div className="hidden max-lg:flex flex-wrap gap-x-4 gap-y-1 mb-4 px-3 py-2 border border-amber-500/20 bg-gray-900/40 text-xs font-mono uppercase tracking-wider text-gray-400">
-            {groups.map(({ type, items }) => (
-              <span key={type}>{ANOMALY_TYPE_LABELS[type]} <span className="text-amber-500">{items.length}</span></span>
-            ))}
-          </div>
-        )}
-
         {/* Loading state */}
         {loading && (
           <div className="flex items-center justify-center h-64">
@@ -141,9 +162,7 @@ export default function FleetPage() {
         {/* Error state */}
         {error && (
           <div className="p-4 border border-red-500/50 bg-red-900/10">
-            <p className="text-red-400 font-mono text-sm">
-              ERROR: {error}
-            </p>
+            <p className="text-red-400 font-mono text-sm">ERROR: {error}</p>
             <p className="text-gray-500 font-mono text-xs mt-2">
               Check network connection and try refreshing the page.
             </p>
@@ -159,18 +178,23 @@ export default function FleetPage() {
           </div>
         )}
 
-        {/* Anomaly tables grouped by type */}
-        {!loading && !error && anomalies.length > 0 && (
+        {/* Tabbed panels */}
+        {!loading && !error && anomalies.length > 0 && activeTab && (
           <ErrorBoundary>
-            <SanctionedVessels vessels={sanctionedVessels} />
-            <div className={`space-y-4${sanctionedVessels.length > 0 ? ' mt-4' : ''}`}>
-              {groups.map(({ type, items }) => (
-                <AnomalyTable
-                  key={type}
-                  anomalyType={type}
-                  anomalies={items}
-                />
-              ))}
+            <FleetTabs tabs={tabs} activeId={activeTab} onChange={setSelectedTab} />
+
+            <div
+              role="tabpanel"
+              id={`fleet-panel-${activeTab}`}
+              aria-labelledby={`fleet-tab-${activeTab}`}
+              className="mt-4"
+            >
+              {/* key remounts the panel on tab change, resetting sort, page and any open dossier */}
+              {activeTab === SANCTIONED_TAB_ID ? (
+                <SanctionedVessels key={activeTab} vessels={sanctionedVessels} />
+              ) : activeGroup ? (
+                <AnomalyTable key={activeTab} anomalyType={activeGroup.type} anomalies={activeGroup.items} />
+              ) : null}
             </div>
           </ErrorBoundary>
         )}
