@@ -12,6 +12,14 @@
   --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
 }
 
+/* Total height the mobile bottom nav reserves, including the iPhone home-indicator
+   inset. The nav, the dashboard sheet, the vessel sheet, and the scroll padding on
+   other routes all read this, so a device with a home indicator can never leave a
+   sheet sitting underneath the nav. Resolves to 3.5rem where the inset is 0. */
+:root {
+  --straits-nav-h: calc(3.5rem + env(safe-area-inset-bottom));
+}
+
 /* MapLibre attribution — override the default white rounded pill to match the
    terminal aesthetic (Tailwind utilities don't apply to vendor DOM, so literal
    values; amber-500 = rgb(245 158 11)). */
