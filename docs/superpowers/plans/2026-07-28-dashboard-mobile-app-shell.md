@@ -15,6 +15,7 @@
 - **Touch targets ≥44×44 CSS px** for every interactive element, including the logo link (currently 20×44 and failing).
 - **Hiding uses `display:none`** (Tailwind `hidden` / `max-lg:hidden` / `lg:hidden`), never `visibility` or `opacity`, so exactly one instance of a duplicated control is in the accessibility tree.
 - **No absolutely-positioned invisible hit areas over interactive content.** A 44px transparent overlay on the sheet handle swallowed every tap meant for the tabs during mockup development. Make the handle itself the target.
+- **One source of truth for the bottom-nav height.** `src/app/globals.css` defines `--straits-nav-h: calc(3.5rem + env(safe-area-inset-bottom))`. The nav, the mobile sheet, the vessel sheet, and the scroll padding on other routes all reference `var(--straits-nav-h)`. Never hardcode `56px` / `bottom-14` for this — on an iPhone the safe-area inset makes the real nav taller than 56px, and a hardcoded offset puts the sheet underneath it.
 - **Border-radius is globally zeroed** (`--radius-*: initial` in `src/app/globals.css`). Every `rounded-*` class is a no-op. Do not add rounding; sharp corners are the terminal aesthetic.
 - **Terminal palette:** true black, `amber-500` accent, JetBrains Mono via `font-mono`.
 - **Tests are colocated** as `src/**/*.test.tsx`. Run with `npx vitest run <path>`.
@@ -167,6 +168,7 @@ git commit -m "feat(dashboard): add sheet detent state hook"
 **Files:**
 - Create: `src/components/ui/MobileBottomNav.tsx`
 - Test: `src/components/ui/MobileBottomNav.test.tsx`
+- Modify: `src/app/globals.css` — add the `--straits-nav-h` token
 
 **Interfaces:**
 - Produces: `<MobileBottomNav />` — no props. Reads the active route from `usePathname()`.
@@ -220,9 +222,23 @@ describe('MobileBottomNav', () => {
 Run: `npx vitest run src/components/ui/MobileBottomNav.test.tsx`
 Expected: FAIL — `Failed to resolve import "./MobileBottomNav"`
 
-- [ ] **Step 3: Write the implementation**
+- [ ] **Step 3: Add the shared height token**
 
-`env(safe-area-inset-bottom)` keeps the bar clear of the iPhone home indicator. `pb-[env(safe-area-inset-bottom)]` resolves to 0 where the inset is undefined, so it is safe on Android and desktop.
+In `src/app/globals.css`, after the `@theme { … }` block, add:
+
+```css
+/* Total height the mobile bottom nav reserves, including the iPhone home-indicator
+   inset. The nav, the dashboard sheet, the vessel sheet, and the scroll padding on
+   other routes all read this, so a device with a home indicator can never leave a
+   sheet sitting underneath the nav. Resolves to 3.5rem where the inset is 0. */
+:root {
+  --straits-nav-h: calc(3.5rem + env(safe-area-inset-bottom));
+}
+```
+
+- [ ] **Step 4: Write the implementation**
+
+The nav is `--straits-nav-h` tall and pads the inset out of its content box, leaving a full 3.5rem for the links.
 
 ```tsx
 /**
@@ -251,7 +267,7 @@ export function MobileBottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="lg:hidden fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 bg-black border-t border-amber-500/20 pb-[env(safe-area-inset-bottom)]"
+      className="lg:hidden fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 h-[var(--straits-nav-h)] bg-black border-t border-amber-500/20 pb-[env(safe-area-inset-bottom)]"
     >
       {DESTINATIONS.map(({ href, label, Icon }) => {
         const active = pathname === href;
@@ -274,15 +290,15 @@ export function MobileBottomNav() {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run src/components/ui/MobileBottomNav.test.tsx`
 Expected: PASS — 4 tests
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/components/ui/MobileBottomNav.tsx src/components/ui/MobileBottomNav.test.tsx
+git add src/app/globals.css src/components/ui/MobileBottomNav.tsx src/components/ui/MobileBottomNav.test.tsx
 git commit -m "feat(nav): add mobile bottom navigation"
 ```
 
@@ -817,6 +833,8 @@ git commit -m "feat(intel): cap the feed at 8 items with an expand control"
 - Create: `src/components/dashboard/MobileSheet.tsx`
 - Test: `src/components/dashboard/MobileSheet.test.tsx`
 
+The sheet sits directly on top of the bottom nav via `bottom-[var(--straits-nav-h)]` (Task 2). Do not hardcode a pixel offset.
+
 **Interfaces:**
 - Consumes: `useSheetDetent()` from `@/lib/hooks/useSheetDetent` (Task 1) — `{ detent, cycle, collapse, isOpen }`, `Detent = 'peek' | 'half' | 'full'`.
 - Produces:
@@ -1035,7 +1053,7 @@ export function MobileSheet({ chokepoints, collapsed, children }: MobileSheetPro
     <div
       data-testid="mobile-sheet"
       data-detent={detent}
-      className={`lg:hidden fixed inset-x-0 bottom-[56px] z-30 flex flex-col bg-black border-t border-amber-500 shadow-[0_-8px_24px_rgba(0,0,0,0.85)] transition-[height] duration-200 ${HEIGHT[detent]}`}
+      className={`lg:hidden fixed inset-x-0 bottom-[var(--straits-nav-h)] z-30 flex flex-col bg-black border-t border-amber-500 shadow-[0_-8px_24px_rgba(0,0,0,0.85)] transition-[height] duration-200 ${HEIGHT[detent]}`}
     >
       <button
         type="button"
@@ -1423,10 +1441,10 @@ export default function ProtectedLayout({
 }
 ```
 
-In each of `fleet/page.tsx:125`, `analytics/page.tsx:120`, `about/page.tsx:24`, add `max-lg:pb-20` to the `<main>` className so content clears the fixed 56px bar plus the safe-area inset:
+In each of `fleet/page.tsx:125`, `analytics/page.tsx:120`, `about/page.tsx:24`, add `max-lg:pb-[calc(var(--straits-nav-h)+1rem)]` to the `<main>` className so content clears the fixed bar on every device:
 
 ```tsx
-      <main className="p-6 max-w-7xl mx-auto max-lg:p-3 max-lg:pb-20">
+      <main className="p-6 max-w-7xl mx-auto max-lg:p-3 max-lg:pb-[calc(var(--straits-nav-h)+1rem)]">
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -1503,7 +1521,7 @@ describe('DashboardPage', () => {
     store.selectedVessel = { imo: '9999999', name: 'TEST' };
     render(<DashboardPage />);
     const sheet = screen.getByTestId('vessel-sheet');
-    expect(sheet).toHaveClass('bottom-14');
+    expect(sheet.className).toMatch(/bottom-\[var\(--straits-nav-h\)\]/);
     expect(sheet).not.toHaveClass('bottom-0');
   });
 
@@ -1595,7 +1613,7 @@ Replace the returned JSX from `<main …>` onward:
       {selectedVessel && (
         <div
           data-testid="vessel-sheet"
-          className="hidden max-lg:block fixed inset-x-0 bottom-14 z-40 max-h-[60dvh] overflow-y-auto bg-black border-t border-amber-500/40 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]"
+          className="hidden max-lg:block fixed inset-x-0 bottom-[var(--straits-nav-h)] z-40 max-h-[60dvh] overflow-y-auto bg-black border-t border-amber-500/40 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]"
         >
           <VesselPanel />
         </div>
@@ -1844,7 +1862,7 @@ Expected: no `FAIL` lines.
 ```bash
 npm run verify:fleet
 ```
-Expected: the same pass count as before this branch. The bottom nav adds 56px of fixed chrome to `/fleet`; if a height threshold trips, the fix is the `max-lg:pb-20` from Task 8, not a threshold change.
+Expected: the same pass count as before this branch. The bottom nav adds 56px of fixed chrome to `/fleet`; if a height threshold trips, the fix is the `max-lg:pb-[calc(var(--straits-nav-h)+1rem)]` from Task 8, not a threshold change.
 
 - [ ] **Step 5: Dashboard verification**
 
