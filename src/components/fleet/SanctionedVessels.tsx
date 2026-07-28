@@ -7,62 +7,86 @@
  */
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FleetVesselDetail } from '@/components/fleet/FleetVesselDetail';
+import { TablePager } from '@/components/fleet/TablePager';
+import { SortableHeader, MobileSortBar } from '@/components/fleet/SortControls';
+import { useTableView, type SortColumn } from '@/lib/hooks/useTableView';
 import type { Anomaly } from '@/types/anomaly';
 
 interface SanctionedVesselsProps {
   vessels: Anomaly[];
 }
 
+/** This tab has no Detected column, so it sorts on name and risk only. */
+export const SANCTIONED_SORT_COLUMNS: SortColumn<Anomaly>[] = [
+  { key: 'vesselName', label: 'Vessel Name', defaultDir: 'asc', value: (v) => v.vesselName ?? null },
+  { key: 'riskScore', label: 'Risk Score', defaultDir: 'desc', value: (v) => v.riskScore ?? null },
+];
+
 export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
   const [expandedImo, setExpandedImo] = useState<string | null>(null);
+  const view = useTableView(vessels, SANCTIONED_SORT_COLUMNS, { defaultSortKey: 'riskScore' });
+
+  useEffect(() => {
+    setExpandedImo(null);
+  }, [view.page, view.sortKey, view.sortDir]);
+
+  const [nameColumn, riskColumn] = SANCTIONED_SORT_COLUMNS;
 
   if (vessels.length === 0) {
     return null;
   }
 
   return (
-    <div
-      className="border border-red-500/30 bg-black"
-      data-testid="sanctioned-vessels"
-    >
+    <div className="border border-red-500/30 bg-black" data-testid="sanctioned-vessels">
       {/* Header bar */}
       <div className="flex items-center gap-3 bg-gray-900/50 px-4 py-3">
-        {/* Red dot indicator */}
         <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-        <span className="text-red-400 text-xs font-mono uppercase tracking-widest">
-          SANCTIONED VESSELS
-        </span>
-        <span className="text-xs font-mono text-red-400/70">
-          [{vessels.length}]
-        </span>
+        <span className="text-red-400 text-xs font-mono uppercase tracking-widest">SANCTIONED VESSELS</span>
+        <span className="text-xs font-mono text-red-400/70">[{vessels.length}]</span>
       </div>
 
-      {/* Desktop table (md+) — clips Sanction Category on phones, so mobile uses the card list below */}
+      <MobileSortBar
+        columns={SANCTIONED_SORT_COLUMNS as SortColumn<never>[]}
+        activeKey={view.sortKey}
+        dir={view.sortDir}
+        onSort={view.toggleSort}
+        accent="red"
+      />
+
+      {/* Desktop table (lg+) — clips Sanction Category on phones, so mobile uses the card list below */}
       <div className="hidden lg:block overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr className="border-t border-red-500/10">
-              <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-red-400/70 font-normal">
-                Vessel Name
-              </th>
+              <SortableHeader
+                column={nameColumn as SortColumn<never>}
+                activeKey={view.sortKey}
+                dir={view.sortDir}
+                onSort={view.toggleSort}
+                accent="red"
+              />
               <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-red-400/70 font-normal">
                 IMO
               </th>
               <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-red-400/70 font-normal">
                 Flag
               </th>
-              <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-red-400/70 font-normal">
-                Risk Score
-              </th>
+              <SortableHeader
+                column={riskColumn as SortColumn<never>}
+                activeKey={view.sortKey}
+                dir={view.sortDir}
+                onSort={view.toggleSort}
+                accent="red"
+              />
               <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-red-400/70 font-normal">
                 Sanction Category
               </th>
             </tr>
           </thead>
           <tbody>
-            {vessels.map((vessel) => (
+            {view.rows.map((vessel) => (
               <React.Fragment key={vessel.imo}>
                 <tr
                   className={`border-t border-red-500/10 cursor-pointer transition-colors ${
@@ -125,7 +149,7 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
 
       {/* Mobile card list (<md) — Sanction Category always visible (the table clips it on phones) */}
       <div className="lg:hidden divide-y divide-red-500/10">
-        {vessels.map((vessel) => (
+        {view.rows.map((vessel) => (
           <React.Fragment key={vessel.imo}>
             <button
               type="button"
@@ -168,6 +192,16 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
           </React.Fragment>
         ))}
       </div>
+
+      <TablePager
+        page={view.page}
+        pageCount={view.pageCount}
+        rangeStart={view.rangeStart}
+        rangeEnd={view.rangeEnd}
+        total={view.total}
+        onPageChange={view.setPage}
+        accent="red"
+      />
     </div>
   );
 }
