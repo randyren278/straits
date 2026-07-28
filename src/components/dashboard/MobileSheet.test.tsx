@@ -13,9 +13,8 @@ function setup(props: Partial<React.ComponentProps<typeof MobileSheet>> = {}) {
     <MobileSheet
       chokepoints={chokepoints}
       collapsed={false}
-      // MobileSheet's `children` is a named { prices, intel } slot object, not JSX nesting.
-      // eslint-disable-next-line react/no-children-prop
-      children={{ prices: <div>PRICES BODY</div>, intel: <div>INTEL BODY</div> }}
+      // Named slots, not JSX nesting — hence `panels` rather than `children`.
+      panels={{ prices: <div>PRICES BODY</div>, intel: <div>INTEL BODY</div> }}
       {...props}
     />,
   );
@@ -96,8 +95,7 @@ describe('MobileSheet', () => {
       <MobileSheet
         chokepoints={chokepoints}
         collapsed
-        // eslint-disable-next-line react/no-children-prop -- see setup() above
-        children={{ prices: <div>PRICES BODY</div>, intel: <div>INTEL BODY</div> }}
+        panels={{ prices: <div>PRICES BODY</div>, intel: <div>INTEL BODY</div> }}
       />,
     );
     expect(screen.getByTestId('mobile-sheet')).toHaveAttribute('data-detent', 'peek');

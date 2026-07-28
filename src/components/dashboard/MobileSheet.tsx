@@ -23,7 +23,7 @@ export interface MobileSheetProps {
   chokepoints: Chokepoint[];
   /** Forced back to peek by the parent — e.g. a vessel was selected. */
   collapsed: boolean;
-  children: { prices: ReactNode; intel: ReactNode };
+  panels: { prices: ReactNode; intel: ReactNode };
 }
 
 type TabId = 'choke' | 'prices' | 'intel';
@@ -40,7 +40,7 @@ const HEIGHT: Record<Detent, string> = {
   full: 'h-[72dvh]',
 };
 
-export function MobileSheet({ chokepoints, collapsed, children }: MobileSheetProps) {
+export function MobileSheet({ chokepoints, collapsed, panels }: MobileSheetProps) {
   const { detent, cycle, collapse, isOpen } = useSheetDetent();
   const [active, setActive] = useState<TabId>('choke');
   const baseId = useId();
@@ -152,8 +152,8 @@ export function MobileSheet({ chokepoints, collapsed, children }: MobileSheetPro
                 ))}
               </div>
             )}
-            {active === 'prices' && children.prices}
-            {active === 'intel' && children.intel}
+            {active === 'prices' && panels.prices}
+            {active === 'intel' && panels.intel}
           </div>
         </>
       )}

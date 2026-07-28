@@ -843,7 +843,7 @@ The sheet sits directly on top of the bottom nav via `bottom-[var(--straits-nav-
   interface MobileSheetProps {
     chokepoints: Chokepoint[];
     collapsed: boolean;            // forced to peek by the parent (vessel selected)
-    children: { prices: ReactNode; intel: ReactNode };
+    panels: { prices: ReactNode; intel: ReactNode };
   }
   ```
 
@@ -1004,7 +1004,7 @@ export interface MobileSheetProps {
   chokepoints: Chokepoint[];
   /** Forced back to peek by the parent — e.g. a vessel was selected. */
   collapsed: boolean;
-  children: { prices: ReactNode; intel: ReactNode };
+  panels: { prices: ReactNode; intel: ReactNode };
 }
 
 type TabId = 'choke' | 'prices' | 'intel';
@@ -1468,7 +1468,7 @@ git commit -m "feat(nav): mount the bottom nav across the protected route group"
 - Test: `src/app/(protected)/dashboard/page.test.tsx`
 
 **Interfaces:**
-- Consumes: `<MobileSheet chokepoints={…} collapsed={…}>{{ prices, intel }}</MobileSheet>` (Task 6), `<MapFilterChips />` (Task 4).
+- Consumes: `<MobileSheet chokepoints={…} collapsed={…} panels={{ prices, intel }} />` (Task 6), `<MapFilterChips />` (Task 4).
 
 On mobile the map fills the space between the header and the sheet; the panel column is `max-lg:hidden`; the vessel sheet moves from `bottom-0` to `bottom-[var(--straits-nav-h)]` so it clears the nav on every device.
 
@@ -1604,9 +1604,11 @@ Replace the returned JSX from `<main …>` onward:
         </ErrorBoundary>
       </main>
 
-      <MobileSheet chokepoints={chokepoints} collapsed={!!selectedVessel}>
-        {{ prices: <OilPricePanel />, intel: <NewsPanel /> }}
-      </MobileSheet>
+      <MobileSheet
+        chokepoints={chokepoints}
+        collapsed={!!selectedVessel}
+        panels={{ prices: <OilPricePanel />, intel: <NewsPanel /> }}
+      />
 
       {/* Sits above the bottom nav. At bottom-0 the nav would cover its
           controls, and the two would fight for the same edge. */}
