@@ -16,6 +16,10 @@ interface NewsItem {
   publishedAt: string;
 }
 
+/** Ceiling on rendered headlines. The feed had none, so its height scaled with
+ *  whatever the API returned — 1020px on a 844px-tall phone. */
+export const VISIBLE_HEADLINES = 8;
+
 /**
  * Terminal-style news feed panel in the right column.
  * Features:
@@ -29,6 +33,7 @@ export function NewsPanel() {
   const [headlines, setHeadlines] = useState<NewsItem[]>([]);
   const [collapsed, setCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const fetchNews = async () => {
@@ -68,24 +73,34 @@ export function NewsPanel() {
           {headlines.length === 0 ? (
             <p className="px-3 py-2 text-gray-500 text-xs font-mono">No headlines available</p>
           ) : (
-            headlines.map((item) => (
-              <a
-                key={`${item.url}-${item.publishedAt}`}
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`${item.title} — ${item.source}`}
-                className="block px-3 py-2 border-b border-amber-500/10 hover:bg-white/5 transition-colors"
-              >
-                <p className="text-xs text-gray-200 leading-tight line-clamp-2">{item.title}</p>
-                <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 font-mono">
-                  <span>{item.source}</span>
-                  <span>-</span>
-                  <span>{formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</span>
-                  <ExternalLink className="w-3 h-3 ml-auto" />
-                </div>
-              </a>
-            ))
+            <>
+              {(expanded ? headlines : headlines.slice(0, VISIBLE_HEADLINES)).map((item) => (
+                <a
+                  key={`${item.url}-${item.publishedAt}`}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${item.title} — ${item.source}`}
+                  className="block px-3 py-2 border-b border-amber-500/10 hover:bg-white/5 transition-colors"
+                >
+                  <p className="text-xs text-gray-200 leading-tight line-clamp-2">{item.title}</p>
+                  <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 font-mono">
+                    <span>{item.source}</span>
+                    <span>-</span>
+                    <span>{formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</span>
+                    <ExternalLink className="w-3 h-3 ml-auto" />
+                  </div>
+                </a>
+              ))}
+              {!expanded && headlines.length > VISIBLE_HEADLINES && (
+                <button
+                  onClick={() => setExpanded(true)}
+                  className="w-full min-h-[44px] px-3 text-xs font-mono uppercase tracking-widest text-amber-500 border-b border-amber-500/20 hover:bg-white/5 transition-colors"
+                >
+                  View all {headlines.length} →
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
