@@ -49,8 +49,17 @@ describe('Header', () => {
     expect(within(screen.getByTestId('mobile-search')).getByPlaceholderText(/search vessel/i)).toBeInTheDocument();
   });
 
-  it('keeps exactly one status chip', () => {
+  it('mounts exactly one status chip in the mobile cluster and one in the desktop row', () => {
+    // happy-dom does not evaluate media queries, so both the `lg:hidden`
+    // mobile cluster and the `max-lg:hidden` desktop row are always present
+    // in the DOM here — only CSS (unavailable in this environment) decides
+    // which one is actually visible at a given width. What this test can
+    // verify structurally is the intent: exactly one StatusChip lives inside
+    // each cluster, so CSS visibility alone determines the single visible
+    // instance rather than any instance being duplicated within a cluster.
+    // The real single-visible-instance behavior is verified in a browser.
     render(<Header />);
-    expect(screen.getAllByTestId('status-chip')).toHaveLength(1);
+    expect(within(screen.getByTestId('header-mobile-controls')).getAllByTestId('status-chip')).toHaveLength(1);
+    expect(within(screen.getByTestId('header-controls')).getAllByTestId('status-chip')).toHaveLength(1);
   });
 });

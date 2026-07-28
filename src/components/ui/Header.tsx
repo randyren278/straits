@@ -57,7 +57,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
         <div className="flex items-center max-lg:justify-between max-lg:min-h-11 max-lg:w-full">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 shrink-0 min-w-[44px] min-h-[44px]"
+            className="flex items-center gap-2 shrink-0 max-lg:min-w-[44px] max-lg:min-h-[44px]"
           >
             <StraitsMark size={20} className="shrink-0" />
             {/* Wordmark hidden on narrow phones so all 4 nav tabs fit without clipping */}
@@ -82,18 +82,14 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             ))}
           </nav>
 
-          {/* StatusChip owns the only /api/status poller, and NotificationBell
-              polls /api/alerts every 30s and holds its own open/close state —
-              mounting either a second time (one copy per breakpoint, the
-              pattern used above for the stateless nav) would double both
-              background pollers and split one control into two out-of-sync
-              instances. Each is mounted exactly once, here, where the
-              ancestor chain is never display:none at either breakpoint, so
-              StatusChip's own internal mobile/desktop halves (and
-              NotificationBell's responsive classes) still resolve correctly
-              at both widths. See Header.tsx report for the desktop-position
-              tradeoff this implies. */}
-          <div className="flex items-center gap-3 lg:ml-4">
+          {/* Mobile-only cluster: status, search toggle, alerts, all in the
+              single 44px row. StatusChip and NotificationBell each own a
+              background poller (/api/status, /api/alerts), so this is a
+              second mount of both alongside the desktop copies below —
+              usePolledJson (inside each component) shares the interval and
+              in-flight request across every mounted copy of the same URL, so
+              two mounts never mean two pollers. */}
+          <div data-testid="header-mobile-controls" className="lg:hidden flex items-center gap-3">
             {activeTab === 'dashboard' && (
               <button
                 type="button"
@@ -117,13 +113,19 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
           className="max-lg:hidden flex items-center gap-4"
         >
           {activeTab === 'dashboard' && (
-            <>
-              <SearchInput onSelectVessel={onSearchSelect} />
-              <DataFreshness />
-              <TankerFilter />
-              <AnomalyFilter />
-            </>
+            <SearchInput onSelectVessel={onSearchSelect} />
           )}
+          <div className="flex items-center gap-4">
+            {activeTab === 'dashboard' && (
+              <>
+                <DataFreshness />
+                <TankerFilter />
+                <AnomalyFilter />
+              </>
+            )}
+            <NotificationBell />
+            <StatusChip />
+          </div>
         </div>
       </div>
 

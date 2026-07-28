@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatDistanceToNow, isValid } from 'date-fns';
 import { useVesselStore } from '@/stores/vessel';
+import { usePolledJson } from '@/lib/hooks/usePolledJson';
 
 export type SourceStatus = 'live' | 'degraded' | 'offline' | null;
 
@@ -50,26 +51,21 @@ const SOURCES: Array<{ key: keyof StatusState; label: string }> = [
   { key: 'news', label: 'News' },
 ];
 
+const DEFAULT_STATUS: StatusState = { ais: null, prices: null, news: null };
+
+async function fetchStatus(): Promise<StatusState> {
+  const res = await fetch('/api/status');
+  if (!res.ok) throw new Error(`/api/status responded ${res.status}`);
+  return res.json();
+}
+
 export function StatusChip() {
-  const [status, setStatus] = useState<StatusState>({ ais: null, prices: null, news: null });
+  // Shared across every mounted copy (one per breakpoint) — see usePolledJson.
+  const status = usePolledJson('/api/status', fetchStatus, 60 * 1000) ?? DEFAULT_STATUS;
   const [open, setOpen] = useState(false);
   const [age, setAge] = useState<string | null>(null);
   const { lastUpdate } = useVesselStore();
   const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    async function fetchStatus() {
-      try {
-        const res = await fetch('/api/status');
-        if (res.ok) setStatus(await res.json());
-      } catch {
-        // Network error — leave the last known state rather than flashing unknown.
-      }
-    }
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Recomputed on a tick so the impure clock read never happens during render.
   useEffect(() => {
