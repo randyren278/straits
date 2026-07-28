@@ -90,7 +90,7 @@ export function useTableView<T>(
   const total = sorted.length;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   // Clamp rather than store, so a shrinking row set corrects itself.
-  const page = Math.min(requestedPage, pageCount);
+  const page = Math.max(1, Math.min(requestedPage, pageCount));
 
   const pageRows = useMemo(
     () => sorted.slice((page - 1) * pageSize, page * pageSize),

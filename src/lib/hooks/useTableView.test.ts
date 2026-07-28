@@ -123,4 +123,18 @@ describe('useTableView', () => {
     expect(result.current.rangeStart).toBe(0);
     expect(result.current.rangeEnd).toBe(0);
   });
+
+  it('clamps negative and zero page values to 1 and reports sane ranges', () => {
+    const { result } = renderHook(() => useTableView(rows, columns, { defaultSortKey: 'risk' }));
+
+    act(() => result.current.setPage(0));
+    expect(result.current.page).toBe(1);
+    expect(result.current.rangeStart).toBe(1);
+    expect(result.current.rangeEnd).toBeGreaterThan(0);
+
+    act(() => result.current.setPage(-5));
+    expect(result.current.page).toBe(1);
+    expect(result.current.rangeStart).toBe(1);
+    expect(result.current.rangeEnd).toBeGreaterThan(0);
+  });
 });
