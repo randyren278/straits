@@ -1,21 +1,35 @@
 /**
- * AnomalyTable — Collapsible table of anomalies for a single anomaly type.
- * Renders vessel metadata columns for the Fleet page.
+ * AnomalyTable — sortable, paged table of anomalies for a single anomaly type.
+ * Rendered as the content of a Fleet page tab; the tab controls visibility,
+ * so this component has no collapse of its own.
  * Requirements: M006-S01 (Fleet page grouped anomaly tables)
  */
 'use client';
 
-import React, { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { AnomalyBadge } from '@/components/ui/AnomalyBadge';
 import { FleetVesselDetail } from '@/components/fleet/FleetVesselDetail';
+import { TablePager } from '@/components/fleet/TablePager';
+import { SortableHeader, MobileSortBar } from '@/components/fleet/SortControls';
+import { useTableView, type SortColumn } from '@/lib/hooks/useTableView';
 import type { Anomaly, AnomalyType } from '@/types/anomaly';
-import { ANOMALY_TYPE_LABELS } from '@/types/anomaly';
 
 interface AnomalyTableProps {
   anomalyType: AnomalyType;
   anomalies: Anomaly[];
 }
+
+function toTime(value: Date | string): number | null {
+  const t = (typeof value === 'string' ? new Date(value) : value).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+/** Sortable columns. Flag is excluded — it is empty for every row. */
+export const ANOMALY_SORT_COLUMNS: SortColumn<Anomaly>[] = [
+  { key: 'vesselName', label: 'Vessel Name', defaultDir: 'asc', value: (a) => a.vesselName ?? null },
+  { key: 'riskScore', label: 'Risk Score', defaultDir: 'desc', value: (a) => a.riskScore ?? null },
+  { key: 'detectedAt', label: 'Detected', defaultDir: 'desc', value: (a) => toTime(a.detectedAt) },
+];
 
 function formatTimestamp(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
@@ -30,85 +44,78 @@ function formatTimestamp(date: Date | string): string {
 }
 
 export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
-  const [expanded, setExpanded] = useState<boolean>(false);
   const [expandedImo, setExpandedImo] = useState<string | null>(null);
+  const view = useTableView(anomalies, ANOMALY_SORT_COLUMNS, { defaultSortKey: 'riskScore' });
+
+  // An expanded row that survives a page or sort change points at a vessel
+  // no longer in view.
+  useEffect(() => {
+    setExpandedImo(null);
+  }, [view.page, view.sortKey, view.sortDir]);
+
+  const [nameColumn, riskColumn, detectedColumn] = ANOMALY_SORT_COLUMNS;
 
   return (
     <div className="border border-amber-500/20 bg-black">
-      {/* Section header — click to collapse/expand */}
-      <button
-        onClick={() => setExpanded((prev) => !prev)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-gray-900/50 hover:bg-gray-900 transition-colors"
-        aria-expanded={expanded}
-        aria-label={`${ANOMALY_TYPE_LABELS[anomalyType]} anomalies — ${anomalies.length} detected`}
-      >
-        <div className="flex items-center gap-3">
-          {expanded ? (
-            <ChevronDown className="w-4 h-4 text-amber-500" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-amber-500" />
-          )}
-          <AnomalyBadge type={anomalyType} confidence="confirmed" size="md" />
-          <span className="text-xs font-mono uppercase tracking-widest text-amber-500">
-            {ANOMALY_TYPE_LABELS[anomalyType]}
-          </span>
-          <span className="text-xs font-mono text-gray-500">
-            [{anomalies.length}]
-          </span>
-        </div>
-      </button>
+      <MobileSortBar
+        columns={ANOMALY_SORT_COLUMNS as SortColumn<never>[]}
+        activeKey={view.sortKey}
+        dir={view.sortDir}
+        onSort={view.toggleSort}
+      />
 
-      {/* Collapsible table body */}
-      {expanded && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-t border-amber-500/10">
-                <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
-                  Vessel Name
-                </th>
-                <th className="max-lg:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
-                  IMO
-                </th>
-                <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
-                  Flag
-                </th>
-                <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
-                  Risk Score
-                </th>
-                <th className="max-lg:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
-                  Confidence
-                </th>
-                <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
-                  Detected
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {anomalies.map((anomaly) => (
-                <React.Fragment key={anomaly.id}>
-                  <tr
-                    className={`border-t border-amber-500/10 cursor-pointer transition-colors ${
-                      expandedImo === anomaly.imo
-                        ? 'bg-amber-500/10'
-                        : 'hover:bg-amber-500/5'
-                    }`}
-                    data-imo={anomaly.imo}
-                    data-anomaly-id={anomaly.id}
-                    role="button"
-                    aria-expanded={expandedImo === anomaly.imo}
-                    aria-label={`${anomaly.vesselName || anomaly.imo}: expand for intelligence dossier`}
-                    onClick={() => setExpandedImo(prev => prev === anomaly.imo ? null : anomaly.imo)}
-                  >
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr>
+              <SortableHeader
+                column={nameColumn as SortColumn<never>}
+                activeKey={view.sortKey}
+                dir={view.sortDir}
+                onSort={view.toggleSort}
+              />
+              <th className="max-lg:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
+                IMO
+              </th>
+              <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
+                Flag
+              </th>
+              <SortableHeader
+                column={riskColumn as SortColumn<never>}
+                activeKey={view.sortKey}
+                dir={view.sortDir}
+                onSort={view.toggleSort}
+              />
+              <th className="max-lg:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
+                Confidence
+              </th>
+              <SortableHeader
+                column={detectedColumn as SortColumn<never>}
+                activeKey={view.sortKey}
+                dir={view.sortDir}
+                onSort={view.toggleSort}
+              />
+            </tr>
+          </thead>
+          <tbody>
+            {view.rows.map((anomaly) => (
+              <React.Fragment key={anomaly.id}>
+                <tr
+                  className={`border-t border-amber-500/10 cursor-pointer transition-colors ${
+                    expandedImo === anomaly.imo ? 'bg-amber-500/10' : 'hover:bg-amber-500/5'
+                  }`}
+                  data-imo={anomaly.imo}
+                  data-anomaly-id={anomaly.id}
+                  role="button"
+                  aria-expanded={expandedImo === anomaly.imo}
+                  aria-label={`${anomaly.vesselName || anomaly.imo}: expand for intelligence dossier`}
+                  onClick={() => setExpandedImo((prev) => (prev === anomaly.imo ? null : anomaly.imo))}
+                >
                   <td className="px-4 py-2 max-lg:py-3.5 text-sm font-mono text-gray-300">
                     {anomaly.vesselName || '—'}
                   </td>
-                  <td className="max-lg:hidden px-4 py-2 text-sm font-mono text-gray-400">
-                    {anomaly.imo}
-                  </td>
-                  <td className="px-4 py-2 text-sm font-mono text-gray-400">
-                    {anomaly.flag || '—'}
-                  </td>
+                  <td className="max-lg:hidden px-4 py-2 text-sm font-mono text-gray-400">{anomaly.imo}</td>
+                  <td className="px-4 py-2 text-sm font-mono text-gray-400">{anomaly.flag || '—'}</td>
                   <td className="px-4 py-2 text-sm font-mono text-gray-400">
                     {anomaly.riskScore != null ? (
                       <span
@@ -138,18 +145,28 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                     <td colSpan={6} className="p-0">
                       <FleetVesselDetail
                         imo={anomaly.imo}
-                        anomalyDetails={anomaly.details as Parameters<typeof FleetVesselDetail>[0]['anomalyDetails']}
-                        anomalyType={anomaly.anomalyType}
+                        anomalyDetails={
+                          anomaly.details as Parameters<typeof FleetVesselDetail>[0]['anomalyDetails']
+                        }
+                        anomalyType={anomalyType}
                       />
                     </td>
                   </tr>
                 )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <TablePager
+        page={view.page}
+        pageCount={view.pageCount}
+        rangeStart={view.rangeStart}
+        rangeEnd={view.rangeEnd}
+        total={view.total}
+        onPageChange={view.setPage}
+      />
     </div>
   );
 }
