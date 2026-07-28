@@ -89,8 +89,16 @@ describe('MobileSheet', () => {
     expect(screen.getByRole('tab', { name: /intel/i })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('returns to peek when the parent collapses it', () => {
+  it('returns to peek when the parent collapses it', async () => {
+    const user = userEvent.setup();
     const { rerender } = setup();
+
+    // The sheet must be OPEN first. Asserting peek from the initial peek state
+    // passes whether or not the effect fires — disabling it entirely still let
+    // this test go green.
+    await user.click(screen.getByRole('button', { name: /expand panel/i }));
+    expect(screen.getByTestId('mobile-sheet')).toHaveAttribute('data-detent', 'half');
+
     rerender(
       <MobileSheet
         chokepoints={chokepoints}
