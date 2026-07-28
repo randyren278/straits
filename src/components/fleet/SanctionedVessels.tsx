@@ -7,7 +7,7 @@
  */
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { FleetVesselDetail } from '@/components/fleet/FleetVesselDetail';
 import { TablePager } from '@/components/fleet/TablePager';
 import { SortableHeader, MobileSortBar } from '@/components/fleet/SortControls';
@@ -28,11 +28,19 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
   const [expandedImo, setExpandedImo] = useState<string | null>(null);
   const view = useTableView(vessels, SANCTIONED_SORT_COLUMNS, { defaultSortKey: 'riskScore' });
 
-  useEffect(() => {
-    setExpandedImo(null);
-  }, [view.page, view.sortKey, view.sortDir]);
-
   const [nameColumn, riskColumn] = SANCTIONED_SORT_COLUMNS;
+
+  // An expanded row that survives a page or sort change points at a vessel
+  // no longer in view.
+  function handleSort(key: string): void {
+    setExpandedImo(null);
+    view.toggleSort(key);
+  }
+
+  function handlePageChange(page: number): void {
+    setExpandedImo(null);
+    view.setPage(page);
+  }
 
   if (vessels.length === 0) {
     return null;
@@ -51,7 +59,7 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
         columns={SANCTIONED_SORT_COLUMNS as SortColumn<never>[]}
         activeKey={view.sortKey}
         dir={view.sortDir}
-        onSort={view.toggleSort}
+        onSort={handleSort}
         accent="red"
       />
 
@@ -64,7 +72,7 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
                 column={nameColumn as SortColumn<never>}
                 activeKey={view.sortKey}
                 dir={view.sortDir}
-                onSort={view.toggleSort}
+                onSort={handleSort}
                 accent="red"
               />
               <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-red-400/70 font-normal">
@@ -77,7 +85,7 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
                 column={riskColumn as SortColumn<never>}
                 activeKey={view.sortKey}
                 dir={view.sortDir}
-                onSort={view.toggleSort}
+                onSort={handleSort}
                 accent="red"
               />
               <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-red-400/70 font-normal">
@@ -199,7 +207,7 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
         rangeStart={view.rangeStart}
         rangeEnd={view.rangeEnd}
         total={view.total}
-        onPageChange={view.setPage}
+        onPageChange={handlePageChange}
         accent="red"
       />
     </div>

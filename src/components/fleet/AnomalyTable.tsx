@@ -6,7 +6,7 @@
  */
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { AnomalyBadge } from '@/components/ui/AnomalyBadge';
 import { FleetVesselDetail } from '@/components/fleet/FleetVesselDetail';
 import { TablePager } from '@/components/fleet/TablePager';
@@ -47,13 +47,19 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
   const [expandedImo, setExpandedImo] = useState<string | null>(null);
   const view = useTableView(anomalies, ANOMALY_SORT_COLUMNS, { defaultSortKey: 'riskScore' });
 
+  const [nameColumn, riskColumn, detectedColumn] = ANOMALY_SORT_COLUMNS;
+
   // An expanded row that survives a page or sort change points at a vessel
   // no longer in view.
-  useEffect(() => {
+  function handleSort(key: string): void {
     setExpandedImo(null);
-  }, [view.page, view.sortKey, view.sortDir]);
+    view.toggleSort(key);
+  }
 
-  const [nameColumn, riskColumn, detectedColumn] = ANOMALY_SORT_COLUMNS;
+  function handlePageChange(page: number): void {
+    setExpandedImo(null);
+    view.setPage(page);
+  }
 
   return (
     <div className="border border-amber-500/20 bg-black">
@@ -61,7 +67,7 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
         columns={ANOMALY_SORT_COLUMNS as SortColumn<never>[]}
         activeKey={view.sortKey}
         dir={view.sortDir}
-        onSort={view.toggleSort}
+        onSort={handleSort}
       />
 
       <div className="overflow-x-auto">
@@ -72,7 +78,7 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                 column={nameColumn as SortColumn<never>}
                 activeKey={view.sortKey}
                 dir={view.sortDir}
-                onSort={view.toggleSort}
+                onSort={handleSort}
               />
               <th className="max-lg:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
                 IMO
@@ -84,7 +90,7 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                 column={riskColumn as SortColumn<never>}
                 activeKey={view.sortKey}
                 dir={view.sortDir}
-                onSort={view.toggleSort}
+                onSort={handleSort}
               />
               <th className="max-lg:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
                 Confidence
@@ -93,7 +99,7 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                 column={detectedColumn as SortColumn<never>}
                 activeKey={view.sortKey}
                 dir={view.sortDir}
-                onSort={view.toggleSort}
+                onSort={handleSort}
               />
             </tr>
           </thead>
@@ -165,7 +171,7 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
         rangeStart={view.rangeStart}
         rangeEnd={view.rangeEnd}
         total={view.total}
-        onPageChange={view.setPage}
+        onPageChange={handlePageChange}
       />
     </div>
   );
