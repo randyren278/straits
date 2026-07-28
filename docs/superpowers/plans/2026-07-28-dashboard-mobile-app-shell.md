@@ -1470,7 +1470,7 @@ git commit -m "feat(nav): mount the bottom nav across the protected route group"
 **Interfaces:**
 - Consumes: `<MobileSheet chokepoints={…} collapsed={…}>{{ prices, intel }}</MobileSheet>` (Task 6), `<MapFilterChips />` (Task 4).
 
-On mobile the map fills the space between the header and the sheet; the panel column is `max-lg:hidden`; the vessel sheet moves from `bottom-0` to `bottom-14` so it clears the nav.
+On mobile the map fills the space between the header and the sheet; the panel column is `max-lg:hidden`; the vessel sheet moves from `bottom-0` to `bottom-[var(--straits-nav-h)]` so it clears the nav on every device.
 
 Chokepoint counts come from `/api/chokepoints`, which `ChokepointWidgets` already fetches. Fetch it once in the page and pass the array down, rather than adding a second poller.
 
