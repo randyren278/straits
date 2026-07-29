@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { Eye, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { useVesselStore } from '@/stores/vessel';
-import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
+import { useSharedUserId } from '@/lib/hooks/useSharedUserId';
 import { AnomalyBadge } from '../ui/AnomalyBadge';
 import type { AnomalyType, Confidence, WatchlistEntry } from '@/types/anomaly';
 
@@ -22,14 +22,7 @@ interface WatchlistEntryWithVessel extends WatchlistEntry {
 export function WatchlistPanel() {
   const { watchlist, setWatchlist, removeFromWatchlist, setMapCenter } = useVesselStore();
   const [isExpanded, setIsExpanded] = useState(true);
-  const [userId, setUserId] = useLocalStorage<string>('tanker_tracker_user_id', '');
-
-  // Generate and persist a user ID once the persisted value has loaded (if none exists)
-  useEffect(() => {
-    if (!userId) {
-      setUserId(crypto.randomUUID());
-    }
-  }, [userId, setUserId]);
+  const [userId] = useSharedUserId();
 
   // Fetch watchlist from API
   useEffect(() => {

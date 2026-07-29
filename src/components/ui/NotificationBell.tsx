@@ -10,7 +10,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react
 import { Bell } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useVesselStore } from '@/stores/vessel';
-import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
+import { useSharedUserId } from '@/lib/hooks/useSharedUserId';
 import { usePolledJson } from '@/lib/hooks/usePolledJson';
 import { ANOMALY_TYPE_LABELS } from '@/types/anomaly';
 import type { AnomalyType, Alert } from '@/types/anomaly';
@@ -25,32 +25,10 @@ const EDGE_MARGIN = 8;
 /** Preferred width; narrowed on phones that can't fit it. */
 const PREFERRED_WIDTH = 320;
 
-const USER_ID_KEY = 'tanker_tracker_user_id';
-/**
- * Memoized outside React state so two NotificationBell instances mounted in
- * the same commit (one per breakpoint) can't race each other into writing
- * two different random ids: each instance's "generate if missing" effect
- * reads/writes through its own useLocalStorage state, whose value is still
- * stale (this render's closure) when the *other* instance's effect runs in
- * the same flush. This module-level cache makes the second caller see the
- * first caller's id instead of generating its own.
- */
-let cachedUserId: string | null = null;
-
-function ensureUserId(current: string): string {
-  if (current) return current;
-  if (cachedUserId) return cachedUserId;
-  const stored = window.localStorage.getItem(USER_ID_KEY);
-  const id = stored ?? crypto.randomUUID();
-  if (!stored) window.localStorage.setItem(USER_ID_KEY, id);
-  cachedUserId = id;
-  return id;
-}
-
 export function NotificationBell() {
   const { alerts, unreadCount, setAlerts, markAlertRead, setTargetVesselImo } = useVesselStore();
   const [isOpen, setIsOpen] = useState(false);
-  const [userId, setUserId] = useLocalStorage<string>('tanker_tracker_user_id', '');
+  const [userId] = useSharedUserId();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [placement, setPlacement] = useState<{ left: number; width: number; maxHeight: number } | null>(null);
 
@@ -86,14 +64,6 @@ export function NotificationBell() {
     window.addEventListener('resize', place);
     return () => window.removeEventListener('resize', place);
   }, [isOpen]);
-
-  // Generate and persist a user ID once the persisted value has loaded (if none exists)
-  useEffect(() => {
-    if (!userId) {
-      const id = ensureUserId(userId);
-      if (id !== userId) setUserId(id);
-    }
-  }, [userId, setUserId]);
 
   // Fetch the user's alerts every 30 seconds — shared with any other mounted
   // copy of this component (one per breakpoint) via usePolledJson, so two
