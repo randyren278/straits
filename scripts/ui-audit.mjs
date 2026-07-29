@@ -136,7 +136,15 @@ const IN_PAGE = {
   },
 
   intelToggle: () => {
-    const btn = document.querySelector('button[aria-label*="intel feed" i]');
+    // The panel now mounts twice — once in the desktop rail (max-lg:hidden) and
+    // once in the mobile sheet. querySelector returns the first in DOM order,
+    // which on a phone is the display:none desktop copy, reporting "not
+    // hittable" no matter what the user can actually reach. Take the visible one.
+    const all = [...document.querySelectorAll('button[aria-label*="intel feed" i]')];
+    const btn = all.find((b) => {
+      const r = b.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    }) ?? all[0];
     if (!btn) return { present: false };
     btn.scrollIntoView({ block: 'center' });
     const r = btn.getBoundingClientRect();
@@ -206,6 +214,12 @@ const IN_PAGE = {
     const out = [];
     for (const el of document.querySelectorAll(sel)) {
       const r = el.getBoundingClientRect();
+      // Only what is actually rendered at this width. Elements hidden by a
+      // responsive gate still match the selector, and including them made the
+      // comparison positional-by-index over a list whose length changes every
+      // time a mobile-only control is added — every later index then reports a
+      // diff that is not real. Four routes failed that way for no reason.
+      if (r.width === 0 || r.height === 0) continue;
       out.push({
         tag: el.tagName.toLowerCase(),
         cls: (el.className || '').toString().slice(0, 80),
@@ -284,14 +298,30 @@ try {
           ok('reach', '/dashboard', vp, `panels=${r.panels.length} railScrollH=${r.railScrollH}`);
         }
       }
-      // finding #2: the intel-feed toggle must actually respond to a tap
+      // finding #2: the intel-feed toggle must actually respond to a tap.
+      // The panel used to sit in a scrolling rail below the map; it now lives in
+      // the mobile bottom sheet, so reaching it means opening the sheet and
+      // selecting its tab. The assertion is unchanged — the intel feed must be
+      // reachable and its toggle must work — only the route to it moved.
+      const sheetHandle = page.locator('[data-testid="mobile-sheet"] button[aria-expanded]').first();
+      if (await sheetHandle.count()) {
+        await sheetHandle.click({ timeout: 5000 }).catch(() => {});
+        await page.waitForTimeout(400);
+        await page.locator('[data-testid="mobile-sheet"] [role="tab"]:has-text("Intel")')
+          .click({ timeout: 5000 }).catch(() => {});
+        await page.waitForTimeout(400);
+      }
       const t = await page.evaluate(IN_PAGE.intelToggle);
       if (!t.present) fail('reach', '/dashboard', vp, 'intel feed toggle not found');
       else if (!t.hittable) fail('reach', '/dashboard', vp, `intel toggle not hit-testable (aria-expanded=${t.before})`);
       else {
-        await page.locator('button[aria-label*="intel feed" i]').click({ timeout: 5000 }).catch(() => {});
+        // Two copies of the panel exist (desktop rail + mobile sheet), so an
+        // unqualified locator is ambiguous and resolves to null. Target the one
+        // the user can see.
+        const intelBtn = page.locator('button[aria-label*="intel feed" i]:visible').first();
+        await intelBtn.click({ timeout: 5000 }).catch(() => {});
         await page.waitForTimeout(500);
-        const after = await page.locator('button[aria-label*="intel feed" i]').getAttribute('aria-expanded').catch(() => null);
+        const after = await intelBtn.getAttribute('aria-expanded').catch(() => null);
         if (after !== null && after !== t.before) ok('reach', '/dashboard', vp, 'intel-toggle=ok');
         else fail('reach', '/dashboard', vp, `intel toggle did not change state (${t.before} -> ${after})`);
       }

@@ -26,7 +26,13 @@ describe('MobileSheet', () => {
   it('starts at peek showing the chokepoint strip and no tabs', () => {
     setup();
     expect(screen.getByTestId('mobile-sheet')).toHaveAttribute('data-detent', 'peek');
-    expect(screen.getByTestId('sheet-peek-strip')).toHaveTextContent('Hormuz');
+    // The peek is an aggregate, not a per-chokepoint list: a list needed ~668px
+    // in a 390px viewport and could only have been a hidden scroll strip.
+    const peek = screen.getByTestId('sheet-peek-strip');
+    expect(peek).toHaveTextContent('95'); // 10 + 85 tankers
+    expect(peek).toHaveTextContent('184'); // 23 + 161 vessels
+    expect(peek).toHaveTextContent('2 zones');
+    expect(peek).not.toHaveTextContent('Hormuz');
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 

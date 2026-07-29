@@ -85,17 +85,24 @@ export function MobileSheet({ chokepoints, collapsed, panels }: MobileSheetProps
       </button>
 
       {!isOpen && (
+        // A per-chokepoint list here needed ~668px in a 390px viewport, so it
+        // could only be a horizontal scroll strip — and this project has already
+        // shipped one of those that hid 404px with no cue it existed. An
+        // aggregate always fits at every width, hides nothing, and is a better
+        // glance anyway; the per-chokepoint breakdown is one tap away in the
+        // Chokepoints tab.
         <div
           data-testid="sheet-peek-strip"
-          className="h-11 shrink-0 flex items-center gap-3 px-4 overflow-x-auto"
+          className="h-11 shrink-0 flex items-baseline gap-2 px-4"
         >
-          {chokepoints.map((c) => (
-            <span key={c.name} className="flex items-baseline gap-1.5 whitespace-nowrap">
-              <span className="text-xs font-mono uppercase tracking-wider text-amber-500">{c.name}</span>
-              <span className="text-sm font-mono text-white">{c.tankers}</span>
-              <span className="text-xs font-mono text-gray-500">/{c.total}</span>
-            </span>
-          ))}
+          <span className="text-xs font-mono uppercase tracking-wider text-amber-500">Chokepoints</span>
+          <span className="text-sm font-mono text-white">
+            {chokepoints.reduce((sum, c) => sum + c.tankers, 0)}
+          </span>
+          <span className="text-xs font-mono text-gray-500">
+            tankers / {chokepoints.reduce((sum, c) => sum + c.total, 0)} vessels
+          </span>
+          <span className="ml-auto text-xs font-mono text-gray-500">{chokepoints.length} zones</span>
         </div>
       )}
 
