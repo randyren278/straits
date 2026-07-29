@@ -33,4 +33,16 @@
   font-size: 9px !important;
 }
 .maplibregl-ctrl-attrib a { color: rgb(245 158 11) !important; }
+
+/* MapLibre pins attribution to the map's bottom edge. On mobile that edge now
+   sits behind the fixed bottom nav and the sheet's peek detent, which hid the
+   CARTO/OpenStreetMap credit the tile licence requires — measured as
+   permanently unreachable, not merely below the fold. Lift it clear of both:
+   the nav plus the 88px peek sheet. */
+@media (max-width: 1023.98px) {
+  .maplibregl-ctrl-bottom-right,
+  .maplibregl-ctrl-bottom-left {
+    bottom: calc(var(--straits-nav-h) + 5.5rem);
+  }
+}
 .maplibregl-ctrl-attrib-button { filter: invert(1) sepia(1) saturate(5) hue-rotate(5deg) !important; }
