@@ -13,7 +13,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { formatDistanceToNow, isValid } from 'date-fns';
+import { isValid } from 'date-fns';
 import { useVesselStore } from '@/stores/vessel';
 import { usePolledJson } from '@/lib/hooks/usePolledJson';
 
@@ -23,6 +23,24 @@ export interface StatusState {
   ais: SourceStatus;
   prices: SourceStatus;
   news: SourceStatus;
+}
+
+/**
+ * Compact relative age for the mobile chip.
+ *
+ * date-fns' formatDistanceToNow returns prose — "less than a minute" is 19
+ * characters, which ate roughly 250px of a 390px top bar and undid the point of
+ * collapsing the header. The desktop half of this component has room for prose;
+ * the chip does not.
+ */
+export function compactAge(at: Date, now: number = Date.now()): string {
+  const seconds = Math.max(0, Math.round((now - at.getTime()) / 1000));
+  if (seconds < 60) return 'now';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.round(hours / 24)}d`;
 }
 
 const SEVERITY: SourceStatus[] = ['offline', 'degraded', 'live'];
@@ -72,7 +90,7 @@ export function StatusChip() {
     if (!lastUpdate || !isValid(lastUpdate)) {
       return;
     }
-    const compute = () => setAge(formatDistanceToNow(lastUpdate, { addSuffix: false }));
+    const compute = () => setAge(compactAge(lastUpdate));
     compute();
     const interval = setInterval(compute, 10_000);
     return () => clearInterval(interval);
@@ -87,7 +105,9 @@ export function StatusChip() {
 
   const worst = worstStatus(status);
   const worstLabel = worst ?? 'unknown';
-  const summary = age ? `Systems ${worstLabel}, data updated ${age} ago` : `Systems ${worstLabel}`;
+  // The chip's label is abbreviated for space; the accessible name is not.
+  const spoken = age === 'now' ? 'data updated just now' : age ? `data updated ${age} ago` : null;
+  const summary = spoken ? `Systems ${worstLabel}, ${spoken}` : `Systems ${worstLabel}`;
 
   return (
     <>

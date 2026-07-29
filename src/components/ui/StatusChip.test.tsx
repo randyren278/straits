@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { StatusChip, worstStatus } from './StatusChip';
+import { StatusChip, worstStatus, compactAge } from './StatusChip';
 
 // Mutable so individual tests can flip lastUpdate to null without relying on
 // vi.doMock racing an already-resolved static import (doMock isn't hoisted,
@@ -75,5 +75,32 @@ describe('StatusChip', () => {
     vesselMock.lastUpdate = null;
     render(<StatusChip />);
     await waitFor(() => expect(screen.getByTestId('status-chip-mobile')).toBeInTheDocument());
+  });
+});
+
+describe('compactAge', () => {
+  const at = (secondsAgo: number) => new Date(1_000_000_000_000 - secondsAgo * 1000);
+  const NOW = 1_000_000_000_000;
+
+  it('collapses anything under a minute to "now"', () => {
+    expect(compactAge(at(0), NOW)).toBe('now');
+    expect(compactAge(at(59), NOW)).toBe('now');
+  });
+
+  it('uses single-letter units so the chip stays narrow', () => {
+    expect(compactAge(at(60), NOW)).toBe('1m');
+    expect(compactAge(at(1800), NOW)).toBe('30m');
+    expect(compactAge(at(3600), NOW)).toBe('1h');
+    expect(compactAge(at(86_400), NOW)).toBe('1d');
+  });
+
+  it('never returns prose — the string that ate the top bar was 19 chars', () => {
+    for (const s of [0, 30, 90, 4000, 200_000, 9_000_000]) {
+      expect(compactAge(at(s), NOW).length).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it('clamps a future timestamp rather than emitting a negative age', () => {
+    expect(compactAge(new Date(NOW + 60_000), NOW)).toBe('now');
   });
 });
