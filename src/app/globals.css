@@ -12,6 +12,35 @@
   --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
 }
 
+/* Responsive tiers.
+ *
+ * Tailwind's default `lg` sits at 1024px, which bisects one physical device:
+ * iPad portrait (820) falls below it and got the phone stack, iPad landscape
+ * (1180) falls above it and got a layout laid out for 1440. Rotating the device
+ * swapped the whole information architecture.
+ *
+ * `phone` and `roomy` are De Morgan complements — every viewport matches
+ * exactly one, never both, never neither. `desk` nests strictly inside `roomy`.
+ *
+ * The height clause is not decoration. iPhone 16 Pro Max in landscape is
+ * 932x430: wide enough to pass a width-only tablet test, with nowhere near the
+ * vertical room for two panes. It must stay on the phone stack.
+ *
+ * M3 window size classes put 820 in Medium and 1180 in Expanded; neither
+ * prescribes a bottom bar. Apple HIG classes iPad as `regular` width in both
+ * orientations. Desktop starts at 1280 because the pinned rail, four chokepoint
+ * widgets, and full control row were laid out at 1440 and cram at 1180.
+ */
+@custom-variant phone {
+  @media (max-width: 767.98px), (max-height: 599.98px) { @slot; }
+}
+@custom-variant roomy {
+  @media (min-width: 768px) and (min-height: 600px) { @slot; }
+}
+@custom-variant desk {
+  @media (min-width: 1280px) and (min-height: 600px) { @slot; }
+}
+
 /* Total height the mobile bottom nav reserves, including the iPhone home-indicator
    inset. The nav, the dashboard sheet, the vessel sheet, and the scroll padding on
    other routes all read this, so a device with a home indicator can never leave a
