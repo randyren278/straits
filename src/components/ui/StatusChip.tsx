@@ -112,7 +112,7 @@ export function StatusChip() {
   return (
     <>
       {/* Mobile: one dot, one age, detail on tap. */}
-      <div className="lg:hidden relative">
+      <div className="desk:hidden relative">
         <button
           type="button"
           data-testid="status-chip-mobile"
@@ -120,7 +120,7 @@ export function StatusChip() {
           aria-expanded={open}
           aria-haspopup="dialog"
           onClick={() => setOpen((v) => !v)}
-          className="lg:hidden min-h-[44px] min-w-[44px] px-2 inline-flex items-center gap-1.5"
+          className="desk:hidden min-h-[44px] min-w-[44px] px-2 inline-flex items-center gap-1.5"
         >
           <span className={`w-1.5 h-1.5 ${dotClass(worst)}`} />
           {age && <span className="text-xs font-mono text-gray-400">{age}</span>}
@@ -148,7 +148,7 @@ export function StatusChip() {
       {/* Desktop: unchanged three-indicator row. */}
       <div
         data-testid="status-chip-desktop"
-        className="hidden lg:flex items-center gap-3 px-2 border-l border-amber-500/20"
+        className="hidden desk:flex items-center gap-3 px-2 border-l border-amber-500/20"
         role="status"
         aria-label="System status indicators"
       >

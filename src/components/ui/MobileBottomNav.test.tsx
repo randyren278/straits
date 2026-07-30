@@ -25,7 +25,7 @@ describe('MobileBottomNav', () => {
 
   it('is hidden at desktop widths', () => {
     render(<MobileBottomNav />);
-    expect(screen.getByRole('navigation')).toHaveClass('lg:hidden');
+    expect(screen.getByRole('navigation')).toHaveClass('roomy:hidden');
   });
 
   it('gives every destination a 44px minimum tap height', () => {

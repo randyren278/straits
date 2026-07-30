@@ -19,6 +19,12 @@ import { chromium } from 'playwright';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:3000';
 const VIEWPORTS = [[390, 844], [360, 800]];
+/** Tablet tier: iPad portrait and landscape. Both must produce the SAME
+ *  structure — that equality is the rotation-continuity proof. */
+const TABLETS = [[820, 1180], [1180, 820]];
+/** Wide but short: a landscape phone must NOT be promoted to the tablet tier.
+ *  This is the check that guards the 600px height clause in `roomy`. */
+const PHONE_LANDSCAPE = [932, 430];
 const ROUTES = ['/dashboard', '/fleet', '/analytics', '/about'];
 const MAX_CHROME = 110;
 /** Source of truth is VISIBLE_HEADLINES in src/components/panels/NewsPanel.tsx.
@@ -236,6 +242,77 @@ async function run() {
 
       await page.close();
     }
+  }
+
+  // ── Tablet tier ────────────────────────────────────────────────────────
+  // The defect this guards is not the cram, it is the discontinuity: before
+  // this work, rotating one iPad swapped top nav for bottom nav and the side
+  // rail for a bottom sheet. Both orientations are asserted identical.
+  for (const [w, h] of TABLETS) {
+    const page = await browser.newPage({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true });
+    await page.goto(BASE + '/dashboard', { waitUntil: 'networkidle', timeout: 90000 });
+    await page.waitForTimeout(2000);
+    const tag = `tablet@${w}x${h}`;
+
+    const t = await page.evaluate(() => {
+      const vis = (sel) =>
+        [...document.querySelectorAll(sel)].filter((e) => {
+          const r = e.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        });
+      const de = document.documentElement;
+      return {
+        bottomNav: vis('nav[aria-label="Primary"]').length,
+        headerNavLinks: vis('header nav a').length,
+        chokepoints: vis('[data-testid="header-chokepoints"]').length,
+        controls: vis('[data-testid="header-controls"]').length,
+        sheet: vis('[data-testid="mobile-sheet"]').length,
+        rail: vis('[data-testid="panel-rail"]').length,
+        bells: vis('[aria-label*="Notification" i]').length,
+        chips: vis('[data-testid^="status-chip"]').length,
+        ovfX: de.scrollWidth - window.innerWidth,
+      };
+    });
+
+    check(`${tag}: header nav present`, t.headerNavLinks === 4, `${t.headerNavLinks} visible nav links`);
+    check(`${tag}: bottom nav absent`, t.bottomNav === 0, `${t.bottomNav} visible`);
+    check(`${tag}: chokepoint strip present`, t.chokepoints === 1, `${t.chokepoints} visible`);
+    check(`${tag}: control row present`, t.controls === 1, `${t.controls} visible`);
+    check(`${tag}: mobile sheet absent`, t.sheet === 0, `${t.sheet} visible`);
+    check(`${tag}: desktop rail absent`, t.rail === 0, `${t.rail} visible`);
+    check(`${tag}: one notification bell`, t.bells === 1, `${t.bells} visible`);
+    check(`${tag}: one status element`, t.chips === 1, `${t.chips} visible`);
+    check(`${tag}: no horizontal overflow`, t.ovfX === 0, `${t.ovfX}px`);
+
+    const blockedT = await blockedControls(page);
+    check(`${tag}: controls hit-testable`, blockedT.length === 0, blockedT.length ? blockedT.join('; ') : 'none covered');
+
+    await page.close();
+  }
+
+  // A 932x430 phone in landscape is wide enough to pass a width-only tablet
+  // test. It must stay on the phone stack — this is the height clause's guard.
+  {
+    const [w, h] = PHONE_LANDSCAPE;
+    const page = await browser.newPage({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true });
+    await page.goto(BASE + '/dashboard', { waitUntil: 'networkidle', timeout: 90000 });
+    await page.waitForTimeout(2000);
+    const p = await page.evaluate(() => {
+      const vis = (sel) =>
+        [...document.querySelectorAll(sel)].filter((e) => {
+          const r = e.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        });
+      return {
+        bottomNav: vis('nav[aria-label="Primary"]').length,
+        sheet: vis('[data-testid="mobile-sheet"]').length,
+        headerNavLinks: vis('header nav a').length,
+      };
+    });
+    check(`phone-landscape@${w}x${h}: bottom nav present`, p.bottomNav === 1, `${p.bottomNav} visible`);
+    check(`phone-landscape@${w}x${h}: mobile sheet present`, p.sheet === 1, `${p.sheet} visible`);
+    check(`phone-landscape@${w}x${h}: header nav absent`, p.headerNavLinks === 0, `${p.headerNavLinks} visible nav links`);
+    await page.close();
   }
 
   // Desktop must be untouched by all of the above.

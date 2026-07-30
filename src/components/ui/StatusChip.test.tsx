@@ -40,7 +40,7 @@ describe('StatusChip', () => {
   it('renders one mobile summary and one desktop breakdown', async () => {
     render(<StatusChip />);
     await waitFor(() => expect(screen.getByTestId('status-chip-mobile')).toBeInTheDocument());
-    expect(screen.getByTestId('status-chip-mobile')).toHaveClass('lg:hidden');
+    expect(screen.getByTestId('status-chip-mobile')).toHaveClass('desk:hidden');
     expect(screen.getByTestId('status-chip-desktop').className).toMatch(/hidden/);
   });
 

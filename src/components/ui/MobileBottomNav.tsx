@@ -1,9 +1,10 @@
 /**
  * Mobile bottom navigation.
  *
- * The header's nav row is hidden below lg; this replaces it and puts the
+ * The header's nav row is hidden on phones; this replaces it and puts the
  * primary destinations in the thumb zone. Rendered from the (protected)
- * layout so every route in the group keeps navigation on a phone.
+ * layout so every route in the group keeps navigation on a phone. Tablets
+ * use the header's own nav row instead — see `roomy:hidden` below.
  */
 'use client';
 
@@ -24,7 +25,7 @@ export function MobileBottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="lg:hidden fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 h-[var(--straits-nav-h)] bg-black border-t border-amber-500/20 pb-[env(safe-area-inset-bottom)]"
+      className="roomy:hidden fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 h-[var(--straits-nav-h)] bg-black border-t border-amber-500/20 pb-[env(safe-area-inset-bottom)]"
     >
       {DESTINATIONS.map(({ href, label, Icon }) => {
         const active = pathname === href;

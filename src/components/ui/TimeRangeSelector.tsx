@@ -26,7 +26,7 @@ export function TimeRangeSelector({ value, onChange }: TimeRangeSelectorProps) {
           key={rangeValue}
           onClick={() => onChange(rangeValue)}
           aria-pressed={value === rangeValue}
-          className={`inline-flex items-center px-3 py-1.5 max-lg:min-h-[44px] text-xs font-mono uppercase tracking-wider border transition-colors ${
+          className={`inline-flex items-center px-3 py-1.5 phone:min-h-[44px] text-xs font-mono uppercase tracking-wider border transition-colors ${
             value === rangeValue
               ? 'bg-amber-500 text-black border-amber-500'
               : 'border-transparent text-gray-400 hover:text-white hover:border-gray-700'

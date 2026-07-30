@@ -126,11 +126,11 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
     // strip, which pushed 404px of chokepoints off the right edge AND — because
     // overflow-x:auto forces overflow-y from visible to auto — clipped the
     // expanded vessel list to the 50px-tall strip, so tapping appeared to do nothing.
-    <div className="flex gap-2 max-lg:flex-col">
+    <div className="flex gap-2 phone:flex-col">
       {chokepoints.map((cp) => (
         <div
           key={cp.id}
-          className="relative bg-black border border-amber-500/20 min-w-[150px] max-w-[200px] max-lg:min-w-0 max-lg:max-w-none flex-shrink-0"
+          className="relative bg-black border border-amber-500/20 min-w-[150px] max-w-[200px] phone:min-w-0 phone:max-w-none flex-shrink-0"
         >
           <button
             onClick={() => {
@@ -139,7 +139,7 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
             }}
             aria-expanded={expandedId === cp.id}
             aria-label={`${cp.name}: ${cp.tankerCount} tankers, ${cp.totalVessels} total vessels`}
-            className="w-full flex items-center gap-2 px-3 py-1.5 max-lg:min-h-[44px] hover:bg-gray-900 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-1.5 phone:min-h-[44px] roomy:max-desk:py-1 hover:bg-gray-900 transition-colors"
           >
             <Anchor className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
             <div className="text-left flex-1">
@@ -159,7 +159,7 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
           {expandedId === cp.id && (
             /* Desktop: popover over the map. Mobile: static, so the list opens
                inline as an accordion inside the card instead of overlaying it. */
-            <div className="absolute left-0 top-full z-50 min-w-[200px] bg-black border border-amber-500/20 border-t-0 shadow-lg max-lg:static max-lg:min-w-0 max-lg:border-x-0 max-lg:border-b-0 max-lg:border-t">
+            <div className="absolute left-0 top-full z-50 min-w-[200px] bg-black border border-amber-500/20 border-t-0 shadow-lg phone:static phone:min-w-0 phone:border-x-0 phone:border-b-0 phone:border-t">
               {(vesselMap[cp.id] ?? []).length === 0 ? (
                 <p className="px-2 py-1 text-xs text-gray-600 font-mono">NO VESSELS</p>
               ) : (
@@ -168,7 +168,7 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
                     <button
                       key={v.mmsi}
                       onClick={() => handleVesselClick(v)}
-                      className="w-full flex items-center gap-1.5 px-2 py-0.5 max-lg:min-h-[44px] max-lg:px-3 hover:bg-gray-900 text-left"
+                      className="w-full flex items-center gap-1.5 px-2 py-0.5 phone:min-h-[44px] phone:px-3 hover:bg-gray-900 text-left"
                     >
                       {v.hasActiveAnomaly && (
                         <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />

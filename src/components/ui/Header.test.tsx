@@ -17,17 +17,17 @@ afterEach(() => cleanup());
 describe('Header', () => {
   it('hides the primary nav below lg, where the bottom bar takes over', () => {
     render(<Header />);
-    expect(screen.getByRole('navigation')).toHaveClass('max-lg:hidden');
+    expect(screen.getByRole('navigation')).toHaveClass('phone:hidden');
   });
 
   it('hides the map filters below lg, where the map chips take over', () => {
     render(<Header />);
-    expect(screen.getByTestId('header-controls')).toHaveClass('max-lg:hidden');
+    expect(screen.getByTestId('header-controls')).toHaveClass('phone:hidden');
   });
 
   it('hides the chokepoint row below lg, where the sheet takes over', () => {
     render(<Header />);
-    expect(screen.getByTestId('header-chokepoints')).toHaveClass('max-lg:hidden');
+    expect(screen.getByTestId('header-chokepoints')).toHaveClass('phone:hidden');
   });
 
   it('gives the logo a 44px minimum in both dimensions', () => {
@@ -42,7 +42,7 @@ describe('Header', () => {
     render(<Header />);
 
     const toggle = screen.getByRole('button', { name: /search/i });
-    expect(toggle).toHaveClass('lg:hidden');
+    expect(toggle).toHaveClass('roomy:hidden');
     expect(screen.queryByTestId('mobile-search')).not.toBeInTheDocument();
 
     await user.click(toggle);
@@ -50,8 +50,8 @@ describe('Header', () => {
   });
 
   it('mounts exactly one status chip in the mobile cluster and one in the desktop row', () => {
-    // happy-dom does not evaluate media queries, so both the `lg:hidden`
-    // mobile cluster and the `max-lg:hidden` desktop row are always present
+    // happy-dom does not evaluate media queries, so both the `roomy:hidden`
+    // mobile cluster and the `phone:hidden` desktop row are always present
     // in the DOM here — only CSS (unavailable in this environment) decides
     // which one is actually visible at a given width. What this test can
     // verify structurally is the intent: exactly one StatusChip lives inside
