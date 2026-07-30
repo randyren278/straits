@@ -43,12 +43,6 @@
 @custom-variant tablet {
   @media (min-width: 768px) and (max-width: 1279.98px) and (min-height: 600px) { @slot; }
 }
-/* De Morgan negation of `desk` (min-width:1280px AND min-height:600px), so
-   this is not just a width cutoff -- a wide-but-short viewport must also
-   fall out of `desk`, the same OR-of-max pattern `phone` already uses. */
-@custom-variant max-desk {
-  @media (max-width: 1279.98px), (max-height: 599.98px) { @slot; }
-}
 
 /* Total height the mobile bottom nav reserves, including the iPhone home-indicator
    inset. The nav, the dashboard sheet, the vessel sheet, and the scroll padding on

@@ -92,12 +92,12 @@ export default function DashboardPage() {
         onSearchSelect={handleSearchSelect}
         onChokepointSelect={handleChokepointSelect}
       />
-      <main className="flex-1 grid grid-cols-[1fr_320px] max-desk:grid-cols-1 overflow-hidden phone:flex phone:flex-col">
+      <main className="flex-1 flex flex-col desk:grid desk:grid-cols-[1fr_320px] overflow-hidden">
         <ErrorBoundary>
           {/* Phone: the map fills everything between the header and the sheet.
               Tablet: the map is full-bleed and IntelDrawer overlays it, which is
               why the drawer lives inside this relative box rather than beside it. */}
-          <div className="relative overflow-hidden phone:flex-1 phone:min-h-0">
+          <div className="relative overflow-hidden flex-1 min-h-0">
             <VesselMap />
             <MapFilterChips />
             <IntelDrawer>
@@ -109,7 +109,7 @@ export default function DashboardPage() {
         <ErrorBoundary>
           <div
             data-testid="panel-rail"
-            className="max-desk:hidden flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10"
+            className="hidden desk:flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10"
           >
             <RailPanels />
           </div>

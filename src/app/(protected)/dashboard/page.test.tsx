@@ -35,7 +35,8 @@ describe('DashboardPage', () => {
 
   it('hides the stacked panel column below lg', () => {
     render(<DashboardPage />);
-    expect(screen.getByTestId('panel-rail')).toHaveClass('max-desk:hidden');
+    expect(screen.getByTestId('panel-rail')).toHaveClass('hidden');
+    expect(screen.getByTestId('panel-rail')).toHaveClass('desk:flex');
   });
 
   it('anchors the vessel sheet above the bottom nav, not over it', () => {
