@@ -72,7 +72,7 @@ export function MobileSheet({ chokepoints, collapsed, panels }: MobileSheetProps
     <div
       data-testid="mobile-sheet"
       data-detent={detent}
-      className={`lg:hidden fixed inset-x-0 bottom-[var(--straits-nav-h)] z-30 flex flex-col bg-black border-t border-amber-500 shadow-[0_-8px_24px_rgba(0,0,0,0.85)] transition-[height] duration-200 ${HEIGHT[detent]}`}
+      className={`roomy:hidden fixed inset-x-0 bottom-[var(--straits-nav-h)] z-30 flex flex-col bg-black border-t border-amber-500 shadow-[0_-8px_24px_rgba(0,0,0,0.85)] transition-[height] duration-200 ${HEIGHT[detent]}`}
     >
       <button
         type="button"

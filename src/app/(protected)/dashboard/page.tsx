@@ -7,14 +7,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { VesselMap } from '@/components/map/VesselMap';
 import { VesselPanel } from '@/components/panels/VesselPanel';
-import { ClusterPanel } from '@/components/panels/ClusterPanel';
 import { OilPricePanel } from '@/components/panels/OilPricePanel';
 import { NewsPanel } from '@/components/panels/NewsPanel';
-import { WatchlistPanel } from '@/components/panels/WatchlistPanel';
+import { RailPanels } from '@/components/panels/RailPanels';
 import { Header } from '@/components/ui/Header';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useVesselStore } from '@/stores/vessel';
 import { MobileSheet, type Chokepoint } from '@/components/dashboard/MobileSheet';
+import { IntelDrawer } from '@/components/dashboard/IntelDrawer';
 import { MapFilterChips } from '@/components/map/MapFilterChips';
 
 export default function DashboardPage() {
@@ -92,26 +92,26 @@ export default function DashboardPage() {
         onSearchSelect={handleSearchSelect}
         onChokepointSelect={handleChokepointSelect}
       />
-      <main className="flex-1 grid grid-cols-[1fr_320px] overflow-hidden max-lg:flex max-lg:flex-col">
+      <main className="flex-1 grid grid-cols-[1fr_320px] max-desk:grid-cols-1 overflow-hidden phone:flex phone:flex-col">
         <ErrorBoundary>
-          {/* Mobile: the map fills everything between the header and the sheet.
-              It no longer needs min-h, because main no longer scrolls. */}
-          <div className="relative overflow-hidden max-lg:flex-1 max-lg:min-h-0">
+          {/* Phone: the map fills everything between the header and the sheet.
+              Tablet: the map is full-bleed and IntelDrawer overlays it, which is
+              why the drawer lives inside this relative box rather than beside it. */}
+          <div className="relative overflow-hidden phone:flex-1 phone:min-h-0">
             <VesselMap />
             <MapFilterChips />
+            <IntelDrawer>
+              <RailPanels />
+            </IntelDrawer>
           </div>
         </ErrorBoundary>
 
         <ErrorBoundary>
           <div
             data-testid="panel-rail"
-            className="max-lg:hidden flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10"
+            className="max-desk:hidden flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10"
           >
-            <ClusterPanel />
-            {selectedVessel && <VesselPanel />}
-            <WatchlistPanel />
-            <OilPricePanel />
-            <NewsPanel />
+            <RailPanels />
           </div>
         </ErrorBoundary>
       </main>
@@ -127,7 +127,7 @@ export default function DashboardPage() {
       {selectedVessel && (
         <div
           data-testid="vessel-sheet"
-          className="hidden max-lg:block fixed inset-x-0 bottom-[var(--straits-nav-h)] z-40 max-h-[60dvh] overflow-y-auto bg-black border-t border-amber-500/40 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]"
+          className="hidden phone:block fixed inset-x-0 bottom-[var(--straits-nav-h)] z-40 max-h-[60dvh] overflow-y-auto bg-black border-t border-amber-500/40 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]"
         >
           <VesselPanel />
         </div>

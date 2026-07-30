@@ -174,7 +174,7 @@ async function run() {
         // 11 — the chips are absolutely positioned; if their container loses
         // `relative` they anchor elsewhere and are MISpositioned, not hidden,
         // so no visibility check would catch it.
-        const [chip] = await boxes(page, '[aria-label="Search vessels"]').then(() => boxes(page, '.lg\\:hidden.absolute'));
+        const [chip] = await boxes(page, '[data-testid="map-filter-chips"]');
         const [mapBox] = await boxes(page, '.maplibregl-map');
         if (chip && mapBox) {
           const inside =
@@ -295,6 +295,31 @@ async function run() {
 
     const blockedT = await blockedControls(page);
     check(`${tag}: controls hit-testable`, blockedT.length === 0, blockedT.length ? blockedT.join('; ') : 'none covered');
+
+    // The drawer overlays the map; it must never reflow it. A drawer that
+    // shrinks the map on open is the failure mode this whole option was
+    // chosen to avoid.
+    const [mapClosed] = await boxes(page, '.maplibregl-map');
+    check(`${tag}: map full-bleed with drawer closed`, mapClosed && mapClosed.w === w,
+      `map ${mapClosed ? mapClosed.w : 'MISSING'}px vs viewport ${w}px`);
+
+    await page.click('[aria-label="Open intel panel"]');
+    await page.waitForTimeout(320);
+    const [mapOpen] = await boxes(page, '.maplibregl-map');
+    const [drawerBox] = await boxes(page, '[data-testid="intel-drawer"]');
+    check(`${tag}: drawer does not reflow the map`, mapOpen && mapOpen.w === mapClosed.w,
+      `map ${mapOpen ? mapOpen.w : 'MISSING'}px open vs ${mapClosed.w}px closed`);
+    check(`${tag}: drawer sits inside the map box`, drawerBox && drawerBox.x + drawerBox.w <= w + 1,
+      drawerBox ? `drawer right edge ${drawerBox.x + drawerBox.w}, viewport ${w}` : 'drawer MISSING');
+
+    const blockedDrawer = await blockedControls(page, '[data-testid="intel-drawer"]');
+    check(`${tag}: drawer controls hit-testable`, blockedDrawer.length === 0,
+      blockedDrawer.length ? blockedDrawer.join('; ') : 'none covered');
+
+    await page.click('[aria-label="Close intel panel"]');
+    await page.waitForTimeout(320);
+    const reopenTab = await page.$('[aria-label="Open intel panel"]');
+    check(`${tag}: edge tab returns after close`, reopenTab !== null, `tab ${reopenTab ? 'present' : 'MISSING'}`);
 
     await page.close();
   }

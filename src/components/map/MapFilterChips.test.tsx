@@ -13,7 +13,7 @@ describe('MapFilterChips', () => {
 
   it('is hidden at desktop widths so the header copy stays authoritative', () => {
     const { container } = render(<MapFilterChips />);
-    expect(container.firstElementChild).toHaveClass('lg:hidden');
+    expect(container.firstElementChild).toHaveClass('desk:hidden');
   });
 
   it('overlays the map rather than taking layout space', () => {
