@@ -25,6 +25,20 @@
 - **Touch targets stay ≥ 44×44px** on `phone` and `roomy`. The harness fails the build otherwise.
 - **Commit style:** Conventional Commits, matching existing history (`fix(identity):`, `feat(dashboard):`, `test(dashboard):`).
 
+### Amendment (discovered during Task 2's review, applies to every later task)
+
+`roomy` has no upper bound and `desk` nests strictly inside it, so a `roomy:` class is really "tablet-and-up" — it also matches at desk widths. For touch-target enforcement specifically this is a real conflict: the desktop-no-op regression gate above is non-negotiable, but plenty of already-visible-at-desk elements (the notification bell, chokepoint rows) were never sized to 44px at desktop and must stay that way. Task 2's fix added a fourth variant to close this gap:
+
+```css
+@custom-variant tablet {
+  @media (min-width: 768px) and (max-width: 1279.98px) and (min-height: 600px) { @slot; }
+}
+```
+
+**Revised migration rule for touch-target classes specifically** (`min-h-[44px]` / `min-w-[44px]` / the `inline-flex items-center justify-center` centering trio that accompanies them): a `max-lg:min-h-[44px]` site does not become `phone:min-h-[44px]` alone — it becomes `phone:min-h-[44px] tablet:min-h-[44px]` (both, never `roomy:`), unless the element is already unconditionally sized ≥44px, or is only ever rendered inside a wrapper that is itself invisible at every tablet width (e.g. `IntelDrawer`'s own internal buttons, which are correctly unconditional since the whole drawer is `phone:hidden desk:hidden` — visible only in the tablet band, so no phone/tablet split is needed there). Every other Tailwind class (layout, spacing, visibility) keeps the original `max-lg:` → `phone:`, `lg:` → `roomy:` rule unchanged — this amendment is scoped to touch-target sizing only.
+
+This was caught by an independent task reviewer's finding plus two further sites the controller found by re-checking visibility (`TankerFilter`/`AnomalyFilter`, reachable via the not-yet-migrated `MapFilterChips` at the time), and a further site the Task 2 fix implementer found by re-running the harness (`Header.tsx`'s top nav links, newly exposed at tablet by this task's own `phone:hidden` promotion of a previously desktop-only wrapper). The task briefs below for Tasks 3–6 have been corrected in place to apply this rule; if you are executing from a stale copy of this plan, apply the amendment yourself to every `max-lg:min-h-[44px]`-style site you touch.
+
 ### Desktop-only exception list (become `desk:`, not `roomy:`)
 
 | Site | File | Reason |
@@ -204,6 +218,8 @@ rendered output."
 ## Task 2: Header and navigation at tablet
 
 Migrates the header cluster and promotes the four header-level exceptions. After this task, both iPad orientations show the top nav and the chokepoint strip.
+
+**Post-execution note:** this task's touch-target steps below (as originally written) used `phone:min-h-[44px]` alone, which review found to be a real regression once `roomy:` was tried as the tablet-visible-only fix — `roomy` has no upper bound and leaks into `desk`. The actual shipped commits use the corrected two-variant form (`phone:` + the new `tablet:` variant, see the Global Constraints amendment above) at all 9 affected sites, including a 9th (the top nav links) found during the fix pass. The bullet text immediately below is preserved as originally written, for history; it does not reflect what was actually committed.
 
 **Files:**
 - Modify: `src/components/ui/Header.tsx:56,69,92,113,133,141`
@@ -831,7 +847,7 @@ export function MapFilterChips() {
       className={`roomy:hidden fixed inset-x-0 bottom-[var(--straits-nav-h)] z-30 flex flex-col bg-black border-t border-amber-500 shadow-[0_-8px_24px_rgba(0,0,0,0.85)] transition-[height] duration-200 ${HEIGHT[detent]}`}
 ```
 
-`src/components/panels/NewsPanel.tsx:65` — `max-lg:min-h-[44px]` becomes `phone:min-h-[44px]`.
+`src/components/panels/NewsPanel.tsx:65` — `max-lg:min-h-[44px]` becomes `phone:min-h-[44px] tablet:min-h-[44px]` (per the Global Constraints amendment — this button is genuinely visible and interactive at tablet width, inside `IntelDrawer`).
 
 - [ ] **Step 8: Fix the harness's class-based selector**
 
@@ -1000,7 +1016,7 @@ Mechanical substitutions, no exception promotions:
 - `src/components/fleet/SortControls.tsx:83` — `lg:hidden` becomes `roomy:hidden`
 - `src/components/fleet/TablePager.tsx:33` — `lg:min-h-0` becomes `roomy:min-h-0`
 - `src/app/(protected)/fleet/page.tsx:125` — `max-lg:p-3 max-lg:pb-[calc(var(--straits-nav-h)+1rem)]` becomes `phone:p-3 phone:pb-[calc(var(--straits-nav-h)+1rem)]`
-- `src/app/(protected)/fleet/page.tsx:140,146` — `max-lg:min-h-[44px]` becomes `phone:min-h-[44px]`
+- `src/app/(protected)/fleet/page.tsx:140,146` — `max-lg:min-h-[44px]` becomes `phone:min-h-[44px] tablet:min-h-[44px]` (per the Global Constraints amendment — the Export CSV/JSON links are always visible, including at tablet)
 
 The IMO and flag columns return at tablet, which is intended — tablet has the width for them.
 
@@ -1088,7 +1104,7 @@ In `src/app/(protected)/analytics/page.tsx`:
 - Line 135 — `lg:hidden` becomes `roomy:hidden`
 - Line 140 — `lg:flex` becomes `roomy:flex`, and `max-lg:mt-2` becomes `phone:mt-2`
 - Lines 147, 174, 194 — `max-lg:gap-2` becomes `phone:gap-2`
-- Lines 154, 155, 181, 182, 201, 202 — `max-lg:min-h-[44px] max-lg:px-3` becomes `phone:min-h-[44px] phone:px-3`
+- Lines 154, 155, 181, 182, 201, 202 — `max-lg:min-h-[44px] max-lg:px-3` becomes `phone:min-h-[44px] phone:px-3 tablet:min-h-[44px]` (per the Global Constraints amendment — the filter panel is `roomy:flex`, i.e. always shown from tablet up, so these buttons are visible and interactive at tablet width; `px-3` has no tablet variant, only the touch-target minimum does)
 - Lines 230, 253 — `lg:space-y-6` becomes `roomy:space-y-6`
 
 - [ ] **Step 2: Migrate about**
@@ -1299,7 +1315,7 @@ In `src/components/ui/SearchInput.tsx`, replace the entire `return (...)` block 
           onKeyDown={handleKeyDown}
           placeholder="Name, IMO, or MMSI..."
           aria-label="Search vessels by name, IMO, or MMSI"
-          className="w-56 phone:w-full pl-9 pr-8 py-1.5 phone:min-h-[44px] bg-black border border-gray-700 text-sm font-mono text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+          className="w-56 phone:w-full pl-9 pr-8 py-1.5 phone:min-h-[44px] tablet:min-h-[44px] bg-black border border-gray-700 text-sm font-mono text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
         />
         {loading && (
           <span
@@ -1313,7 +1329,7 @@ In `src/components/ui/SearchInput.tsx`, replace the entire `return (...)` block 
             type="button"
             onClick={clearSearch}
             aria-label="Clear search"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white phone:min-h-[44px] phone:min-w-[44px] phone:inline-flex phone:items-center phone:justify-center tablet:min-h-[44px] tablet:min-w-[44px] tablet:inline-flex tablet:items-center tablet:justify-center"
           >
             <X className="w-4 h-4" />
           </button>
@@ -1343,7 +1359,7 @@ In `src/components/ui/SearchInput.tsx`, replace the entire `return (...)` block 
                     // mousedown, not click: the input's blur would close this
                     // panel before a click ever landed.
                     onMouseDown={(e) => { e.preventDefault(); setQuery(example); }}
-                    className="px-2 py-1 phone:min-h-[44px] text-xs font-mono text-amber-500 border border-gray-700 hover:border-amber-500 hover:bg-amber-500/10 transition-colors"
+                    className="px-2 py-1 phone:min-h-[44px] tablet:min-h-[44px] text-xs font-mono text-amber-500 border border-gray-700 hover:border-amber-500 hover:bg-amber-500/10 transition-colors"
                   >
                     {example}
                   </button>
@@ -1428,6 +1444,8 @@ In `src/components/ui/SearchInput.tsx`, replace the entire `return (...)` block 
     </div>
   );
 ```
+
+Note on the "Clear search" button above: it gained `phone:`/`tablet:` touch-target sizing that wasn't in the original render body at all — not an instance of the roomy/desk amendment (the original had no touch-target class at any tier, on any of the six states, since the button was only ever hand-authored fresh for this task). Caught during the same pass as the amendment above; fix it alongside, not a separate finding to re-raise in review.
 
 Add the `focused` state alongside the existing hooks (near line 29):
 
