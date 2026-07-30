@@ -787,9 +787,6 @@ In `src/app/(protected)/dashboard/page.tsx`, replace lines 95-134 (from `<main` 
           </div>
         </ErrorBoundary>
       </main>
-```
-
-(The broken `max-desk:` version originally read: `<main className="flex-1 grid grid-cols-[1fr_320px] max-desk:grid-cols-1 overflow-hidden phone:flex phone:flex-col">`, the map wrapper `<div className="relative overflow-hidden phone:flex-1 phone:min-h-0">`, and the rail `className="max-desk:hidden flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10"` — preserved here for history; use the corrected version above.)
 
       <MobileSheet
         chokepoints={chokepoints}
@@ -808,6 +805,8 @@ In `src/app/(protected)/dashboard/page.tsx`, replace lines 95-134 (from `<main` 
         </div>
       )}
 ```
+
+(The broken `max-desk:` version originally read: `<main className="flex-1 grid grid-cols-[1fr_320px] max-desk:grid-cols-1 overflow-hidden phone:flex phone:flex-col">`, the map wrapper `<div className="relative overflow-hidden phone:flex-1 phone:min-h-0">`, and the rail `className="max-desk:hidden flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10"` — preserved here for history; use the corrected version above. The rest of the block — `MobileSheet` and the vessel sheet — is unchanged from the original brief.)
 
 Update the imports at the top of the file. `ClusterPanel` and `WatchlistPanel` are now only reached through `RailPanels`, so remove them; `VesselPanel`, `OilPricePanel` and `NewsPanel` are still used directly by the phone sheets:
 
