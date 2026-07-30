@@ -37,6 +37,7 @@ export function IntelDrawer({ children }: { children: ReactNode }) {
         data-testid="intel-drawer"
         data-open={open}
         aria-hidden={!open}
+        inert={!open}
         className={`absolute inset-y-0 right-0 z-20 w-[340px] flex flex-col bg-black border-l border-amber-500 shadow-[-14px_0_34px_rgba(0,0,0,0.85)] transition-transform duration-200 motion-reduce:transition-none ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}

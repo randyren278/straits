@@ -39,4 +39,15 @@ describe('IntelDrawer', () => {
     render(<IntelDrawer><p>panel body</p></IntelDrawer>);
     expect(screen.getByText('panel body')).toBeInTheDocument();
   });
+
+  it('removes the closed drawer from the tab order, not just from view', async () => {
+    const user = userEvent.setup();
+    render(<IntelDrawer><p>panel body</p></IntelDrawer>);
+    const drawer = screen.getByTestId('intel-drawer');
+
+    expect(drawer).toHaveAttribute('inert');
+
+    await user.click(screen.getByRole('button', { name: 'Open intel panel' }));
+    expect(drawer).not.toHaveAttribute('inert');
+  });
 });
