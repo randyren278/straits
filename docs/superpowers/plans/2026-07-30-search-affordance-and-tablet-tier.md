@@ -581,8 +581,11 @@ Extracts the panel stack, adds `IntelDrawer`, and gives the dashboard its three-
 Update `src/app/(protected)/dashboard/page.test.tsx:38`:
 
 ```typescript
-expect(screen.getByTestId('panel-rail')).toHaveClass('max-desk:hidden');
+expect(screen.getByTestId('panel-rail')).toHaveClass('hidden');
+expect(screen.getByTestId('panel-rail')).toHaveClass('desk:flex');
 ```
+
+(Originally a single `toHaveClass('max-desk:hidden')` assertion — corrected per Step 6's post-execution note, since `max-desk` was never a valid variant.)
 
 Update `src/components/map/MapFilterChips.test.tsx:16`:
 
@@ -755,13 +758,18 @@ export function IntelDrawer({ children }: { children: ReactNode }) {
 
 In `src/app/(protected)/dashboard/page.tsx`, replace lines 95-134 (from `<main` through the closing `)}` of the vessel sheet) with:
 
+**Post-execution correction:** the `max-desk:` classes below are broken the same way Task 2's `roomy:max-desk:py-1` was — `max-desk` was never defined, and Tailwind only auto-derives `max-*` for `@theme --breakpoint-*` tokens, not arbitrary `@custom-variant`s. Found during Task 3's own execution. Rather than defining yet another variant (a true negation of `desk`), the fix flips which layout is the unconditional default and which is the `desk:` override — the same `hidden desk:flex` idiom already proven in Task 2's committed `Header.tsx:125`. This needs no new CSS at all and is more idiomatic (mobile-first) than the code below. Use this instead:
+
 ```tsx
-      <main className="flex-1 grid grid-cols-[1fr_320px] max-desk:grid-cols-1 overflow-hidden phone:flex phone:flex-col">
+      <main className="flex-1 flex flex-col desk:grid desk:grid-cols-[1fr_320px] overflow-hidden">
         <ErrorBoundary>
-          {/* Phone: the map fills everything between the header and the sheet.
+          {/* Phone and tablet: the map fills everything between the header and
+              the sheet/drawer trigger — flex-col is now the unconditional
+              default (matches the original pre-migration code's max-lg:flex
+              max-lg:flex-col, just with the threshold moved from lg to desk).
               Tablet: the map is full-bleed and IntelDrawer overlays it, which is
               why the drawer lives inside this relative box rather than beside it. */}
-          <div className="relative overflow-hidden phone:flex-1 phone:min-h-0">
+          <div className="relative overflow-hidden flex-1 min-h-0">
             <VesselMap />
             <MapFilterChips />
             <IntelDrawer>
@@ -773,12 +781,15 @@ In `src/app/(protected)/dashboard/page.tsx`, replace lines 95-134 (from `<main` 
         <ErrorBoundary>
           <div
             data-testid="panel-rail"
-            className="max-desk:hidden flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10"
+            className="hidden desk:flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10"
           >
             <RailPanels />
           </div>
         </ErrorBoundary>
       </main>
+```
+
+(The broken `max-desk:` version originally read: `<main className="flex-1 grid grid-cols-[1fr_320px] max-desk:grid-cols-1 overflow-hidden phone:flex phone:flex-col">`, the map wrapper `<div className="relative overflow-hidden phone:flex-1 phone:min-h-0">`, and the rail `className="max-desk:hidden flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10"` — preserved here for history; use the corrected version above.)
 
       <MobileSheet
         chokepoints={chokepoints}
