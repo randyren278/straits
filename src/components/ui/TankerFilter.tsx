@@ -14,7 +14,7 @@ export function TankerFilter() {
     <button
       onClick={() => setTankersOnly(!tankersOnly)}
       aria-pressed={tankersOnly}
-      className={`inline-flex items-center px-3 py-1 phone:min-h-[44px] text-xs font-mono uppercase tracking-wider border transition-colors ${
+      className={`inline-flex items-center px-3 py-1 phone:min-h-[44px] tablet:min-h-[44px] text-xs font-mono uppercase tracking-wider border transition-colors ${
         tankersOnly
           ? 'border-amber-500 text-amber-500 bg-amber-500/10'
           : 'border-gray-600 text-gray-300 hover:text-white hover:border-gray-500'

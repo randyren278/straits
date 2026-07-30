@@ -57,7 +57,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
         <div className="flex items-center phone:justify-between phone:min-h-11 phone:w-full">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 shrink-0 phone:min-w-[44px] phone:min-h-[44px]"
+            className="flex items-center gap-2 shrink-0 phone:min-w-[44px] phone:min-h-[44px] tablet:min-w-[44px] tablet:min-h-[44px]"
           >
             <StraitsMark size={20} className="shrink-0" />
             {/* Wordmark hidden on narrow phones so all 4 nav tabs fit without clipping */}
@@ -72,7 +72,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
               <Link
                 key={href}
                 href={href}
-                className={`inline-flex items-center whitespace-nowrap px-3 py-1 text-xs font-mono uppercase tracking-wider border transition-colors ${
+                className={`inline-flex items-center whitespace-nowrap px-3 py-1 tablet:min-h-[44px] text-xs font-mono uppercase tracking-wider border transition-colors ${
                   activeTab === id
                     ? 'border-amber-500 text-amber-500 bg-amber-500/10'
                     : 'border border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-700'

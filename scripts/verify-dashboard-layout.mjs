@@ -261,6 +261,13 @@ async function run() {
           return r.width > 0 && r.height > 0;
         });
       const de = document.documentElement;
+      const tap = [...document.querySelectorAll('a,button,[role=tab],input')]
+        .map((e) => ({ t: (e.getAttribute('aria-label') || e.textContent || e.tagName).trim().slice(0, 22), r: e.getBoundingClientRect() }))
+        .filter((o) => o.r.width > 0 && o.r.height > 0)
+        // MapLibre injects its own attribution links; they are third-party DOM.
+        .filter((o) => !/CARTO|OpenStreetMap|Mapbox/i.test(o.t))
+        .filter((o) => o.r.width < 44 || o.r.height < 44)
+        .map((o) => `${o.t}(${Math.round(o.r.width)}x${Math.round(o.r.height)})`);
       return {
         bottomNav: vis('nav[aria-label="Primary"]').length,
         headerNavLinks: vis('header nav a').length,
@@ -271,6 +278,7 @@ async function run() {
         bells: vis('[aria-label*="Notification" i]').length,
         chips: vis('[data-testid^="status-chip"]').length,
         ovfX: de.scrollWidth - window.innerWidth,
+        tap,
       };
     });
 
@@ -283,6 +291,7 @@ async function run() {
     check(`${tag}: one notification bell`, t.bells === 1, `${t.bells} visible`);
     check(`${tag}: one status element`, t.chips === 1, `${t.chips} visible`);
     check(`${tag}: no horizontal overflow`, t.ovfX === 0, `${t.ovfX}px`);
+    check(`${tag}: tap targets >= 44px`, t.tap.length === 0, t.tap.length ? t.tap.join(', ') : 'all pass');
 
     const blockedT = await blockedControls(page);
     check(`${tag}: controls hit-testable`, blockedT.length === 0, blockedT.length ? blockedT.join('; ') : 'none covered');

@@ -104,7 +104,7 @@ export function NotificationBell() {
     <div className="relative" ref={wrapRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-400 hover:text-white transition-colors phone:min-h-[44px] phone:min-w-[44px] phone:inline-flex phone:items-center phone:justify-center"
+        className="relative p-2 text-gray-400 hover:text-white transition-colors phone:min-h-[44px] phone:min-w-[44px] phone:inline-flex phone:items-center phone:justify-center tablet:min-h-[44px] tablet:min-w-[44px] tablet:inline-flex tablet:items-center tablet:justify-center"
         aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
         aria-expanded={isOpen}
       >

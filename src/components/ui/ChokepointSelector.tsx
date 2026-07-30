@@ -31,7 +31,7 @@ export function ChokepointSelector({ selected, onChange }: ChokepointSelectorPro
           key={cp.id}
           onClick={() => toggle(cp.id)}
           aria-pressed={selected.includes(cp.id)}
-          className={`inline-flex items-center justify-center px-3 py-1.5 phone:min-h-[44px] text-xs font-mono uppercase tracking-wider border transition-colors ${
+          className={`inline-flex items-center justify-center px-3 py-1.5 phone:min-h-[44px] tablet:min-h-[44px] text-xs font-mono uppercase tracking-wider border transition-colors ${
             selected.includes(cp.id)
               ? 'bg-amber-500 text-black border-amber-500'
               : 'bg-black border-gray-700 text-gray-400 hover:text-white hover:border-gray-600'

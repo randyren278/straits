@@ -139,7 +139,7 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
             }}
             aria-expanded={expandedId === cp.id}
             aria-label={`${cp.name}: ${cp.tankerCount} tankers, ${cp.totalVessels} total vessels`}
-            className="w-full flex items-center gap-2 px-3 py-1.5 phone:min-h-[44px] roomy:max-desk:py-1 hover:bg-gray-900 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-1.5 phone:min-h-[44px] tablet:min-h-[44px] hover:bg-gray-900 transition-colors"
           >
             <Anchor className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
             <div className="text-left flex-1">
@@ -168,7 +168,7 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
                     <button
                       key={v.mmsi}
                       onClick={() => handleVesselClick(v)}
-                      className="w-full flex items-center gap-1.5 px-2 py-0.5 phone:min-h-[44px] phone:px-3 hover:bg-gray-900 text-left"
+                      className="w-full flex items-center gap-1.5 px-2 py-0.5 phone:min-h-[44px] phone:px-3 tablet:min-h-[44px] hover:bg-gray-900 text-left"
                     >
                       {v.hasActiveAnomaly && (
                         <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
