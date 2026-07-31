@@ -22,7 +22,8 @@ interface SearchResult {
   imo: string;
   mmsi: string;
   name: string;
-  flag: string;
+  flag: string | null;
+  shipType: number;
   latitude: number | null;
   longitude: number | null;
 }

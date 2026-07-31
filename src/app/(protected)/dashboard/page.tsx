@@ -17,9 +17,20 @@ import { MobileSheet, type Chokepoint } from '@/components/dashboard/MobileSheet
 import { IntelDrawer } from '@/components/dashboard/IntelDrawer';
 import { MapFilterChips } from '@/components/map/MapFilterChips';
 
+interface SearchResult {
+  imo: string;
+  mmsi: string;
+  name: string;
+  flag: string | null;
+  shipType: number;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 export default function DashboardPage() {
   const setMapCenter = useVesselStore((state) => state.setMapCenter);
   const setTargetVesselImo = useVesselStore((state) => state.setTargetVesselImo);
+  const setSelectedVessel = useVesselStore((state) => state.setSelectedVessel);
   const selectedVessel = useVesselStore((state) => state.selectedVessel);
 
   const [chokepoints, setChokepoints] = useState<Chokepoint[]>([]);
@@ -50,24 +61,34 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Handle vessel selection from search - fly to vessel position
-  const handleSearchSelect = useCallback((result: {
-    imo: string;
-    mmsi: string;
-    name: string;
-    flag: string;
-    latitude: number | null;
-    longitude: number | null;
-  }) => {
+  // Handle vessel selection from search.
+  //
+  // The map-fly path is only available for vessels the AIS feed has actually
+  // placed. Before this, the null branch simply fell through and the click did
+  // nothing at all — the dropdown closed and the user got no signal. Vessels
+  // without a fix now open their dossier instead.
+  //
+  // `position: null` is already part of VesselWithPosition, and VesselPanel
+  // reads every position field through optional chaining with an 'N/A'
+  // fallback, so this needs no cast and no panel change.
+  const handleSearchSelect = useCallback((result: SearchResult) => {
     if (result.latitude !== null && result.longitude !== null) {
-      setMapCenter({
-        lat: result.latitude,
-        lon: result.longitude,
-        zoom: 10,
-      });
+      setMapCenter({ lat: result.latitude, lon: result.longitude, zoom: 10 });
       setTargetVesselImo(result.imo);
+      return;
     }
-  }, [setMapCenter, setTargetVesselImo]);
+
+    setSelectedVessel({
+      imo: result.imo,
+      mmsi: result.mmsi,
+      name: result.name,
+      flag: result.flag ?? '',
+      shipType: result.shipType,
+      destination: null,
+      lastSeen: new Date(),
+      position: null,
+    });
+  }, [setMapCenter, setTargetVesselImo, setSelectedVessel]);
 
   // Handle chokepoint selection - fly to chokepoint bounds
   const handleChokepointSelect = useCallback((bounds: {
