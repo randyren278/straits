@@ -15,6 +15,17 @@ const tabs: FleetTab[] = [
   { id: 'speed', label: 'Speed Anomaly', count: 225 },
 ];
 
+const TABS = [
+  { id: 'sanctioned', label: 'Sanctioned', count: 122, accent: 'red' as const },
+  { id: 'loitering', label: 'Loitering', count: 492 },
+  { id: 'speed_anomaly', label: 'Speed Anomaly', count: 401 },
+  { id: 'going_dark', label: 'Going Dark', count: 353 },
+  { id: 'sts_transfer', label: 'STS Transfer', count: 138 },
+  { id: 'route_deviation', label: 'Route Deviation', count: 132 },
+  { id: 'repeat_going_dark', label: 'Repeat Going Dark', count: 65 },
+  { id: 'spoofed_position', label: 'Spoofed Position', count: 32 },
+];
+
 describe('FleetTabs', () => {
   it('renders one tablist containing every tab with its count', () => {
     render(<FleetTabs tabs={tabs} activeId="loitering" onChange={() => {}} />);
@@ -134,5 +145,15 @@ describe('FleetTabs', () => {
 
     await user.keyboard('{ArrowRight}');
     expect(onChange).toHaveBeenCalledWith('sanctioned');
+  });
+
+  it('uses a four-column grid at tablet so eight tabs do not orphan one', () => {
+    render(<FleetTabs tabs={TABS} activeId={TABS[0].id} onChange={() => {}} />);
+    const tablist = screen.getByTestId('fleet-tabs');
+    // Phone: two columns. Tablet: four, which divides eight tabs into two clean
+    // rows. Desk: the original flex-wrap strip.
+    expect(tablist).toHaveClass('grid-cols-2');
+    expect(tablist).toHaveClass('roomy:grid-cols-4');
+    expect(tablist).toHaveClass('desk:flex');
   });
 });

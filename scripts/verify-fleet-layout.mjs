@@ -225,6 +225,47 @@ async function run() {
   }
 
   await page.close();
+
+  // The reported screenshot showed SPOOFED POSITION orphaned on its own row at
+  // 1180: flex-wrap fits seven tabs and drops the eighth. A 4-column grid
+  // divides eight tabs into two rows of four at both tablet orientations.
+  for (const [w, h] of [[820, 1180], [1180, 820]]) {
+    const page = await browser.newPage({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true });
+    await page.goto(BASE, { waitUntil: 'networkidle', timeout: 90000 });
+    await page.waitForSelector('[data-testid="fleet-tabs"] [role="tab"]', { timeout: 30000 });
+    await page.waitForTimeout(1200);
+    const tag = `tablet@${w}x${h}`;
+
+    const rows = await page.evaluate(() => {
+      const tabs = [...document.querySelectorAll('[data-testid="fleet-tabs"] [role="tab"]')]
+        .map((e) => e.getBoundingClientRect())
+        .filter((r) => r.width > 0 && r.height > 0);
+      const byTop = new Map();
+      for (const r of tabs) {
+        const k = Math.round(r.top);
+        byTop.set(k, (byTop.get(k) ?? 0) + 1);
+      }
+      return [...byTop.entries()].sort((a, b) => a[0] - b[0]).map(([, n]) => n);
+    });
+
+    check(`${tag}: fleet tabs in exactly two rows`, rows.length === 2, `${rows.length} rows: [${rows}]`);
+
+    // Every row is exactly 4 except possibly the last, which is 1-4. This is
+    // the direct proof that a 4-column grid is active (rather than "each row
+    // >= 4", which silently assumed exactly 8 tabs and would false-fail
+    // whenever local seed data doesn't populate every anomaly category — a
+    // dataset composition detail, not a layout defect). Still catches the
+    // original bug: flex-wrap's 7+1 split fails here too (7 !== 4), and a
+    // regression back to grid-cols-2 fails immediately on the first row.
+    const fullRows = rows.slice(0, -1);
+    const lastRow = rows[rows.length - 1];
+    const isCompleteGridOfFour =
+      fullRows.every((n) => n === 4) && (rows.length === 0 || (lastRow >= 1 && lastRow <= 4));
+    check(`${tag}: tabs form complete rows of four`, isCompleteGridOfFour, `row counts [${rows}]`);
+
+    await page.close();
+  }
+
   await browser.close();
 
   const failed = results.filter((r) => !r.pass);

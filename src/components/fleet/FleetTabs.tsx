@@ -1,10 +1,12 @@
 /**
  * FleetTabs — category navigation for the Fleet page.
  *
- * One tablist, two layouts: a horizontal strip on desktop and a 2-column
- * grid on mobile, where eight tabs laid end to end (~760px) cannot fit a
- * 390px screen. Rendering a single DOM tree with responsive classes keeps
- * exactly one aria-selected node in the document.
+ * One tablist, three layouts: a 2-column grid on phones, where eight tabs laid
+ * end to end (~760px) cannot fit a 390px screen; a 4-column grid at tablet,
+ * which divides eight tabs into two clean rows rather than the 7+1 orphan that
+ * flex-wrap produces at 1180; and the horizontal strip at desk widths.
+ * Rendering a single DOM tree with responsive classes keeps exactly one
+ * aria-selected node in the document.
  *
  * Holds no domain data — given labels and counts it renders a strip and
  * reports clicks.
@@ -55,7 +57,7 @@ export function FleetTabs({ tabs, activeId, onChange }: FleetTabsProps) {
       role="tablist"
       aria-label="Fleet categories"
       onKeyDown={handleKeyDown}
-      className="grid grid-cols-2 lg:flex lg:flex-wrap border border-amber-500/20 bg-gray-900/40"
+      className="grid grid-cols-2 roomy:grid-cols-4 desk:flex desk:flex-wrap border border-amber-500/20 bg-gray-900/40"
       data-testid="fleet-tabs"
     >
       {tabs.map((tab) => {
@@ -63,8 +65,8 @@ export function FleetTabs({ tabs, activeId, onChange }: FleetTabsProps) {
         const red = tab.accent === 'red';
 
         const base =
-          'flex items-center justify-between gap-2 min-h-[44px] lg:min-h-0 px-3 py-2 ' +
-          'text-xs font-mono uppercase tracking-wider border-r border-b lg:border-b-0 ' +
+          'flex items-center justify-between gap-2 min-h-[44px] desk:min-h-0 px-3 py-2 ' +
+          'text-xs font-mono uppercase tracking-wider border-r border-b desk:border-b-0 ' +
           'border-amber-500/10 transition-colors text-left';
 
         const state = active

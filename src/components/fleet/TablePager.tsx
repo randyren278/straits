@@ -30,7 +30,7 @@ export function TablePager({
   const accentText = accent === 'red' ? 'text-red-400' : 'text-amber-500';
   const accentBorder = accent === 'red' ? 'border-red-500/20' : 'border-amber-500/20';
   const button =
-    `inline-flex items-center gap-1 min-h-[44px] lg:min-h-0 px-3 py-1.5 text-xs font-mono ` +
+    `inline-flex items-center gap-1 min-h-[44px] roomy:min-h-0 px-3 py-1.5 text-xs font-mono ` +
     `uppercase tracking-wider border transition-colors disabled:opacity-30 ` +
     `disabled:cursor-not-allowed ${accentText} ${accentBorder} hover:enabled:bg-white/5`;
 

@@ -81,7 +81,7 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                 dir={view.sortDir}
                 onSort={handleSort}
               />
-              <th className="max-lg:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
+              <th className="phone:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
                 IMO
               </th>
               <th className="px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
@@ -93,7 +93,7 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                 dir={view.sortDir}
                 onSort={handleSort}
               />
-              <th className="max-lg:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
+              <th className="phone:hidden px-4 py-2 text-xs font-mono uppercase tracking-widest text-amber-500 font-normal">
                 Confidence
               </th>
               <SortableHeader
@@ -124,10 +124,10 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                     )
                   }
                 >
-                  <td className="px-4 py-2 max-lg:py-3.5 text-sm font-mono text-gray-300">
+                  <td className="px-4 py-2 phone:py-3.5 text-sm font-mono text-gray-300">
                     {anomaly.vesselName || '—'}
                   </td>
-                  <td className="max-lg:hidden px-4 py-2 text-sm font-mono text-gray-400">{anomaly.imo}</td>
+                  <td className="phone:hidden px-4 py-2 text-sm font-mono text-gray-400">{anomaly.imo}</td>
                   <td className="px-4 py-2 text-sm font-mono text-gray-400">{anomaly.flag || '—'}</td>
                   <td className="px-4 py-2 text-sm font-mono text-gray-400">
                     {anomaly.riskScore != null ? (
@@ -146,7 +146,7 @@ export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
                       '—'
                     )}
                   </td>
-                  <td className="max-lg:hidden px-4 py-2">
+                  <td className="phone:hidden px-4 py-2">
                     <AnomalyBadge type={anomaly.anomalyType} confidence={anomaly.confidence} />
                   </td>
                   <td className="px-4 py-2 text-sm font-mono text-gray-500">

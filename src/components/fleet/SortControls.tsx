@@ -80,7 +80,7 @@ export function MobileSortBar({ columns, activeKey, dir, onSort, accent = 'amber
   }
 
   return (
-    <div className={`lg:hidden flex items-center justify-end gap-2 border-b ${accentBorder} bg-gray-900/30 px-3 py-2`}>
+    <div className={`roomy:hidden flex items-center justify-end gap-2 border-b ${accentBorder} bg-gray-900/30 px-3 py-2`}>
       <label htmlFor={selectId} className="text-xs font-mono uppercase tracking-wider text-gray-500">
         Sort
       </label>
