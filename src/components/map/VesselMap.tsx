@@ -17,7 +17,7 @@ import { vesselsToGeoJSON } from '@/lib/map/geojson';
 import { filterTankers } from '@/lib/map/filter';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
-import type { ClusterVessel } from '@/stores/vessel';
+import type { ClusterVessel, MapCenter } from '@/stores/vessel';
 
 /**
  * Keyless dark basemap style (CARTO dark-matter, GL-compatible).
@@ -41,7 +41,7 @@ const PROXIMITY_PIXEL_RADIUS = 25;
 /** Minimum number of vessels in a pixel cluster to trigger the sidebar */
 const PROXIMITY_MIN_COUNT = 2;
 
-export function VesselMap() {
+export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {}) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const vesselsRef = useRef<VesselWithSanctions[]>([]);
@@ -165,8 +165,10 @@ export function VesselMap() {
       mapInstance = new maplibregl.Map({
         container: mapContainer.current,
         style: MAP_STYLE,
-        center: [54, 25], // Strait of Hormuz region
-        zoom: 5,
+        // Server-picked densest chokepoint when available; otherwise the
+        // Strait of Hormuz region, matching today's default.
+        center: initialCenter ? [initialCenter.lon, initialCenter.lat] : [54, 25],
+        zoom: initialCenter ? initialCenter.zoom : 5,
         attributionControl: { compact: true },
       });
     } catch (err) {
@@ -419,7 +421,7 @@ export function VesselMap() {
       }
       map.current = null;
     };
-  }, [setSelectedVessel, detectProximityGroup]);
+  }, [setSelectedVessel, detectProximityGroup, initialCenter]);
 
   // Fetch vessels periodically
   useEffect(() => {
