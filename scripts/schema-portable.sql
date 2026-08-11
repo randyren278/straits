@@ -188,3 +188,52 @@ CREATE TABLE IF NOT EXISTS vessel_risk_scores (
   factors JSONB NOT NULL,
   computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =============================================================================
+-- Row-Level Security
+-- =============================================================================
+-- A hosted Supabase project always exposes PostgREST on the project URL, and
+-- grants the publishable `anon` key's role full DML on every table in `public`
+-- by default. With RLS off that leaves the whole dataset readable and writable
+-- by anyone who knows the URL (`rls_disabled_in_public`).
+--
+-- This app never touches PostgREST — every query runs server-side through the
+-- `pg.Pool` in src/lib/db/index.ts as the database owner. So RLS is enabled
+-- with NO policies: zero policies denies every row to every non-exempt role,
+-- while the owner (which also carries BYPASSRLS on Supabase) is unaffected.
+-- FORCE ROW LEVEL SECURITY is intentionally not set — forcing it on the owner
+-- is the one thing that would break the app.
+--
+-- Catalog-driven so tables added later are covered on the next apply. Run
+-- scripts/enable-rls.sql to retrofit a database deployed before this block.
+DO $$
+DECLARE
+  t regclass;
+BEGIN
+  FOR t IN
+    SELECT c.oid::regclass
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public'
+       AND c.relkind IN ('r', 'p')
+       AND NOT c.relrowsecurity
+     ORDER BY c.oid::regclass::text
+  LOOP
+    EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', t);
+  END LOOP;
+END $$;
+
+-- Defense in depth: revoke the grants Supabase hands the PostgREST roles, so a
+-- policy added by accident later can't silently re-open the data. Guarded on
+-- role existence so this file still applies to a plain local Postgres.
+DO $$
+DECLARE
+  r text;
+BEGIN
+  FOREACH r IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+      EXECUTE format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', r);
+      EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', r);
+    END IF;
+  END LOOP;
+END $$;

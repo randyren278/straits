@@ -90,6 +90,7 @@ parameterized placeholders. IMO is the vessel identity key across the board.
 | `src/lib/db/index.ts` | `pg.Pool` singleton (max 20, 30s idle, 2s connect timeout) and a typed `query<T>()` wrapper |
 | `src/lib/db/schema.sql` | TimescaleDB schema: `vessel_positions` hypertable (1-day chunks, MMSI-segmented compression) plus all other tables |
 | `scripts/schema-portable.sql` | Vanilla Postgres schema for Supabase: identical except `vessel_positions` is a plain table with a `time` btree index |
+| `scripts/enable-rls.sql` | One-shot, idempotent retrofit that enables RLS on every `public` table of a database deployed before the schemas carried the RLS block |
 | `src/lib/db/vessels.ts` | `upsertVessel` (ON CONFLICT imo), `getVessel`, `getAllVessels(tankersOnly?)` |
 | `src/lib/db/positions.ts` | `insertPosition`, `getPositionHistory(mmsi, hours)`, `getLatestPositions()` (DISTINCT ON mmsi, 7-day staleness) |
 | `src/lib/db/sanctions.ts` | `batchUpsertSanctions` (transactional, stale cleanup), `getVesselsWithSanctions` |
@@ -119,6 +120,14 @@ schedules.
   is `UNIQUE(imo, anomaly_type) WHERE resolved_at IS NULL`. A vessel can have many
   resolved anomalies of a type but only one active, and `upsertAnomaly` uses
   `ON CONFLICT ... WHERE resolved_at IS NULL` to update the active row.
+- **RLS on, zero policies.** Every `public` table has row-level security enabled
+  with no policies attached. Supabase always exposes PostgREST on the project URL
+  and grants the publishable `anon` role full DML on `public`, so RLS off means
+  the dataset is world-readable and world-writable to anyone holding the URL. No
+  code path here uses PostgREST — all access is the server-side `pg.Pool` as the
+  database owner, which is exempt from RLS — so zero policies denies outsiders
+  everything and costs the app nothing. `FORCE ROW LEVEL SECURITY` is
+  deliberately not set; forcing RLS on the owner is what *would* break the app.
 - **Bulk sanctions upsert.** `batchUpsertSanctions` runs individual INSERTs
   inside one transaction (about 16,900 entries in under 10s) rather than `unnest`,
   because node-pg can't serialize arrays-of-arrays for the `text[]` columns. After
@@ -131,6 +140,10 @@ points import query functions from here. The pool is a shared singleton.
 
 - Deploy `schema-portable.sql` to Supabase, not `schema.sql`. `time_bucket` would
   fail on plain Postgres; `date_trunc` is what the queries actually use.
+- Adding a table means it starts life without RLS. Re-applying the schema (or
+  running `scripts/enable-rls.sql`) covers it — both blocks are catalog-driven,
+  not hardcoded lists — but a table created ad hoc in the Supabase SQL editor
+  stays exposed until one of them runs.
 - The 7-day staleness filter applies to display queries only. Background
   detection jobs query all active anomalies regardless of position age.
 - `getRiskScore` returns a zero score for any IMO not in `vessel_risk_scores`.
