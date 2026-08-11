@@ -269,3 +269,62 @@ CREATE TABLE IF NOT EXISTS vessel_risk_scores (
   factors JSONB NOT NULL,
   computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- =============================================================================
+-- Row-Level Security
+-- =============================================================================
+-- Kept in step with scripts/schema-portable.sql, where this actually matters: a
+-- hosted Supabase project always exposes PostgREST on the project URL and grants
+-- the publishable `anon` key's role full DML on every table in `public`, so with
+-- RLS off the whole dataset is readable and writable by anyone who knows the URL
+-- (`rls_disabled_in_public`). Local dev is a private Docker container with no
+-- PostgREST in front of it, but the two schemas stay identical apart from the
+-- hypertable, and enabling RLS here keeps local behaviour honest to production.
+--
+-- This app never touches PostgREST — every query runs server-side through the
+-- `pg.Pool` in src/lib/db/index.ts as the database owner. So RLS is enabled with
+-- NO policies: zero policies denies every row to every non-exempt role, while
+-- the owner is unaffected. FORCE ROW LEVEL SECURITY is intentionally not set —
+-- forcing it on the owner is the one thing that would break the app.
+--
+-- Per-table failures are downgraded to a NOTICE rather than aborting: run.sh
+-- applies this file with ON_ERROR_STOP=1, and vessel_positions is a compressed
+-- hypertable whose acceptance of RLS varies by TimescaleDB version. A skip is
+-- harmless locally; the hosted database is covered by the strict, verified
+-- version of this block in schema-portable.sql and scripts/enable-rls.sql.
+DO $$
+DECLARE
+  t regclass;
+BEGIN
+  FOR t IN
+    SELECT c.oid::regclass
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public'
+       AND c.relkind IN ('r', 'p')
+       AND NOT c.relrowsecurity
+     ORDER BY c.oid::regclass::text
+  LOOP
+    BEGIN
+      EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', t);
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Skipped RLS on %: %', t, SQLERRM;
+    END;
+  END LOOP;
+END $$;
+
+-- Defense in depth: revoke the grants Supabase hands the PostgREST roles, so a
+-- policy added by accident later can't silently re-open the data. Guarded on
+-- role existence — these roles don't exist on a local Postgres, so this is a
+-- no-op in dev.
+DO $$
+DECLARE
+  r text;
+BEGIN
+  FOREACH r IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+      EXECUTE format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', r);
+      EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', r);
+    END IF;
+  END LOOP;
+END $$;
