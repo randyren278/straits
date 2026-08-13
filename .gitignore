@@ -80,5 +80,7 @@ CLAUDE.md
 .bg-shell/
 .claude/
 PLAN.md
+.checkpoints/
+scripts/checkpoint_runner.py
 .ui-baseline/
 .superpowers/

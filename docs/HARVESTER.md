@@ -126,6 +126,28 @@ its staleness check — a corrupt status file can never disarm self-revival.
 `consecutiveFailures` counts runs since the last good one (the menu bar
 escalates on it), and `lastOkRun` is the last time the core succeeded.
 
+### Sustained-outage alert
+
+A single empty window is noise; a *run* of them is an outage. After
+`AIS_OUTAGE_THRESHOLD` consecutive windows land zero positions (default **3**,
+≈30 min at the 10-minute cadence) the harvester logs an `OUTAGE ALERT:` line
+and fires one macOS notification — **once per outage, not once per window**.
+`consecutiveEmptyAisWindows` and `aisOutageAlertSent` carry the streak across
+runs in `status.json`; a window that lands positions resets both, re-arming the
+alarm for next time. The decision logic is a pure function
+(`src/services/ais-ingester/outage-alert.ts`) so the notify-once edge is unit
+tested without needing a real outage to reproduce.
+
+This exists because of a specific hole: in Aug 2026 the upstream provider went
+silent for 30+ hours while every harvest still exited 0 and the menu bar read
+`Last run OK`, because an empty window was only ever a per-run warning with
+nothing watching the *pattern*. Note the alert says the feed is dark, not whose
+fault it is — a dead provider, a revoked key, and a wedged Wi-Fi driver all look
+identical from here. Diagnose with `npx tsx --env-file=.env.harvester
+scripts/harvester/ais-key-check.mjs`, which subscribes worldwide and exits
+non-zero if nothing arrives; a key that is *accepted but silent* (connection
+stays open, server still pings) means the provider is down, not your key.
+
 > **Known-bad pattern to avoid.** Until Jul 2026 the sanctions refresh issued one
 > INSERT per entry — ~21k round-trips, which at the pooler's ~25ms RTT took ~7
 > minutes against a 240s timeout. It was killed mid-transaction every run, so

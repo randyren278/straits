@@ -35,11 +35,13 @@
  *   STRAITS_STATE_DIR     where status.json is written (default ~/.straits-harvester)
  */
 import WebSocket from 'ws';
+import { execFileSync } from 'child_process';
 import { mkdirSync, writeFileSync, readFileSync, renameSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { pool } from '../../lib/db';
 import { withDbRetry } from './db-retry';
+import { computeOutageAlert } from './outage-alert';
 
 // Anomaly detectors (run once, not on cron) — same set as detection-jobs.ts
 import { detectGoingDark } from '../../lib/detection/going-dark';
@@ -69,6 +71,11 @@ const HARD_TIMEOUT_MS = Number(process.env.HARVEST_HARD_TIMEOUT_MS ?? 360_000);
 const RETENTION_DAYS = Number(process.env.RETENTION_DAYS ?? 7);
 const STATE_DIR = process.env.STRAITS_STATE_DIR || join(homedir(), '.straits-harvester');
 const STATUS_PATH = join(STATE_DIR, 'status.json');
+// Consecutive empty windows before the operator is interrupted. At the ~10-min
+// launchd cadence this is ~30 min of silence — long enough to ride out a
+// wake-from-sleep or a dropped socket, short enough that a real provider
+// outage doesn't run unnoticed for a day and a half (as one did in Aug 2026).
+const AIS_OUTAGE_THRESHOLD = Number(process.env.AIS_OUTAGE_THRESHOLD ?? 3);
 
 // ── Types (standalone, mirrors index.ts to avoid importing the daemon) ────────
 interface Pos {
@@ -116,6 +123,10 @@ type Status = {
   consecutiveFailures: number;
   /** ISO timestamp of the last run whose AIS core succeeded. */
   lastOkRun: string | null;
+  /** Consecutive windows that landed zero positions; 0 once data returns. */
+  consecutiveEmptyAisWindows: number;
+  /** Whether the operator has been notified about the outage in progress. */
+  aisOutageAlertSent: boolean;
 };
 const status: Status = {
   lastRun: '', ok: false, error: null, durationMs: 0,
@@ -125,6 +136,7 @@ const status: Status = {
   sanctionsRefreshed: false, pruned: 0,
   positionsTotal: null, dbSizeMB: null, positionsSizeMB: null,
   warnings: [], consecutiveFailures: 0, lastOkRun: null,
+  consecutiveEmptyAisWindows: 0, aisOutageAlertSent: false,
 };
 
 /** Previous run's status, for the failure streak + last-ok carry-forward. */
@@ -154,6 +166,29 @@ function writeStatus(startedAt: number): void {
 function warn(message: string): void {
   console.warn(`WARN: ${message}`);
   status.warnings.push(message);
+}
+
+/**
+ * Interrupt the operator once when the AIS feed has gone dark.
+ *
+ * Synchronous on purpose: an empty window can short-circuit the rest of the
+ * harvest, and a fire-and-forget child would then die with the process before
+ * macOS ever drew the banner. osascript returns in tens of milliseconds and
+ * this runs at most once per outage, so blocking here costs nothing real.
+ * Any failure is swallowed — a missing notification must never fail a harvest.
+ */
+function notifyOutage(windows: number): void {
+  const message = `No AIS positions for ${windows} consecutive windows. Check provider status.`;
+  console.error(`OUTAGE ALERT: ${message}`);
+  try {
+    execFileSync(
+      '/usr/bin/osascript',
+      ['-e', `display notification ${JSON.stringify(message)} with title "STRAITS · AIS feed dark"`],
+      { timeout: 5_000, stdio: 'ignore' }
+    );
+  } catch (err) {
+    warn(`outage notification failed — ${(err as Error).message}`);
+  }
 }
 
 // ── Collect a bounded window of AIS messages ──────────────────────────────────
@@ -458,6 +493,10 @@ async function main(): Promise<void> {
   const prevFailures = prev.consecutiveFailures ?? 0;
   status.consecutiveFailures = prevFailures + 1; // cleared below once the core lands
   status.lastOkRun = prev.lastOkRun ?? null;
+  // Carried forward so the drought streak survives across runs — the whole
+  // point is spotting a pattern no single run can see.
+  status.consecutiveEmptyAisWindows = prev.consecutiveEmptyAisWindows ?? 0;
+  status.aisOutageAlertSent = prev.aisOutageAlertSent ?? false;
 
   if (!process.env.DATABASE_URL || !process.env.AISSTREAM_API_KEY) {
     status.error = 'DATABASE_URL and AISSTREAM_API_KEY are required';
@@ -494,6 +533,18 @@ async function main(): Promise<void> {
     if (positions.size === 0) {
       warn(`no AIS positions this window (${status.messagesReceived} msgs) — offline, AISStream unreachable, or Mac half-asleep`);
     }
+
+    // Evaluated every run, not just empty ones: a window that lands positions
+    // is what clears the streak and re-arms the alarm for the next outage.
+    const outage = computeOutageAlert({
+      emptyWindow: positions.size === 0,
+      prevCount: status.consecutiveEmptyAisWindows,
+      prevAlertSent: status.aisOutageAlertSent,
+      threshold: AIS_OUTAGE_THRESHOLD,
+    });
+    status.consecutiveEmptyAisWindows = outage.count;
+    status.aisOutageAlertSent = outage.alertSent;
+    if (outage.shouldNotify) notifyOutage(outage.count);
 
     // Core: landing AIS data is what "ok" means.
     await upsertVessels(statics);   // vessels first (anomaly FK targets)

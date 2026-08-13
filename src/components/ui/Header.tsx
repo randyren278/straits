@@ -17,6 +17,7 @@ import { NotificationBell } from './NotificationBell';
 import { AnomalyFilter } from './AnomalyFilter';
 import { StatusChip } from './StatusChip';
 import { StraitsMark } from './StraitsMark';
+import { AisOutageBanner } from './AisOutageBanner';
 
 interface SearchResult {
   imo: string;
@@ -151,6 +152,10 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
           </div>
         </div>
       )}
+
+      {/* Not gated on activeTab: a dark AIS feed empties the fleet table and
+          analytics charts too, so the explanation belongs on every route. */}
+      <AisOutageBanner />
     </header>
   );
 }
