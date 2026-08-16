@@ -299,7 +299,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
             ['==', ['get', 'isSanctioned'], true],
             '#ef4444',
             // Normal traffic is intentionally source- and type-neutral. The
-            // free fallback must not create a second visual vocabulary; only
+            // Middle East fallback must not create a second visual vocabulary; only
             // genuine anomalies and sanctions above receive alert colors.
             '#6b7280',
           ],

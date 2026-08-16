@@ -143,8 +143,8 @@ if [ -n "$WARNINGS" ]; then
 fi
 echo "---"
 echo "Positions inserted: ${INSERTED:-0}  (of ${UNIQUE:-0} unique)"
-if [ "$SOURCE" = "free-fallback" ]; then
-  echo "Source: free Middle East fallback | color=orange"
+if [ "$SOURCE" = "middle-east-fallback" ] || [ "$SOURCE" = "free-fallback" ]; then
+  echo "Source: Middle East fallback | color=orange"
   echo "Live identity records: ${FALLBACK_META:-0} (name + vessel class) | color=gray"
 elif [ "$SOURCE" = "aisstream" ]; then
   echo "Source: AISStream | color=gray"

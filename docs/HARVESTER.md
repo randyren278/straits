@@ -16,7 +16,7 @@ harvester runs where the free AIS key already lives: your laptop.
 launchd  (StartInterval=600, RunAtLoad)
    └─ scripts/harvester/run-harvest.sh        (wrapper: single-flight lock, cd repo, set PATH, load .env.harvester)
         └─ src/services/ais-ingester/harvest-once.ts   (the bounded harvest)
-              1. connect AISStream, collect ~90s; on an empty/rate-limited window, fetch the keyless Middle East fallback
+              1. connect AISStream, collect ~90s; on an empty/rate-limited window, fetch the Middle East fallback
               2. dedupe → latest position per vessel this window
               3. bulk upsert vessels + insert positions  → Supabase (:6543 pooler)   ← the CORE
               4. run anomaly detectors once                       ┐

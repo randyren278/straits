@@ -74,7 +74,7 @@ export function DashboardClient({ initialCenter }: { initialCenter?: MapCenter }
   const handleSearchSelect = useCallback((result: SearchResult) => {
     if (result.latitude !== null && result.longitude !== null) {
       setMapCenter({ lat: result.latitude, lon: result.longitude, zoom: 10 });
-      // The free fallback does not invent an IMO. Select it by the metadata it
+      // The Middle East fallback does not invent an IMO. Select it by the metadata it
       // actually has instead of targeting the first unrelated null-IMO vessel.
       if (result.imo) {
         setTargetVesselImo(result.imo);

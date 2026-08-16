@@ -46,7 +46,7 @@ import { join } from 'path';
 import { pool } from '../../lib/db';
 import { withDbRetry } from './db-retry';
 import { computeSustainedAlert } from './outage-alert';
-import { fetchFreeAisFallback } from './free-fallback';
+import { fetchMiddleEastAisFallback } from './middle-east-fallback';
 
 // Anomaly detectors (run once, not on cron) — same set as detection-jobs.ts
 import { detectGoingDark } from '../../lib/detection/going-dark';
@@ -141,8 +141,8 @@ type Status = {
   sanctionsRefreshed: boolean; pruned: number;
   positionsTotal: number | null; dbSizeMB: number | null; positionsSizeMB: number | null;
   /** The source whose positions made this run successful. */
-  positionSource: 'aisstream' | 'free-fallback' | null;
-  /** Number of named/type-classified records refreshed by the free fallback. */
+  positionSource: 'aisstream' | 'middle-east-fallback' | null;
+  /** Number of named/type-classified records refreshed by the Middle East fallback. */
   fallbackMetadataUpdated: number;
   /** Non-fatal step failures/skips this run — surfaced in the menu bar as amber. */
   warnings: string[];
@@ -330,13 +330,13 @@ function collectWindow(): Promise<{ positions: Map<string, Pos>; statics: Map<st
 }
 
 /**
- * AISStream's free tier occasionally returns 429 or a silent empty window.
+ * AISStream occasionally returns 429 or a silent empty window.
  * Use a public, keyless snapshot before declaring the harvest failed. This is
  * deliberately separate from the primary path so the menu can state exactly
  * which data quality/coverage the operator is seeing.
  */
-async function collectFreeFallback(): Promise<{ positions: Map<string, Pos>; metadata: Map<string, { name: string; shipType: number | null }> }> {
-  const snapshot = await fetchFreeAisFallback(AIS_BOUNDS);
+async function collectMiddleEastFallback(): Promise<{ positions: Map<string, Pos>; metadata: Map<string, { name: string; shipType: number | null }> }> {
+  const snapshot = await fetchMiddleEastAisFallback(AIS_BOUNDS);
   const positions = new Map<string, Pos>();
   const metadata = new Map<string, { name: string; shipType: number | null }>();
   for (const item of snapshot) {
@@ -694,14 +694,14 @@ async function main(): Promise<void> {
     status.positionSource = positions.size > 0 ? 'aisstream' : null;
     if (positions.size === 0) {
       try {
-        const fallback = await collectFreeFallback();
+        const fallback = await collectMiddleEastFallback();
         positions = fallback.positions;
         fallbackMetadata = fallback.metadata;
         statics = new Map(); // The public fallback is position-only.
-        status.positionSource = 'free-fallback';
-        warn(`AISStream delivered no positions; using free Middle East fallback (${positions.size} current positions)`);
+        status.positionSource = 'middle-east-fallback';
+        warn(`AISStream delivered no positions; using Middle East fallback (${positions.size} current positions)`);
       } catch (fallbackErr) {
-        warn(`free AIS fallback failed: ${(fallbackErr as Error).message}`);
+        warn(`Middle East AIS fallback failed: ${(fallbackErr as Error).message}`);
       }
     }
     status.uniqueVessels = positions.size;
@@ -733,7 +733,7 @@ async function main(): Promise<void> {
 
     // Core: landing positions from either source is what "ok" means. Never
     // mark an empty window as healthy: it would hide a broken data feed.
-    if (positions.size === 0) throw new Error('No AIS positions from AISStream or the free fallback');
+    if (positions.size === 0) throw new Error('No AIS positions from AISStream or the Middle East fallback');
     await upsertFallbackMetadata(fallbackMetadata);
     await upsertVessels(statics);   // vessels first (anomaly FK targets)
     await insertPositions(positions);

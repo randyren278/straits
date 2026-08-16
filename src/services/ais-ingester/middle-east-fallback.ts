@@ -1,5 +1,5 @@
 /**
- * Free Middle East AIS fallback.
+ * Middle East AIS fallback.
  *
  * VesselFinder's public map feed supplies live positions in the configured
  * Middle East regions. It is used only when AISStream is unavailable, with a
@@ -15,7 +15,7 @@ export interface FallbackBounds {
   maxLon: number;
 }
 
-export interface FreeFallbackPosition {
+export interface MiddleEastFallbackPosition {
   time: Date;
   mmsi: string;
   latitude: number;
@@ -128,11 +128,11 @@ function isWithinConfiguredBounds(ship: DecodedShip, bounds: readonly FallbackBo
 }
 
 /** Fetch current, non-stale vessel positions from each Straits coverage zone. */
-export async function fetchFreeAisFallback(
+export async function fetchMiddleEastAisFallback(
   bounds: readonly FallbackBounds[],
   fetcher: FetchLike = fetch,
   now = new Date(),
-): Promise<FreeFallbackPosition[]> {
+): Promise<MiddleEastFallbackPosition[]> {
   const responses = await Promise.all(bounds.map(async (bound) => {
     const url = `${MAP_ENDPOINT}?bbox=${bboxParam(bound)}&zoom=9&mmsi=0&mcbe=1`;
     const response = await fetcher(url, {
@@ -146,7 +146,7 @@ export async function fetchFreeAisFallback(
     return decodeMapPayload(await response.arrayBuffer());
   }));
 
-  const latest = new Map<string, FreeFallbackPosition>();
+  const latest = new Map<string, MiddleEastFallbackPosition>();
   for (const ship of responses.flat()) {
     // The map endpoint may include a tile-edge overscan. Keep only positions
     // that are actually inside one of our subscribed coverage regions.
