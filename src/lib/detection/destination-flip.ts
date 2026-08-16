@@ -12,8 +12,8 @@
  * lists.
  */
 import { pool } from '../db';
-import { upsertAnomaly } from '../db/anomalies';
-import type { Confidence, CompositeDiversionDetails } from '../../types/anomaly';
+import { upsertAnomaliesBatch } from '../db/anomalies';
+import type { Confidence, CompositeDiversionDetails, UpsertAnomalyInput } from '../../types/anomaly';
 
 /** Hours after a destination flip within which a following evasion counts. */
 export const FLIP_WINDOW_HOURS = 24;
@@ -102,7 +102,7 @@ export async function detectCompositeDiversions(
     ORDER BY dc.imo, a.detected_at ASC
   `, [FLIP_WINDOW_HOURS, lookbackHours]);
 
-  let written = 0;
+  const batch: UpsertAnomalyInput[] = [];
 
   for (const row of result.rows) {
     if (parseInt(row.evasion_count, 10) < minEvasions) continue;
@@ -123,16 +123,15 @@ export async function detectCompositeDiversions(
     // A junk destination alongside evasion raises confidence to confirmed.
     const confidence: Confidence = details.junkDestination ? 'confirmed' : 'suspected';
 
-    await upsertAnomaly({
+    batch.push({
       imo: row.imo,
       anomalyType: 'composite_diversion',
       confidence,
       detectedAt: new Date(),
       details,
     });
-
-    written++;
   }
 
-  return written;
+  await upsertAnomaliesBatch(batch);
+  return batch.length;
 }

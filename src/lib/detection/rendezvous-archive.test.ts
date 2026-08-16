@@ -16,7 +16,7 @@ vi.mock('@/lib/db', () => ({
 
 // Mock anomaly upsert — not under test here
 vi.mock('@/lib/db/anomalies', () => ({
-  upsertAnomaly: vi.fn(),
+  upsertAnomaliesBatch: vi.fn(),
 }));
 
 describe('detectStsTransfers — rendezvous archival', () => {

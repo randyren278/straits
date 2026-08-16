@@ -15,13 +15,12 @@ vi.mock('../db', () => ({
 }));
 
 vi.mock('../db/anomalies', () => ({
-  upsertAnomaly: vi.fn(),
-  resolveAnomaly: vi.fn(),
+  upsertAnomaliesBatch: vi.fn(),
 }));
 
 // Import after mocks are set up
 import { pool } from '../db';
-import { upsertAnomaly, resolveAnomaly } from '../db/anomalies';
+import { upsertAnomaliesBatch } from '../db/anomalies';
 import {
   detectGoingDark,
   determineConfidence,
@@ -65,7 +64,7 @@ describe('shouldFlagAsGoingDark', () => {
 
 describe('detectGoingDark', () => {
   const mockQuery = pool.query as ReturnType<typeof vi.fn>;
-  const mockUpsertAnomaly = upsertAnomaly as ReturnType<typeof vi.fn>;
+  const mockUpsertAnomaliesBatch = upsertAnomaliesBatch as ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -84,6 +83,17 @@ describe('detectGoingDark', () => {
     expect(query).not.toContain('ship_type BETWEEN 80 AND 89');
   });
 
+  it('bounds the candidate query with an upper age limit (30 days) so a prolonged outage cannot grow it forever', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // resolve query
+
+    await detectGoingDark();
+
+    const query = mockQuery.mock.calls[0][0];
+    expect(query).toContain("30 days");
+    expect(query).toContain('last_seen >');
+  });
+
   it('does NOT exclude non-tanker vessel (ship_type 72 cargo) from query', async () => {
     const mockCargoVessel: GapCandidate = {
       imo: '5555555',
@@ -100,13 +110,13 @@ describe('detectGoingDark', () => {
     const count = await detectGoingDark();
 
     expect(count).toBe(1);
-    expect(mockUpsertAnomaly).toHaveBeenCalledWith(
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         imo: '5555555',
         anomalyType: 'going_dark',
         confidence: 'suspected',
-      })
-    );
+      }),
+    ]);
   });
 
   it('creates suspected anomaly for vessel with 2-4h gap in coverage zone', async () => {
@@ -124,7 +134,7 @@ describe('detectGoingDark', () => {
     const count = await detectGoingDark();
 
     expect(count).toBe(1);
-    expect(mockUpsertAnomaly).toHaveBeenCalledWith(
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         imo: '1234567',
         anomalyType: 'going_dark',
@@ -133,8 +143,8 @@ describe('detectGoingDark', () => {
           gapMinutes: 180,
           coverageZone: 'persian_gulf',
         }),
-      })
-    );
+      }),
+    ]);
   });
 
   it('creates confirmed anomaly for vessel with >4h gap in coverage zone', async () => {
@@ -152,13 +162,13 @@ describe('detectGoingDark', () => {
     const count = await detectGoingDark();
 
     expect(count).toBe(1);
-    expect(mockUpsertAnomaly).toHaveBeenCalledWith(
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         imo: '7654321',
         anomalyType: 'going_dark',
         confidence: 'confirmed',
-      })
-    );
+      }),
+    ]);
   });
 
   it('does NOT flag vessel outside coverage zone even with large gap', async () => {
@@ -176,7 +186,10 @@ describe('detectGoingDark', () => {
     const count = await detectGoingDark();
 
     expect(count).toBe(0);
-    expect(mockUpsertAnomaly).not.toHaveBeenCalled();
+    // upsertAnomaliesBatch is still called (it early-returns internally on an
+    // empty array — matches the always-flush pattern in harvest-once.ts), so
+    // "not called" is no longer the right assertion; assert it got an empty batch.
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([]);
   });
 
   it('resolves anomalies for vessels that have reported back recently', async () => {
@@ -205,6 +218,22 @@ describe('detectGoingDark', () => {
     const count = await detectGoingDark();
 
     expect(count).toBe(2); // 2 in coverage zone, 1 outside
+  });
+
+  it('batches all upserts into a single upsertAnomaliesBatch call, not one call per candidate', async () => {
+    const mockVessels: GapCandidate[] = [
+      { imo: '1111111', lastSeen: new Date(), lastLat: 26.0, lastLon: 51.0, gapMinutes: 150 },
+      { imo: '2222222', lastSeen: new Date(), lastLat: 27.0, lastLon: 52.0, gapMinutes: 200 },
+    ];
+
+    mockQuery.mockResolvedValueOnce({ rows: mockVessels });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // resolve query
+
+    await detectGoingDark();
+
+    // N candidates -> 1 batch call, not N individual upsert calls
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledTimes(1);
+    expect(mockUpsertAnomaliesBatch.mock.calls[0][0]).toHaveLength(2);
   });
 });
 

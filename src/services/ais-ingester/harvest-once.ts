@@ -33,6 +33,9 @@
  *   HARVEST_HARD_TIMEOUT_MS  safety kill, wall-clock (default 360000)
  *   RETENTION_DAYS        prune horizon (default 7)
  *   STRAITS_STATE_DIR     where status.json is written (default ~/.straits-harvester)
+ *   AIS_OUTAGE_THRESHOLD       consecutive empty windows before an outage alert (default 3)
+ *   DETECTOR_FAILURE_THRESHOLD consecutive detector-step failures before an alert (default 6)
+ *   OUTAGE_RENOTIFY_HOURS      re-notify heartbeat while either alert is ongoing (default 6)
  */
 import WebSocket from 'ws';
 import { execFileSync } from 'child_process';
@@ -41,7 +44,7 @@ import { homedir } from 'os';
 import { join } from 'path';
 import { pool } from '../../lib/db';
 import { withDbRetry } from './db-retry';
-import { computeOutageAlert } from './outage-alert';
+import { computeSustainedAlert } from './outage-alert';
 
 // Anomaly detectors (run once, not on cron) — same set as detection-jobs.ts
 import { detectGoingDark } from '../../lib/detection/going-dark';
@@ -76,6 +79,17 @@ const STATUS_PATH = join(STATE_DIR, 'status.json');
 // wake-from-sleep or a dropped socket, short enough that a real provider
 // outage doesn't run unnoticed for a day and a half (as one did in Aug 2026).
 const AIS_OUTAGE_THRESHOLD = Number(process.env.AIS_OUTAGE_THRESHOLD ?? 3);
+// Consecutive detector-step failures/skips before the operator is interrupted.
+// Higher than the AIS threshold: a detector run can legitimately lose the
+// budget race once (a slow pooler eating the 150s window) without meaning
+// anything is actually broken, so give it more room before escalating — but
+// not unbounded room, since a fully dead pipeline (as one was for ~30 runs in
+// Aug 2026, with no counter at all) must not be able to go silent again.
+const DETECTOR_FAILURE_THRESHOLD = Number(process.env.DETECTOR_FAILURE_THRESHOLD ?? 6);
+// Both sustained-failure alerts (AIS outage, detector failures) heartbeat on
+// this same interval while the incident continues, instead of firing once and
+// going quiet for the rest of a multi-day outage.
+const OUTAGE_RENOTIFY_INTERVAL_MS = Number(process.env.OUTAGE_RENOTIFY_HOURS ?? 6) * 60 * 60 * 1000;
 
 // ── Types (standalone, mirrors index.ts to avoid importing the daemon) ────────
 interface Pos {
@@ -127,6 +141,17 @@ type Status = {
   consecutiveEmptyAisWindows: number;
   /** Whether the operator has been notified about the outage in progress. */
   aisOutageAlertSent: boolean;
+  /** ISO timestamp of the last AIS-outage notification, or null. Drives the
+   * re-notify heartbeat — a single notification no longer covers a multi-day
+   * outage. */
+  aisOutageLastNotifyAt: string | null;
+  /** Consecutive runs where the detector step failed, timed out, or was
+   * skipped for lack of budget; 0 once it completes. */
+  consecutiveDetectorFailures: number;
+  /** Whether the operator has been notified about the ongoing detector outage. */
+  detectorFailureAlertSent: boolean;
+  /** ISO timestamp of the last detector-failure notification, or null. */
+  detectorFailureLastNotifyAt: string | null;
 };
 const status: Status = {
   lastRun: '', ok: false, error: null, durationMs: 0,
@@ -136,7 +161,8 @@ const status: Status = {
   sanctionsRefreshed: false, pruned: 0,
   positionsTotal: null, dbSizeMB: null, positionsSizeMB: null,
   warnings: [], consecutiveFailures: 0, lastOkRun: null,
-  consecutiveEmptyAisWindows: 0, aisOutageAlertSent: false,
+  consecutiveEmptyAisWindows: 0, aisOutageAlertSent: false, aisOutageLastNotifyAt: null,
+  consecutiveDetectorFailures: 0, detectorFailureAlertSent: false, detectorFailureLastNotifyAt: null,
 };
 
 /** Previous run's status, for the failure streak + last-ok carry-forward. */
@@ -169,26 +195,40 @@ function warn(message: string): void {
 }
 
 /**
- * Interrupt the operator once when the AIS feed has gone dark.
+ * Interrupt the operator via a macOS notification banner.
  *
- * Synchronous on purpose: an empty window can short-circuit the rest of the
+ * Synchronous on purpose: a failing step can short-circuit the rest of the
  * harvest, and a fire-and-forget child would then die with the process before
  * macOS ever drew the banner. osascript returns in tens of milliseconds and
- * this runs at most once per outage, so blocking here costs nothing real.
- * Any failure is swallowed — a missing notification must never fail a harvest.
+ * this fires at most once per re-notify interval, so blocking here costs
+ * nothing real. Any failure is swallowed — a missing notification must never
+ * fail a harvest.
  */
-function notifyOutage(windows: number): void {
-  const message = `No AIS positions for ${windows} consecutive windows. Check provider status.`;
-  console.error(`OUTAGE ALERT: ${message}`);
+function notifyOperator(title: string, message: string): void {
+  console.error(`ALERT (${title}): ${message}`);
   try {
     execFileSync(
       '/usr/bin/osascript',
-      ['-e', `display notification ${JSON.stringify(message)} with title "STRAITS · AIS feed dark"`],
+      ['-e', `display notification ${JSON.stringify(message)} with title ${JSON.stringify(title)}`],
       { timeout: 5_000, stdio: 'ignore' }
     );
   } catch (err) {
-    warn(`outage notification failed — ${(err as Error).message}`);
+    warn(`"${title}" notification failed — ${(err as Error).message}`);
   }
+}
+
+function notifyOutage(windows: number): void {
+  notifyOperator(
+    'STRAITS · AIS feed dark',
+    `No AIS positions for ${windows} consecutive windows. Check provider status.`
+  );
+}
+
+function notifyDetectorFailures(runs: number): void {
+  notifyOperator(
+    'STRAITS · Detectors failing',
+    `Anomaly detectors have failed for ${runs} consecutive runs. Check the harvest log.`
+  );
 }
 
 // ── Collect a bounded window of AIS messages ──────────────────────────────────
@@ -356,23 +396,51 @@ async function insertPositions(positions: Map<string, Pos>): Promise<void> {
 let deadline = Number.POSITIVE_INFINITY;
 
 /**
+ * Work abandoned by a step() budget timeout. node-postgres has no client-side
+ * query cancellation (no `pg_cancel_backend` short of a second connection), so
+ * losing the Promise.race does NOT stop the underlying query — it keeps
+ * running against the shared pool. Tracking it (rather than dropping the
+ * reference) means:
+ *   1. it can never become a truly untracked leak — we know it's out there;
+ *   2. shutdown can wait for it to actually release its pooled connection
+ *      instead of racing pool.end() against still-running work.
+ * What actually bounds how long it can run is Supabase's own project-level
+ * `statement_timeout` default (currently 2 minutes) — NOT a value this
+ * codebase sets. A client-supplied `statement_timeout` is silently dropped by
+ * Supabase's transaction pooler, and a bare session-level `SET` after connect
+ * is worse: it was verified to leak into later, unrelated client sessions
+ * once the pooler recycles the backend. See the comment on `pool` in
+ * src/lib/db/index.ts for the full writeup.
+ */
+const abandonedWork: Promise<unknown>[] = [];
+
+/**
  * Run a non-core step under a time budget.
  *
  * Skipped (not failed) when the time left before the hard deadline can't cover
  * the budget, and abandoned if it overruns. Either way the harvest continues
  * and the problem lands in status.warnings — these steps never decide ok/not-ok.
  * This is what stops one slow external dependency from killing the whole run.
+ *
+ * Returns whether the step actually completed within budget — callers that
+ * need to track a *sustained* failure pattern (not just log this run's) use
+ * that, since a skip and a timeout both mean "didn't get done" the same way.
  */
-async function step(name: string, budgetMs: number, fn: () => Promise<void>): Promise<void> {
+async function step(name: string, budgetMs: number, fn: () => Promise<void>): Promise<boolean> {
   const remaining = deadline - Date.now();
   if (remaining < budgetMs) {
     warn(`${name} skipped — ${Math.round(remaining / 1000)}s left, needs ${Math.round(budgetMs / 1000)}s`);
-    return;
+    return false;
   }
+  // Started outside the race and given its own handler immediately: if the
+  // budget loses, this reference is what lets us track (and later wait for)
+  // the work instead of severing all contact with it.
+  const work = fn();
+  work.catch(() => { /* surfaced below (or, if abandoned, logged as a warning already) */ });
   let timer: NodeJS.Timeout | undefined;
   try {
     await Promise.race([
-      fn(),
+      work,
       new Promise<never>((_, reject) => {
         timer = setTimeout(
           () => reject(new Error(`exceeded ${Math.round(budgetMs / 1000)}s budget`)),
@@ -380,8 +448,18 @@ async function step(name: string, budgetMs: number, fn: () => Promise<void>): Pr
         );
       }),
     ]);
+    return true;
   } catch (err) {
-    warn(`${name} failed — ${(err as Error).message}`);
+    const message = (err as Error).message;
+    warn(`${name} failed — ${message}`);
+    if (message.startsWith('exceeded')) {
+      // fn() lost the race but is still running — hand its connection back to
+      // the pool once Supabase's own statement_timeout default (or a late
+      // finish) frees it. See the `pool` comment in src/lib/db/index.ts.
+      abandonedWork.push(work);
+      warn(`${name} abandoned — still holding a DB connection until reclaimed`);
+    }
+    return false;
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -497,6 +575,10 @@ async function main(): Promise<void> {
   // point is spotting a pattern no single run can see.
   status.consecutiveEmptyAisWindows = prev.consecutiveEmptyAisWindows ?? 0;
   status.aisOutageAlertSent = prev.aisOutageAlertSent ?? false;
+  const prevAisNotifiedAt = prev.aisOutageLastNotifyAt ? new Date(prev.aisOutageLastNotifyAt).getTime() : null;
+  status.consecutiveDetectorFailures = prev.consecutiveDetectorFailures ?? 0;
+  status.detectorFailureAlertSent = prev.detectorFailureAlertSent ?? false;
+  const prevDetectorNotifiedAt = prev.detectorFailureLastNotifyAt ? new Date(prev.detectorFailureLastNotifyAt).getTime() : null;
 
   if (!process.env.DATABASE_URL || !process.env.AISSTREAM_API_KEY) {
     status.error = 'DATABASE_URL and AISSTREAM_API_KEY are required';
@@ -536,14 +618,18 @@ async function main(): Promise<void> {
 
     // Evaluated every run, not just empty ones: a window that lands positions
     // is what clears the streak and re-arms the alarm for the next outage.
-    const outage = computeOutageAlert({
-      emptyWindow: positions.size === 0,
+    const outage = computeSustainedAlert({
+      failing: positions.size === 0,
       prevCount: status.consecutiveEmptyAisWindows,
       prevAlertSent: status.aisOutageAlertSent,
       threshold: AIS_OUTAGE_THRESHOLD,
+      now: startedAt,
+      prevNotifiedAt: prevAisNotifiedAt,
+      renotifyIntervalMs: OUTAGE_RENOTIFY_INTERVAL_MS,
     });
     status.consecutiveEmptyAisWindows = outage.count;
     status.aisOutageAlertSent = outage.alertSent;
+    status.aisOutageLastNotifyAt = outage.notifiedAt ? new Date(outage.notifiedAt).toISOString() : null;
     if (outage.shouldNotify) notifyOutage(outage.count);
 
     // Core: landing AIS data is what "ok" means.
@@ -558,11 +644,32 @@ async function main(): Promise<void> {
     // Budgets are sized from measured cost, not guessed: the detector pass is
     // the expensive one (~50-120s over the pooler); prune/prices/news/sanctions
     // are all seconds, so they get modest ceilings and the detectors get room.
-    await step('detectors', 150_000, runDetectors);
+    const detectorsOk = await step('detectors', 150_000, runDetectors);
     await step('prune + measure', 30_000, pruneAndMeasure);
     await step('prices refresh', 20_000, refreshPrices);
     await step('news refresh', 30_000, refreshNews);
     await step('sanctions refresh', 60_000, refreshSanctions);
+
+    // A skip and a timeout both count against the streak the same way as an
+    // outright failure — the point is "detectors didn't run", regardless of
+    // why. This lives only in the reached-the-core-and-ran-the-pipeline path:
+    // a run whose AIS core fails already escalates via consecutiveFailures
+    // (red menu bar), and detectors never even attempted, so it stays silent
+    // here rather than double-counting a different failure as this one.
+    const detectorFailures = computeSustainedAlert({
+      failing: !detectorsOk,
+      prevCount: status.consecutiveDetectorFailures,
+      prevAlertSent: status.detectorFailureAlertSent,
+      threshold: DETECTOR_FAILURE_THRESHOLD,
+      now: startedAt,
+      prevNotifiedAt: prevDetectorNotifiedAt,
+      renotifyIntervalMs: OUTAGE_RENOTIFY_INTERVAL_MS,
+    });
+    status.consecutiveDetectorFailures = detectorFailures.count;
+    status.detectorFailureAlertSent = detectorFailures.alertSent;
+    status.detectorFailureLastNotifyAt = detectorFailures.notifiedAt
+      ? new Date(detectorFailures.notifiedAt).toISOString() : null;
+    if (detectorFailures.shouldNotify) notifyDetectorFailures(detectorFailures.count);
 
     if (status.warnings.length > 0) status.error = `${status.warnings.length} step(s) degraded`;
     console.log(`Harvest OK in ${Date.now() - startedAt}ms (${status.warnings.length} warnings)`);
@@ -573,6 +680,16 @@ async function main(): Promise<void> {
   } finally {
     writeStatus(startedAt);
     clearInterval(killer);
+    // Let anything a step() budget abandoned actually finish (or get killed
+    // by Supabase's own statement_timeout default) before tearing the pool
+    // down, instead of racing pool.end() against a query still holding a
+    // connection (worst case ~2 minutes — see src/lib/db/index.ts). Every
+    // one of these is already .catch()-guarded, so this can't throw; the hard
+    // timeout above remains the backstop if this itself somehow ran long.
+    if (abandonedWork.length > 0) {
+      console.log(`Waiting on ${abandonedWork.length} abandoned step(s) to release their DB connection...`);
+      await Promise.allSettled(abandonedWork);
+    }
     try { await pool.end(); } catch { /* ignore */ }
   }
   process.exit(status.ok ? 0 : 1);

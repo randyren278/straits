@@ -10,9 +10,9 @@
 import { pool } from '../db';
 import { isInAnchorage } from '../geo/anchorages';
 import { isDeclaredStationary } from '../ais/nav-status';
-import { upsertAnomaly, resolveAnomaly } from '../db/anomalies';
+import { upsertAnomaliesBatch, resolveAnomaliesBatch } from '../db/anomalies';
 import { calculateBearing } from '../geo/haversine';
-import type { DeviationDetails } from '../../types/anomaly';
+import type { DeviationDetails, UpsertAnomalyInput } from '../../types/anomaly';
 
 /**
  * Minimum speed in knots below which a tanker is considered drifting/disabled.
@@ -83,7 +83,7 @@ export async function detectSpeedAnomaly(): Promise<number> {
     ORDER BY v.imo, p.time DESC
   `);
 
-  let count = 0;
+  const batch: UpsertAnomalyInput[] = [];
 
   for (const vessel of result.rows) {
     // Check if this is a speed anomaly
@@ -98,7 +98,7 @@ export async function detectSpeedAnomaly(): Promise<number> {
       continue;
     }
 
-    await upsertAnomaly({
+    batch.push({
       imo: vessel.imo,
       anomalyType: 'speed',
       confidence: 'suspected',
@@ -108,11 +108,10 @@ export async function detectSpeedAnomaly(): Promise<number> {
         lastPosition: { lat: vessel.latitude, lon: vessel.longitude },
       },
     });
-
-    count++;
   }
 
-  return count;
+  await upsertAnomaliesBatch(batch);
+  return batch.length;
 }
 
 /**
@@ -216,7 +215,8 @@ export async function detectDeviation(): Promise<number> {
     HAVING COUNT(*) >= 2
   `);
 
-  let count = 0;
+  const toUpsert: UpsertAnomalyInput[] = [];
+  const toResolve: Array<{ imo: string; anomalyType: string }> = [];
 
   for (const vessel of result.rows) {
     const destCoords = await geocodeDestination(vessel.destination);
@@ -265,20 +265,20 @@ export async function detectDeviation(): Promise<number> {
         destination: vessel.destination,
       };
 
-      await upsertAnomaly({
+      toUpsert.push({
         imo: vessel.imo,
         anomalyType: 'deviation',
         confidence: 'suspected',
         detectedAt: new Date(),
         details,
       });
-
-      count++;
     } else {
       // Heading has corrected — auto-resolve any existing deviation anomaly
-      await resolveAnomaly(vessel.imo, 'deviation');
+      toResolve.push({ imo: vessel.imo, anomalyType: 'deviation' });
     }
   }
 
-  return count;
+  await upsertAnomaliesBatch(toUpsert);
+  await resolveAnomaliesBatch(toResolve);
+  return toUpsert.length;
 }

@@ -15,8 +15,10 @@ vi.mock('./index', () => ({
 import { pool } from './index';
 import {
   upsertAnomaly,
+  upsertAnomaliesBatch,
   getActiveAnomalies,
   resolveAnomaly,
+  resolveAnomaliesBatch,
   getAnomaliesForVessels,
 } from './anomalies';
 
@@ -91,6 +93,90 @@ describe('upsertAnomaly', () => {
 
     const sql = mockQuery.mock.calls[0][0];
     expect(sql).toContain('resolved_at IS NULL');
+  });
+});
+
+describe('upsertAnomaliesBatch', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const makeInput = (imo: string, anomalyType: 'going_dark' | 'loitering' = 'going_dark') => ({
+    imo,
+    anomalyType,
+    confidence: 'suspected' as const,
+    detectedAt: new Date('2026-03-12T00:00:00Z'),
+    details: { gapMinutes: 150, lastPosition: { lat: 26.0, lon: 51.0 }, coverageZone: 'persian_gulf' },
+  });
+
+  it('does nothing and issues no query for an empty array', async () => {
+    await upsertAnomaliesBatch([]);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('issues exactly one query for many rows within the chunk size', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const rows = Array.from({ length: 300 }, (_, i) => makeInput(String(1000000 + i)));
+    await upsertAnomaliesBatch(rows);
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain('INSERT INTO vessel_anomalies');
+    expect(sql).toContain('ON CONFLICT');
+    expect(params).toHaveLength(300 * 5);
+  });
+
+  it('chunks into multiple round-trips beyond 500 rows (N candidates -> ceil(N/500) queries)', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    const rows = Array.from({ length: 1200 }, (_, i) => makeInput(String(1000000 + i)));
+    await upsertAnomaliesBatch(rows);
+
+    // ceil(1200 / 500) = 3
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+  });
+
+  it('dedupes duplicate (imo, anomalyType) pairs, keeping the last occurrence', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const first = makeInput('1234567');
+    const second = { ...makeInput('1234567'), confidence: 'confirmed' as const };
+    await upsertAnomaliesBatch([first, second]);
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const params = mockQuery.mock.calls[0][1];
+    // Only one row's worth of params (5 columns), and it should be the second (last) one
+    expect(params).toHaveLength(5);
+    expect(params[2]).toBe('confirmed');
+  });
+});
+
+describe('resolveAnomaliesBatch', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('does nothing and issues no query for an empty array', async () => {
+    await resolveAnomaliesBatch([]);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('resolves many pairs in a single round-trip via unnest', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const targets = Array.from({ length: 50 }, (_, i) => ({
+      imo: String(1000000 + i),
+      anomalyType: 'deviation',
+    }));
+    await resolveAnomaliesBatch(targets);
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain('unnest');
+    expect(sql).toContain('resolved_at IS NULL');
+    expect(params[0]).toHaveLength(50);
+    expect(params[1]).toHaveLength(50);
   });
 });
 

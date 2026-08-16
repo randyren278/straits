@@ -16,8 +16,8 @@ vi.mock('../db', () => ({
 }));
 
 vi.mock('../db/anomalies', () => ({
-  upsertAnomaly: vi.fn(),
-  resolveAnomaly: vi.fn(),
+  upsertAnomaliesBatch: vi.fn(),
+  resolveAnomaliesBatch: vi.fn(),
 }));
 
 vi.mock('../geo/haversine', () => ({
@@ -25,7 +25,7 @@ vi.mock('../geo/haversine', () => ({
 }));
 
 import { pool } from '../db';
-import { upsertAnomaly, resolveAnomaly } from '../db/anomalies';
+import { upsertAnomaliesBatch, resolveAnomaliesBatch } from '../db/anomalies';
 import {
   detectSpeedAnomaly,
   isSpeedAnomaly,
@@ -35,8 +35,8 @@ import {
 } from './deviation';
 
 const mockQuery = pool.query as ReturnType<typeof vi.fn>;
-const mockUpsertAnomaly = upsertAnomaly as ReturnType<typeof vi.fn>;
-const mockResolveAnomaly = resolveAnomaly as ReturnType<typeof vi.fn>;
+const mockUpsertAnomaliesBatch = upsertAnomaliesBatch as ReturnType<typeof vi.fn>;
+const mockResolveAnomaliesBatch = resolveAnomaliesBatch as ReturnType<typeof vi.fn>;
 
 describe('isSpeedAnomaly', () => {
   it('returns true for tanker <3 knots outside anchorage', () => {
@@ -90,15 +90,15 @@ describe('detectSpeedAnomaly', () => {
     const count = await detectSpeedAnomaly();
 
     expect(count).toBe(1);
-    expect(mockUpsertAnomaly).toHaveBeenCalledWith(
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         imo: '7777777',
         anomalyType: 'speed',
         details: expect.objectContaining({
           speedKnots: 1.5,
         }),
-      })
-    );
+      }),
+    ]);
   });
 
   it('creates speed anomaly for slow tanker outside anchorage', async () => {
@@ -114,15 +114,15 @@ describe('detectSpeedAnomaly', () => {
     const count = await detectSpeedAnomaly();
 
     expect(count).toBe(1);
-    expect(mockUpsertAnomaly).toHaveBeenCalledWith(
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         imo: '1234567',
         anomalyType: 'speed',
         details: expect.objectContaining({
           speedKnots: 1.5,
         }),
-      })
-    );
+      }),
+    ]);
   });
 
   it('does NOT flag slow tanker in anchorage', async () => {
@@ -138,7 +138,7 @@ describe('detectSpeedAnomaly', () => {
     const count = await detectSpeedAnomaly();
 
     expect(count).toBe(0);
-    expect(mockUpsertAnomaly).not.toHaveBeenCalled();
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([]);
   });
 
   it('does NOT flag normal speed tanker', async () => {
@@ -154,7 +154,7 @@ describe('detectSpeedAnomaly', () => {
     const count = await detectSpeedAnomaly();
 
     expect(count).toBe(0);
-    expect(mockUpsertAnomaly).not.toHaveBeenCalled();
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([]);
   });
 
   it('returns count of speed anomalies detected', async () => {
@@ -169,7 +169,9 @@ describe('detectSpeedAnomaly', () => {
     const count = await detectSpeedAnomaly();
 
     expect(count).toBe(2);
-    expect(mockUpsertAnomaly).toHaveBeenCalledTimes(2);
+    // N candidates -> 1 batch call, not N individual upsert calls
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledTimes(1);
+    expect(mockUpsertAnomaliesBatch.mock.calls[0][0]).toHaveLength(2);
   });
 });
 
@@ -242,5 +244,80 @@ describe('detectDeviation', () => {
     const count = await detectDeviation();
     // Without a geocoded result the vessel is skipped (count stays 0)
     expect(count).toBe(0);
+  });
+
+  it('batches upserts and resolves instead of calling per-vessel', async () => {
+    // Mock fetch so geocodeDestination resolves instead of skipping the vessel.
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({
+      json: async () => [{ lat: '25.12', lon: '56.34' }],
+    }) as unknown as typeof fetch;
+
+    // calculateBearing mocked to always return 90 (east); heading 200 is
+    // >45deg off — this vessel should be flagged as deviating.
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          imo: '2234567',
+          destination: 'BATCH_TEST_DESTINATION_DEVIATING',
+          positions: [
+            { heading: 200, latitude: 25.0, longitude: 57.0, time: '2026-03-18T00:00:00Z' },
+            { heading: 205, latitude: 25.1, longitude: 57.1, time: '2026-03-18T01:00:00Z' },
+          ],
+        },
+      ],
+    });
+
+    const count = await detectDeviation();
+
+    expect(count).toBe(1);
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledTimes(1);
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([
+      expect.objectContaining({ imo: '2234567', anomalyType: 'deviation' }),
+    ]);
+    expect(mockResolveAnomaliesBatch).toHaveBeenCalledTimes(1);
+    expect(mockResolveAnomaliesBatch).toHaveBeenCalledWith([]);
+
+    global.fetch = originalFetch;
+  });
+
+  it('collects corrected vessels into one resolveAnomaliesBatch call, not one resolveAnomaly per vessel', async () => {
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({
+      json: async () => [{ lat: '25.12', lon: '56.34' }],
+    }) as unknown as typeof fetch;
+
+    // heading 80/85 stay within 45deg of the mocked 90deg bearing — corrected.
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          imo: '3234567',
+          destination: 'BATCH_TEST_DESTINATION_CORRECTED_A',
+          positions: [
+            { heading: 80, latitude: 25.0, longitude: 57.0, time: '2026-03-18T00:00:00Z' },
+            { heading: 85, latitude: 25.1, longitude: 57.1, time: '2026-03-18T01:00:00Z' },
+          ],
+        },
+        {
+          imo: '4234567',
+          destination: 'BATCH_TEST_DESTINATION_CORRECTED_B',
+          positions: [
+            { heading: 88, latitude: 26.0, longitude: 58.0, time: '2026-03-18T00:00:00Z' },
+            { heading: 92, latitude: 26.1, longitude: 58.1, time: '2026-03-18T01:00:00Z' },
+          ],
+        },
+      ],
+    });
+
+    const count = await detectDeviation();
+
+    expect(count).toBe(0);
+    expect(mockResolveAnomaliesBatch).toHaveBeenCalledTimes(1);
+    expect(mockResolveAnomaliesBatch).toHaveBeenCalledWith([
+      { imo: '3234567', anomalyType: 'deviation' },
+      { imo: '4234567', anomalyType: 'deviation' },
+    ]);
+
+    global.fetch = originalFetch;
   });
 });

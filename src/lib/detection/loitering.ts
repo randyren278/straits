@@ -13,7 +13,8 @@ import { pool } from '../db';
 import { haversineDistance } from '../geo/haversine';
 import { isInAnchorage } from '../geo/anchorages';
 import { isDeclaredStationary } from '../ais/nav-status';
-import { upsertAnomaly } from '../db/anomalies';
+import { upsertAnomaliesBatch } from '../db/anomalies';
+import type { UpsertAnomalyInput } from '../../types/anomaly';
 
 /**
  * Position record with timestamp
@@ -128,7 +129,7 @@ export async function detectLoitering(): Promise<number> {
     HAVING COUNT(*) >= 3
   `);
 
-  let count = 0;
+  const batch: UpsertAnomalyInput[] = [];
 
   for (const vessel of result.rows) {
     const positions = vessel.positions;
@@ -162,7 +163,7 @@ export async function detectLoitering(): Promise<number> {
       ...positions.map(p => haversineDistance(centroid.lat, centroid.lon, p.lat, p.lon))
     );
 
-    await upsertAnomaly({
+    batch.push({
       imo: vessel.imo,
       anomalyType: 'loitering',
       confidence: 'confirmed',
@@ -173,9 +174,8 @@ export async function detectLoitering(): Promise<number> {
         durationHours: 6,
       },
     });
-
-    count++;
   }
 
-  return count;
+  await upsertAnomaliesBatch(batch);
+  return batch.length;
 }

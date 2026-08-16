@@ -13,8 +13,30 @@
  * Requirements: RISK-01, RISK-02
  */
 import { pool } from '../db';
-import { upsertRiskScore } from '../db/risk-scores';
+import { upsertRiskScoresBatch } from '../db/risk-scores';
 import type { RiskFactors } from '../db/risk-scores';
+
+/**
+ * How far back an anomaly can be and still pull a vessel into the seed set.
+ * Vessels with a currently-active (unresolved) anomaly are always included
+ * regardless of age.
+ *
+ * Without this bound, the seed CTE below is `SELECT DISTINCT imo FROM
+ * vessel_anomalies` with no filter — every vessel that has EVER had any
+ * anomaly, including ones resolved years ago, is rescored on every run
+ * forever. That set only grows. 90 days matches the recency horizon this
+ * same query already uses for the loitering and rendezvous factors, so a
+ * vessel is "still relevant" for exactly as long its behavioral factors are.
+ *
+ * BEHAVIORAL CHANGE: a vessel whose only anomaly history is fully resolved
+ * and older than 90 days stops being recomputed each run. Its last-computed
+ * row in vessel_risk_scores is left as-is (not deleted, not zeroed) rather
+ * than actively refreshed — in practice this is a no-op for such vessels,
+ * since a resolved, 90+ day old anomaly wasn't changing their score run to
+ * run anyway. Vessels with any activity in the last 90 days, or any
+ * currently-active anomaly, are unaffected. Flagged for user review.
+ */
+const SEED_LOOKBACK_DAYS = 90;
 
 /**
  * High-risk flag states associated with sanctions evasion, dark fleet operations,
@@ -52,6 +74,7 @@ export async function computeRiskScores(): Promise<number> {
   const result = await pool.query<RiskAggRow>(`
     WITH seed AS (
       SELECT DISTINCT imo FROM vessel_anomalies
+      WHERE resolved_at IS NULL OR detected_at > NOW() - INTERVAL '${SEED_LOOKBACK_DAYS} days'
       UNION
       SELECT imo FROM vessel_sanctions WHERE risk_category IN ('sanction', 'mare.shadow;poi')
     )
@@ -74,9 +97,7 @@ export async function computeRiskScores(): Promise<number> {
     GROUP BY s.imo, v.flag, vs.imo, vs.risk_category
   `);
 
-  let count = 0;
-
-  for (const row of result.rows) {
+  const scores = result.rows.map((row) => {
     const darkCount = parseInt(row.dark_count, 10);
     const loiterCount = parseInt(row.loiter_count, 10);
     const stsCount = parseInt(row.sts_count, 10);
@@ -94,9 +115,9 @@ export async function computeRiskScores(): Promise<number> {
 
     const score = factors.goingDark + factors.flagRisk + factors.sanctions + factors.loitering + factors.sts + factors.rendezvous;
 
-    await upsertRiskScore(row.imo, score, factors);
-    count++;
-  }
+    return { imo: row.imo, score, factors };
+  });
 
-  return count;
+  await upsertRiskScoresBatch(scores);
+  return scores.length;
 }
