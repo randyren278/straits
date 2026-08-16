@@ -298,21 +298,16 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
             // Priority 9: Other sanctioned/listed vessels (red fallback)
             ['==', ['get', 'isSanctioned'], true],
             '#ef4444',
-            // Priority 10: Tankers (amber)
-            // coalesce handles null shipType — prevents GL expression error
-            [
-              'all',
-              ['>=', ['coalesce', ['get', 'shipType'], -1], 80],
-              ['<=', ['coalesce', ['get', 'shipType'], -1], 89],
-            ],
-            '#f59e0b',
-            // Default: Other vessels (gray)
+            // Normal traffic is intentionally source- and type-neutral. The
+            // free fallback must not create a second visual vocabulary; only
+            // genuine anomalies and sanctions above receive alert colors.
             '#6b7280',
           ],
-          // Low-confidence positions get a thicker amber ring to flag uncertainty
-          'circle-stroke-width': ['case', ['==', ['get', 'lowConfidence'], true], 3, 1],
-          'circle-stroke-color': ['case', ['==', ['get', 'lowConfidence'], true], '#f59e0b', '#ffffff'],
-          'circle-stroke-opacity': ['case', ['==', ['get', 'lowConfidence'], true], 0.9, 1],
+          // Keep normal points visually uniform; confidence remains available
+          // in the vessel panel instead of being mistaken for a feed/source key.
+          'circle-stroke-width': 1,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-opacity': 1,
         },
       });
       }
