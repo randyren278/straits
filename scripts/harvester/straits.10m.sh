@@ -25,7 +25,7 @@ SITE="https://straits.randyren.org/dashboard"
 
 # --- no status yet ---
 if [ ! -f "$STATUS" ]; then
-  echo "🚢 —"
+  echo "● | color=orange"
   echo "---"
   echo "Straits harvester: no run yet"
   echo "Run now | bash=/bin/bash param1=$REPO/scripts/harvester/run-harvest.sh terminal=true refresh=true"
@@ -100,19 +100,19 @@ if [ "$AGE_MIN" != "?" ] && [ "$AGE_MIN" -gt 30 ] 2>/dev/null; then
   REVIVED="yes"
 fi
 
-# --- menu-bar line: green if ok & recent, amber if degraded or stale, red if failed ---
+# --- menu-bar line: hidden entirely when healthy; a colored dot otherwise ---
 if [ "$OK" = "true" ] || [ "$OK" = "True" ]; then
   if [ "$AGE_MIN" != "?" ] && [ "$AGE_MIN" -gt 30 ] 2>/dev/null; then
-    echo "🚢 ${INSERTED:-0} | color=orange"   # ran ok but data is stale (>30m)
+    echo "● | color=orange"   # ran ok but data is stale (>30m)
   elif [ "$WARN_COUNT" -gt 0 ] 2>/dev/null; then
-    echo "🚢 ${INSERTED:-0} ⚠ | color=orange" # AIS landed, some step degraded
+    echo "● | color=orange"   # AIS landed, some step degraded
   else
-    echo "🚢 ${INSERTED:-0} | color=green"
+    exit 0                    # healthy — stay out of the menu bar entirely
   fi
 elif [ -z "$OK" ]; then
-  echo "🚢 ? | color=orange"                  # status.json unreadable — not a verdict either way
+  echo "● | color=orange"     # status.json unreadable — not a verdict either way
 else
-  echo "🚢 ✗ | color=red"
+  echo "● | color=red"
 fi
 
 echo "---"

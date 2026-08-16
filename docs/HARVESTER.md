@@ -25,7 +25,7 @@ launchd  (StartInterval=600, RunAtLoad)
               7. write ~/.straits-harvester/status.json → exit
 
 SwiftBar  (straits.10m.sh, optional)
-   └─ reads status.json → 🚢 menu-bar readout + dropdown (open site, run now, view log)
+   └─ reads status.json → ● menu-bar readout (hidden when healthy) + dropdown (open site, run now, view log)
    └─ if the last run is >30m old, kickstarts the LaunchAgent (self-revival)
 ```
 
@@ -112,7 +112,7 @@ real failure.
 
 **Corrupt state can't wedge the loop.** `status.json` is written atomically
 (tmp + rename), so a power cut mid-write can't truncate it. If it is somehow
-unreadable anyway, the menu bar shows an explicit `🚢 ?` (orange) rather than
+unreadable anyway, the menu bar shows an explicit orange `●` rather than
 a false verdict, and the SwiftBar watchdog falls back to the file's mtime for
 its staleness check — a corrupt status file can never disarm self-revival.
 
@@ -216,9 +216,10 @@ open -a SwiftBar          # first launch: point it at ~/.swiftbar-plugins
 scripts/harvester/install-harvester.sh   # re-run to drop in the plugin
 ```
 
-A 🚢 icon shows positions-inserted: **green** = healthy, **orange** = stale >30m,
-some step degraded (`⚠` suffix), or status unreadable (`?`), **red** = the AIS
-core failed. The dropdown
+A `●` dot only appears when something needs attention: **orange** = stale >30m,
+some step degraded, or status unreadable, **red** = the AIS core failed. When
+everything's healthy the plugin outputs nothing and the icon is fully absent
+from the menu bar. The dropdown (only reachable while the dot is showing)
 names each degraded step, shows the failure streak and last good run, and has:
 open dashboard, run harvest now, view log.
 
