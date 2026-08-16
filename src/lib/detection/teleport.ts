@@ -10,8 +10,8 @@
  */
 import { pool } from '../db';
 import { haversineDistance } from '../geo/haversine';
-import { upsertAnomaly } from '../db/anomalies';
-import type { SpoofedPositionDetails } from '../../types/anomaly';
+import { upsertAnomaliesBatch } from '../db/anomalies';
+import type { SpoofedPositionDetails, UpsertAnomalyInput } from '../../types/anomaly';
 
 /**
  * Implied-speed threshold in knots above which movement is physically
@@ -107,7 +107,7 @@ export async function detectSpoofedPositions(): Promise<number> {
     HAVING COUNT(*) >= 2
   `);
 
-  let count = 0;
+  const batch: UpsertAnomalyInput[] = [];
 
   for (const vessel of result.rows) {
     const positions: TimedPosition[] = vessel.positions.map((p) => ({
@@ -119,16 +119,15 @@ export async function detectSpoofedPositions(): Promise<number> {
     const teleport = detectTeleport(positions);
     if (!teleport) continue;
 
-    await upsertAnomaly({
+    batch.push({
       imo: vessel.imo,
       anomalyType: 'spoofed_position',
       confidence: 'suspected',
       detectedAt: new Date(),
       details: teleport,
     });
-
-    count++;
   }
 
-  return count;
+  await upsertAnomaliesBatch(batch);
+  return batch.length;
 }

@@ -44,7 +44,7 @@ which is expected).
 ## Resilience
 
 The harvest is designed so no single slow or broken dependency can take the
-feed down. Four mechanisms, in the order they engage:
+feed down. Five mechanisms, in the order they engage:
 
 1. **Success is judged on the AIS core alone.** Once vessels and positions are
    written, the run is `ok: true`. Detectors, prune, and enrichment are
@@ -66,7 +66,34 @@ feed down. Four mechanisms, in the order they engage:
    `setTimeout`: Node timers pause during system sleep, so a lid-close mid-run
    once stretched the "360s" cap to 743s of wall clock. The poll's first tick
    after wake sees the expired deadline and exits.
-4. **Single-flight lock.** `run-harvest.sh` takes an atomic `mkdir` lock in
+4. **An abandoned step's connection is bounded by Supabase's own
+   `statement_timeout` default, not a value this codebase sets — and
+   `harvest-once.ts` waits for it instead of racing shutdown against it.**
+   node-postgres has no client-side query cancellation — when a `step()`
+   budget (above) loses its race against a slow query, the query itself
+   keeps running and keeps holding one of the pool's 20 connections. The
+   obvious-looking fix (a client-supplied `statement_timeout`, or a bare
+   `SET statement_timeout` after connecting) does not work here: verified
+   empirically against this project's Supabase transaction pooler (:6543,
+   Supavisor), the former is silently dropped (`SHOW statement_timeout`
+   still reports the project default, 2min at last check) and the latter is
+   actively unsafe — a session-level `SET` was observed leaking into later,
+   unrelated client sessions once the pooler recycled the backend, which
+   could affect the deployed app's own connections through the same pooler.
+   `SET LOCAL` inside an explicit transaction on a `pool.connect()`-checked-out
+   client *does* work and does not leak, but requires every call site to hold
+   an exclusive client for a wrapped transaction instead of a bare
+   `pool.query()` — not applied here (see `pool`'s comment in
+   `src/lib/db/index.ts` for the full writeup and options considered). So the
+   real worst case for one abandoned query is Supabase's own project-level
+   default (currently ~2 minutes), not something tunable from here.
+   `connectionTimeoutMillis` is 8s (up from a too-tight 2s — a healthy
+   Supabase pooler connect was measured at 1455ms, leaving almost no margin);
+   that one *is* fully client-side and works as configured. `harvest-once.ts`
+   tracks every abandoned promise and awaits it at shutdown (worst case ~2min)
+   before ending the pool, so cleanup doesn't race still-running work — this
+   stays safely under the 360s hard timeout above.
+5. **Single-flight lock.** `run-harvest.sh` takes an atomic `mkdir` lock in
    `~/.straits-harvester/harvest.lock`, so a manual "Run harvest now" during a
    scheduled run exits immediately instead of double-inserting the window. A
    lock is stale if it is **older than 15 minutes** (checked first, and
@@ -124,26 +151,45 @@ its staleness check — a corrupt status file can never disarm self-revival.
 
 **Health signals** in `status.json`: `warnings[]` names each degraded step,
 `consecutiveFailures` counts runs since the last good one (the menu bar
-escalates on it), and `lastOkRun` is the last time the core succeeded.
+escalates on it), `lastOkRun` is the last time the core succeeded, and
+`consecutiveDetectorFailures` counts runs since the anomaly detectors last
+completed (SwiftBar surfaces it once it exceeds 1).
 
-### Sustained-outage alert
+### Sustained-failure alerts (AIS outage + detector failures)
 
-A single empty window is noise; a *run* of them is an outage. After
-`AIS_OUTAGE_THRESHOLD` consecutive windows land zero positions (default **3**,
-≈30 min at the 10-minute cadence) the harvester logs an `OUTAGE ALERT:` line
-and fires one macOS notification — **once per outage, not once per window**.
-`consecutiveEmptyAisWindows` and `aisOutageAlertSent` carry the streak across
-runs in `status.json`; a window that lands positions resets both, re-arming the
-alarm for next time. The decision logic is a pure function
-(`src/services/ais-ingester/outage-alert.ts`) so the notify-once edge is unit
-tested without needing a real outage to reproduce.
+A single bad run is noise; a *run* of them is an incident. Two conditions are
+tracked this way, sharing one pure decision function
+(`computeSustainedAlert` in `src/services/ais-ingester/outage-alert.ts`, unit
+tested without needing a real outage or a broken detector to reproduce):
 
-This exists because of a specific hole: in Aug 2026 the upstream provider went
-silent for 30+ hours while every harvest still exited 0 and the menu bar read
-`Last run OK`, because an empty window was only ever a per-run warning with
-nothing watching the *pattern*. Note the alert says the feed is dark, not whose
-fault it is — a dead provider, a revoked key, and a wedged Wi-Fi driver all look
-identical from here. Diagnose with `npx tsx --env-file=.env.harvester
+- **AIS outage** — after `AIS_OUTAGE_THRESHOLD` consecutive windows land zero
+  positions (default **3**, ≈30 min at the 10-minute cadence), the harvester
+  logs an `ALERT (STRAITS · AIS feed dark):` line and fires a macOS
+  notification. `consecutiveEmptyAisWindows`, `aisOutageAlertSent`, and
+  `aisOutageLastNotifyAt` carry the streak across runs in `status.json`; a
+  window that lands positions resets all three, re-arming the alarm for next
+  time.
+- **Detector failures** — after `DETECTOR_FAILURE_THRESHOLD` consecutive runs
+  where the detector step fails, times out, or is skipped for lack of budget
+  (default **6**), the same alert fires under the title `STRAITS · Detectors
+  failing`. Mirrors the AIS fields as `consecutiveDetectorFailures`,
+  `detectorFailureAlertSent`, `detectorFailureLastNotifyAt`. This closes a gap
+  proven by the state a real run reached: the detector step failed on 100% of
+  ~30 consecutive runs with nothing counting the streak — `status.warnings` is
+  per-run and forgotten the moment the next run overwrites `status.json`.
+
+Both **re-notify** every `OUTAGE_RENOTIFY_HOURS` (default **6**) while their
+incident continues, instead of firing once and then going silent for the rest
+of a multi-day outage — a heartbeat, not a single edge-triggered shot, but
+still never more than one notification per interval per incident.
+
+This exists because of a specific hole: in Aug 2026 the upstream AIS provider
+went silent for 30+ hours while every harvest still exited 0 and the menu bar
+read `Last run OK`, and the original one-shot alert (since generalized to the
+above) would itself have gone silent for the remaining ~29.5 hours of that
+same outage. Note the AIS alert says the feed is dark, not whose fault it is —
+a dead provider, a revoked key, and a wedged Wi-Fi driver all look identical
+from here. Diagnose with `npx tsx --env-file=.env.harvester
 scripts/harvester/ais-key-check.mjs`, which subscribes worldwide and exits
 non-zero if nothing arrives; a key that is *accepted but silent* (connection
 stays open, server still pings) means the provider is down, not your key.
@@ -155,6 +201,28 @@ stays open, server still pings) means the provider is down, not your key.
 > subsequent run retried the same doomed work: a livelock that restarts could not
 > fix. It is now chunked into 500-row multi-row upserts (~1.3s). When adding any
 > new bulk write, batch it and give it a budget.
+
+> **The same pattern, found again in Aug 2026 — in the detectors.** Every
+> detector (`going-dark`, `loitering`, `deviation`, `sts-transfer`, `risk-score`,
+> `repeat-going-dark`, `teleport`, `destination-flip`) looped over its candidates
+> `await`ing one `upsertAnomaly` per row. With 926 vessels and a measured
+> **187ms** pooler round-trip, that is ~153s against the 150s detector budget —
+> so the step failed on **100% of runs** and `anomalies` reported `null`
+> ("unknown") for weeks while the runs still exited 0. The whole anomaly/risk
+> pipeline was dead and nothing escalated it. Fixed by batching every upsert into
+> the same 500-row chunked form (`upsertAnomaliesBatch`, `upsertRiskScoresBatch`,
+> and a single `unnest`-based `resolveAnomaliesBatch`): **245s → 13s** per
+> harvest, detectors completing again.
+>
+> Two lessons worth more than the fix:
+> 1. **Measure before believing a growth story.** The first diagnosis blamed an
+>    "unbounded candidate set growing toward the whole vessels table." `vessels`
+>    holds 926 rows. The cause was per-round-trip latency, not set size — the
+>    arithmetic identified the fix, the narrative did not.
+> 2. **The budget mechanism hid it.** A step that fails inside its budget looks
+>    like graceful degradation, so a permanently-failing step reads the same as
+>    an occasionally-slow one. That is why `consecutiveDetectorFailures` now
+>    exists — see "Sustained-failure alerts" above.
 
 ---
 
@@ -184,6 +252,9 @@ FRED_API_KEY=<optional, for oil prices>
 HARVEST_WINDOW_MS=90000
 HARVEST_HARD_TIMEOUT_MS=360000
 RETENTION_DAYS=7
+# AIS_OUTAGE_THRESHOLD=3            # optional, consecutive empty windows before an outage alert
+# DETECTOR_FAILURE_THRESHOLD=6      # optional, consecutive detector failures before an alert
+# OUTAGE_RENOTIFY_HOURS=6           # optional, re-notify heartbeat while either alert is ongoing
 ```
 
 `FRED_API_KEY` is genuinely optional: without a key (or with a malformed one —

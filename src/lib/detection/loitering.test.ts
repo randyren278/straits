@@ -15,11 +15,11 @@ vi.mock('../db', () => ({
 }));
 
 vi.mock('../db/anomalies', () => ({
-  upsertAnomaly: vi.fn(),
+  upsertAnomaliesBatch: vi.fn(),
 }));
 
 import { pool } from '../db';
-import { upsertAnomaly } from '../db/anomalies';
+import { upsertAnomaliesBatch } from '../db/anomalies';
 import {
   detectLoitering,
   calculateCentroid,
@@ -28,7 +28,7 @@ import {
 } from './loitering';
 
 const mockQuery = pool.query as ReturnType<typeof vi.fn>;
-const mockUpsertAnomaly = upsertAnomaly as ReturnType<typeof vi.fn>;
+const mockUpsertAnomaliesBatch = upsertAnomaliesBatch as ReturnType<typeof vi.fn>;
 
 describe('calculateCentroid', () => {
   it('returns correct average for single position', () => {
@@ -125,12 +125,12 @@ describe('detectLoitering', () => {
     const count = await detectLoitering();
 
     expect(count).toBe(1);
-    expect(mockUpsertAnomaly).toHaveBeenCalledWith(
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         imo: '6666666',
         anomalyType: 'loitering',
-      })
-    );
+      }),
+    ]);
   });
 
   it('creates loitering anomaly for vessel within 5nm radius outside anchorage', async () => {
@@ -150,7 +150,7 @@ describe('detectLoitering', () => {
     const count = await detectLoitering();
 
     expect(count).toBe(1);
-    expect(mockUpsertAnomaly).toHaveBeenCalledWith(
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([
       expect.objectContaining({
         imo: '1234567',
         anomalyType: 'loitering',
@@ -158,8 +158,8 @@ describe('detectLoitering', () => {
         details: expect.objectContaining({
           durationHours: 6,
         }),
-      })
-    );
+      }),
+    ]);
   });
 
   it('does NOT flag vessel in known anchorage area', async () => {
@@ -179,7 +179,7 @@ describe('detectLoitering', () => {
     const count = await detectLoitering();
 
     expect(count).toBe(0);
-    expect(mockUpsertAnomaly).not.toHaveBeenCalled();
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([]);
   });
 
   it('does NOT flag vessel with spread-out positions', async () => {
@@ -199,7 +199,7 @@ describe('detectLoitering', () => {
     const count = await detectLoitering();
 
     expect(count).toBe(0);
-    expect(mockUpsertAnomaly).not.toHaveBeenCalled();
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([]);
   });
 
   it('skips vessels with fewer than 3 positions', async () => {
@@ -217,7 +217,7 @@ describe('detectLoitering', () => {
     const count = await detectLoitering();
 
     expect(count).toBe(0);
-    expect(mockUpsertAnomaly).not.toHaveBeenCalled();
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([]);
   });
 
   it('returns count of loitering anomalies detected', async () => {
@@ -247,7 +247,9 @@ describe('detectLoitering', () => {
     const count = await detectLoitering();
 
     expect(count).toBe(2);
-    expect(mockUpsertAnomaly).toHaveBeenCalledTimes(2);
+    // N candidates -> 1 batch call, not N individual upsert calls
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledTimes(1);
+    expect(mockUpsertAnomaliesBatch.mock.calls[0][0]).toHaveLength(2);
   });
 });
 

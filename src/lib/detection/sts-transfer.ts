@@ -8,8 +8,11 @@
  * Requirements: PATT-03
  */
 import { pool } from '../db';
-import { upsertAnomaly } from '../db/anomalies';
-import type { StsTransferDetails } from '../../types/anomaly';
+import { upsertAnomaliesBatch } from '../db/anomalies';
+import type { StsTransferDetails, UpsertAnomalyInput } from '../../types/anomaly';
+
+/** Round-trips per flush; mirrors the 500-row chunking in harvest-once.ts. */
+const UPSERT_CHUNK_SIZE = 500;
 
 /**
  * Distance threshold for STS transfer detection in kilometers.
@@ -86,16 +89,28 @@ export async function detectStsTransfers(): Promise<number> {
       )) < ${STS_DISTANCE_KM}
   `);
 
-  // Step A — Upsert proximity events for all currently-close pairs.
+  // Step A — Upsert proximity events for all currently-close pairs, chunked
+  // into multi-row upserts (mirrors upsertVessels/insertPositions in
+  // harvest-once.ts) instead of one round-trip per pair.
   // Track the minimum observed separation across the encounter in distance_km.
-  for (const row of result.rows) {
+  // The query's DISTINCT ON (LEAST/GREATEST) already guarantees each pair
+  // appears once, so no dedup is needed before the multi-row upsert.
+  for (let i = 0; i < result.rows.length; i += UPSERT_CHUNK_SIZE) {
+    const chunk = result.rows.slice(i, i + UPSERT_CHUNK_SIZE);
+    if (chunk.length === 0) continue;
+    const cols = 3;
+    const values = chunk.map((_, j) => {
+      const b = j * cols;
+      return `($${b + 1}, $${b + 2}, NOW(), NOW(), $${b + 3})`;
+    }).join(', ');
+    const params = chunk.flatMap((row) => [row.imo_a, row.imo_b, Number(row.distance_km)]);
     await pool.query(`
       INSERT INTO vessel_proximity_events (imo_a, imo_b, first_seen_at, last_seen_at, distance_km)
-      VALUES ($1, $2, NOW(), NOW(), $3)
+      VALUES ${values}
       ON CONFLICT (imo_a, imo_b) DO UPDATE SET
         last_seen_at = NOW(),
         distance_km = LEAST(COALESCE(vessel_proximity_events.distance_km, EXCLUDED.distance_km), EXCLUDED.distance_km)
-    `, [row.imo_a, row.imo_b, Number(row.distance_km)]);
+    `, params);
   }
 
   // Step B — Archive sustained encounters that are about to age out into the
@@ -152,7 +167,7 @@ export async function detectStsTransfers(): Promise<number> {
   `);
 
   const sustainedPairs = new Set(sustained.rows.map(r => `${r.imo_a}:${r.imo_b}`));
-  let count = 0;
+  const batch: UpsertAnomalyInput[] = [];
 
   for (const row of result.rows) {
     const pairKey = `${row.imo_a}:${row.imo_b}`;
@@ -169,7 +184,7 @@ export async function detectStsTransfers(): Promise<number> {
       lon: row.lon_a,
     };
 
-    await upsertAnomaly({
+    batch.push({
       imo: row.imo_a,
       anomalyType: 'sts_transfer',
       confidence: 'suspected',
@@ -186,16 +201,21 @@ export async function detectStsTransfers(): Promise<number> {
       lon: row.lon_b,
     };
 
-    await upsertAnomaly({
+    batch.push({
       imo: row.imo_b,
       anomalyType: 'sts_transfer',
       confidence: 'suspected',
       detectedAt: new Date(),
       details: detailsB,
     });
-
-    count += 2;
   }
 
-  return count;
+  // NOTE: if a vessel is sustained-close to two different partners in the
+  // same run, both push a 'sts_transfer' row for that same imo.
+  // upsertAnomaliesBatch dedupes to the last one — same outcome as the old
+  // per-row loop, since only one active (resolved_at IS NULL) sts_transfer
+  // row can exist per vessel regardless (this is a preexisting one-partner
+  // limitation of the schema, not something this change introduces).
+  await upsertAnomaliesBatch(batch);
+  return batch.length;
 }

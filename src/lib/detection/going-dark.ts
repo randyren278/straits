@@ -11,8 +11,8 @@
  */
 import { pool } from '../db';
 import { isInCoverageZone, getCoverageZone } from './coverage-zones';
-import { upsertAnomaly } from '../db/anomalies';
-import type { Confidence } from '../../types/anomaly';
+import { upsertAnomaliesBatch } from '../db/anomalies';
+import type { Confidence, UpsertAnomalyInput } from '../../types/anomaly';
 
 /**
  * Candidate vessel returned from gap query
@@ -36,6 +36,30 @@ const MIN_GAP_MINUTES = 120;
  * 4 hours = 240 minutes
  */
 const CONFIRMED_GAP_MINUTES = 240;
+
+/**
+ * Upper bound (in days) on how long a vessel keeps being re-considered as a
+ * going-dark candidate after it last reported.
+ *
+ * Without this bound, the candidate query is gated only on staleness
+ * (`last_seen < NOW() - 2h`), so during a prolonged AIS feed outage every
+ * vessel the ingester has EVER seen ages past 2h and stays a candidate
+ * forever — the candidate set only grows, never shrinks. "Going dark" is
+ * meant to be an event (a vessel that recently stopped transmitting), not a
+ * permanent state, so a vessel silent for weeks is no longer usefully
+ * "detected" each run — it has most likely left the fleet or the tracking
+ * window entirely. 30 days matches the WINDOW_DAYS horizon already used by
+ * repeat-going-dark.ts for the same "is this still relevant" question.
+ *
+ * BEHAVIORAL CHANGE: previously a vessel dark for months would still be
+ * re-flagged/re-confirmed (detected_at refreshed) on every run, forever.
+ * After this change, a vessel whose last_seen is older than 30 days drops
+ * out of the candidate set: its going_dark anomaly (if any) simply stops
+ * being refreshed by this detector until the vessel reports in again. All
+ * vessels within the last 30 days behave exactly as before — this only
+ * changes long-silent vessels, which is the case flagged for user review.
+ */
+const MAX_GAP_DAYS = 30;
 
 /**
  * Determine confidence level based on gap duration.
@@ -78,7 +102,9 @@ export function shouldFlagAsGoingDark(lat: number, lon: number, gapMinutes: numb
  * @returns Number of anomalies detected/updated
  */
 export async function detectGoingDark(): Promise<number> {
-  // Query all vessels with no update in >2 hours
+  // Query vessels with no update in >2 hours, bounded below by MAX_GAP_DAYS
+  // so a prolonged feed outage can't grow this candidate set without limit
+  // (see MAX_GAP_DAYS doc comment above).
   const result = await pool.query<GapCandidate>(`
     SELECT v.imo, v.last_seen as "lastSeen",
            p.latitude as "lastLat", p.longitude as "lastLon",
@@ -89,9 +115,10 @@ export async function detectGoingDark(): Promise<number> {
       WHERE mmsi = v.mmsi ORDER BY time DESC LIMIT 1
     ) p ON true
     WHERE v.last_seen < NOW() - INTERVAL '2 hours'
+      AND v.last_seen > NOW() - INTERVAL '${MAX_GAP_DAYS} days'
   `);
 
-  let count = 0;
+  const batch: UpsertAnomalyInput[] = [];
 
   for (const vessel of result.rows) {
     // Skip if not in a coverage zone (open ocean gaps are normal)
@@ -102,7 +129,7 @@ export async function detectGoingDark(): Promise<number> {
     const zone = getCoverageZone(vessel.lastLat, vessel.lastLon);
     const confidence = determineConfidence(vessel.gapMinutes);
 
-    await upsertAnomaly({
+    batch.push({
       imo: vessel.imo,
       anomalyType: 'going_dark',
       confidence,
@@ -113,9 +140,10 @@ export async function detectGoingDark(): Promise<number> {
         coverageZone: zone?.id || 'unknown',
       },
     });
-
-    count++;
   }
+
+  await upsertAnomaliesBatch(batch);
+  const count = batch.length;
 
   // Resolve anomalies for vessels that have reported back recently (within 30 min)
   await pool.query(`

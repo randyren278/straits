@@ -14,15 +14,15 @@ vi.mock('../db', () => ({
 }));
 
 vi.mock('../db/anomalies', () => ({
-  upsertAnomaly: vi.fn(),
+  upsertAnomaliesBatch: vi.fn(),
 }));
 
 import { pool } from '../db';
-import { upsertAnomaly } from '../db/anomalies';
+import { upsertAnomaliesBatch } from '../db/anomalies';
 import { detectLoitering, shouldSuppressForNavStatus } from './loitering';
 
 const mockQuery = pool.query as ReturnType<typeof vi.fn>;
-const mockUpsertAnomaly = upsertAnomaly as ReturnType<typeof vi.fn>;
+const mockUpsertAnomaliesBatch = upsertAnomaliesBatch as ReturnType<typeof vi.fn>;
 
 // A tight cluster of positions well away from any anchorage (open water in the
 // central Arabian Sea) that would normally trigger loitering.
@@ -78,16 +78,16 @@ describe('detectLoitering nav_status suppression', () => {
     mockQuery.mockResolvedValue(rows(1, new Date())); // nav_status 1, fresh
     const count = await detectLoitering();
     expect(count).toBe(0);
-    expect(mockUpsertAnomaly).not.toHaveBeenCalled();
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([]);
   });
 
   it('DOES flag loitering when nav_status is null', async () => {
     mockQuery.mockResolvedValue(rows(null, new Date()));
     const count = await detectLoitering();
     expect(count).toBe(1);
-    expect(mockUpsertAnomaly).toHaveBeenCalledWith(
-      expect.objectContaining({ anomalyType: 'loitering' })
-    );
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([
+      expect.objectContaining({ anomalyType: 'loitering' }),
+    ]);
   });
 
   it('DOES flag loitering when anchored status is stale', async () => {
@@ -95,8 +95,8 @@ describe('detectLoitering nav_status suppression', () => {
     mockQuery.mockResolvedValue(rows(1, staleTime));
     const count = await detectLoitering();
     expect(count).toBe(1);
-    expect(mockUpsertAnomaly).toHaveBeenCalledWith(
-      expect.objectContaining({ anomalyType: 'loitering' })
-    );
+    expect(mockUpsertAnomaliesBatch).toHaveBeenCalledWith([
+      expect.objectContaining({ anomalyType: 'loitering' }),
+    ]);
   });
 });

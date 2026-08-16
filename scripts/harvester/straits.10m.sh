@@ -70,6 +70,7 @@ PRUNED=$(read_json '.pruned' 'pruned')
 ERR=$(read_json '.error' 'error')
 FAILS=$(read_json '.consecutiveFailures' 'consecutiveFailures')
 LASTOK=$(read_json '.lastOkRun' 'lastOkRun')
+DETFAILS=$(read_json '.consecutiveDetectorFailures' 'consecutiveDetectorFailures')
 WARNINGS=$(read_warnings)
 WARN_COUNT=0
 [ -n "$WARNINGS" ] && WARN_COUNT=$(printf '%s\n' "$WARNINGS" | wc -l | tr -d ' ')
@@ -131,6 +132,9 @@ else
   [ -n "$LASTOK" ] && echo "Last good run: $LASTOK | size=11 color=gray"
 fi
 [ -n "$REVIVED" ] && echo "Stale >30m — kickstarted the agent | color=orange size=11"
+# A one-off degraded run is normal (named below via WARNINGS); a run of them
+# is the pattern that used to go unnoticed for ~30 runs with no counter at all.
+[ -n "$DETFAILS" ] && [ "$DETFAILS" -gt 1 ] 2>/dev/null && echo "Detectors failing: ${DETFAILS} runs in a row | color=orange"
 # Name the degraded steps rather than a generic "failed".
 if [ -n "$WARNINGS" ]; then
   echo "---"

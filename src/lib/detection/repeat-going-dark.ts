@@ -8,8 +8,8 @@
  * Requirements: PATT-01
  */
 import { pool } from '../db';
-import { upsertAnomaly, resolveAnomaly } from '../db/anomalies';
-import type { RepeatGoingDarkDetails } from '../../types/anomaly';
+import { upsertAnomaliesBatch } from '../db/anomalies';
+import type { RepeatGoingDarkDetails, UpsertAnomalyInput } from '../../types/anomaly';
 
 /**
  * Minimum number of going-dark events in the window to flag as repeat offender
@@ -56,25 +56,24 @@ export async function detectRepeatGoingDark(): Promise<number> {
     HAVING COUNT(*) >= ${MIN_EVENT_COUNT}
   `);
 
-  let count = 0;
-
-  for (const row of result.rows) {
+  const batch: UpsertAnomalyInput[] = result.rows.map((row) => {
     const details: RepeatGoingDarkDetails = {
       goingDarkCount: parseInt(row.dark_count, 10),
       windowDays: WINDOW_DAYS,
       recentEvents: row.recent_events,
     };
 
-    await upsertAnomaly({
+    return {
       imo: row.imo,
       anomalyType: 'repeat_going_dark',
       confidence: 'confirmed',
       detectedAt: new Date(),
       details,
-    });
+    };
+  });
 
-    count++;
-  }
+  await upsertAnomaliesBatch(batch);
+  const count = batch.length;
 
   // Auto-resolve: clear repeat_going_dark anomalies for vessels that have fallen below threshold
   await pool.query(`

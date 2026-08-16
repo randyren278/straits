@@ -5,7 +5,7 @@
  * flushes it. AIS is a live broadcast with no cursor or replay, so if the flush
  * throws, that window's positions are gone permanently — the next run collects
  * fresh data, it does not backfill. A single transient blip (Wi-Fi hiccup,
- * laptop wake, Supabase pooler stall exceeding the pool's 2s
+ * laptop wake, Supabase pooler stall exceeding the pool's
  * connectionTimeoutMillis) therefore costs a ~10-minute hole in track history.
  *
  * Each call site wraps ONE statement. A multi-row INSERT is a single statement
