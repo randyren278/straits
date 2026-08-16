@@ -30,6 +30,7 @@
  *   DATABASE_URL          Supabase transaction pooler (:6543) + ?sslmode=no-verify
  *   AISSTREAM_API_KEY     free AISStream key
  *   HARVEST_WINDOW_MS     collection window (default 90000)
+ *   AIS_FIRST_MESSAGE_TIMEOUT_MS  switch to fallback after this long with no primary message (default 15000)
  *   HARVEST_HARD_TIMEOUT_MS  safety kill, wall-clock (default 360000)
  *   RETENTION_DAYS        prune horizon (default 7)
  *   STRAITS_STATE_DIR     where status.json is written (default ~/.straits-harvester)
@@ -45,6 +46,7 @@ import { join } from 'path';
 import { pool } from '../../lib/db';
 import { withDbRetry } from './db-retry';
 import { computeSustainedAlert } from './outage-alert';
+import { fetchFreeAisFallback } from './free-fallback';
 
 // Anomaly detectors (run once, not on cron) — same set as detection-jobs.ts
 import { detectGoingDark } from '../../lib/detection/going-dark';
@@ -70,6 +72,12 @@ import { batchUpsertSanctions, migrateSanctionsSchema } from '../../lib/db/sanct
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const WINDOW_MS = Number(process.env.HARVEST_WINDOW_MS ?? 90_000);
+// A connected socket that delivers no messages is not a healthy feed. Do not
+// spend the whole collection window waiting for it before trying failover.
+const FIRST_MESSAGE_TIMEOUT_MS = Math.min(
+  WINDOW_MS,
+  Number(process.env.AIS_FIRST_MESSAGE_TIMEOUT_MS ?? 15_000),
+);
 const HARD_TIMEOUT_MS = Number(process.env.HARVEST_HARD_TIMEOUT_MS ?? 360_000);
 const RETENTION_DAYS = Number(process.env.RETENTION_DAYS ?? 7);
 const STATE_DIR = process.env.STRAITS_STATE_DIR || join(homedir(), '.straits-harvester');
@@ -109,16 +117,17 @@ const JAMMING_ZONES = [
 const isInJammingZone = (lat: number, lon: number) =>
   JAMMING_ZONES.some((z) => lat >= z.minLat && lat <= z.maxLat && lon >= z.minLon && lon <= z.maxLon);
 
+const AIS_BOUNDS = [
+  { minLat: 23.0, minLon: 47.0, maxLat: 30.0, maxLon: 57.5 },
+  { minLat: 15.0, minLon: 55.0, maxLat: 26.0, maxLon: 66.0 },
+  { minLat: 8.0, minLon: 60.0, maxLat: 25.0, maxLon: 78.0 },
+  { minLat: 12.0, minLon: 32.0, maxLat: 30.0, maxLon: 45.0 },
+  { minLat: 11.0, minLon: 42.0, maxLat: 14.0, maxLon: 52.0 },
+  { minLat: 29.5, minLon: 31.5, maxLat: 37.0, maxLon: 37.0 },
+] as const;
 const subscription = {
   APIKey: process.env.AISSTREAM_API_KEY,
-  BoundingBoxes: [
-    [[23.0, 47.0], [30.0, 57.5]],  // Full Persian Gulf
-    [[15.0, 55.0], [26.0, 66.0]],  // Gulf of Oman + Arabian Sea approaches
-    [[8.0, 60.0], [25.0, 78.0]],   // Arabian Sea transit corridor
-    [[12.0, 32.0], [30.0, 45.0]],  // Full Red Sea
-    [[11.0, 42.0], [14.0, 52.0]],  // Gulf of Aden
-    [[29.5, 31.5], [37.0, 37.0]],  // Suez + Eastern Med
-  ],
+  BoundingBoxes: AIS_BOUNDS.map((b) => [[b.minLat, b.minLon], [b.maxLat, b.maxLon]]),
   FilterMessageTypes: ['PositionReport', 'ShipStaticData'],
 };
 
@@ -131,6 +140,10 @@ type Status = {
   anomalies: number | null; pricesRefreshed: boolean; newsRefreshed: number;
   sanctionsRefreshed: boolean; pruned: number;
   positionsTotal: number | null; dbSizeMB: number | null; positionsSizeMB: number | null;
+  /** The source whose positions made this run successful. */
+  positionSource: 'aisstream' | 'free-fallback' | null;
+  /** Number of named/type-classified records refreshed by the free fallback. */
+  fallbackMetadataUpdated: number;
   /** Non-fatal step failures/skips this run — surfaced in the menu bar as amber. */
   warnings: string[];
   /** Runs since the last ok=true one; drives menu-bar escalation. */
@@ -160,6 +173,8 @@ const status: Status = {
   anomalies: null, pricesRefreshed: false, newsRefreshed: 0,
   sanctionsRefreshed: false, pruned: 0,
   positionsTotal: null, dbSizeMB: null, positionsSizeMB: null,
+  positionSource: null,
+  fallbackMetadataUpdated: 0,
   warnings: [], consecutiveFailures: 0, lastOkRun: null,
   consecutiveEmptyAisWindows: 0, aisOutageAlertSent: false, aisOutageLastNotifyAt: null,
   consecutiveDetectorFailures: 0, detectorFailureAlertSent: false, detectorFailureLastNotifyAt: null,
@@ -237,6 +252,8 @@ function collectWindow(): Promise<{ positions: Map<string, Pos>; statics: Map<st
     const positions = new Map<string, Pos>(); // latest per MMSI
     const statics = new Map<string, Meta>();   // latest per IMO
     let settled = false;
+    let windowTimer: NodeJS.Timeout | undefined;
+    let firstMessageTimer: NodeJS.Timeout | undefined;
 
     console.log(`Connecting to AISStream (window ${WINDOW_MS}ms)...`);
     const ws = new WebSocket('wss://stream.aisstream.io/v0/stream');
@@ -244,10 +261,16 @@ function collectWindow(): Promise<{ positions: Map<string, Pos>; statics: Map<st
     const finish = () => {
       if (settled) return;
       settled = true;
+      if (windowTimer) clearTimeout(windowTimer);
+      if (firstMessageTimer) clearTimeout(firstMessageTimer);
       try { ws.close(); } catch { /* already closing */ }
       resolve({ positions, statics });
     };
-    const windowTimer = setTimeout(finish, WINDOW_MS);
+    windowTimer = setTimeout(finish, WINDOW_MS);
+    firstMessageTimer = setTimeout(() => {
+      warn(`AISStream sent no messages in ${Math.round(FIRST_MESSAGE_TIMEOUT_MS / 1000)}s; switching to fallback`);
+      finish();
+    }, FIRST_MESSAGE_TIMEOUT_MS);
 
     ws.on('open', () => {
       ws.send(JSON.stringify(subscription));
@@ -255,6 +278,10 @@ function collectWindow(): Promise<{ positions: Map<string, Pos>; statics: Map<st
     });
 
     ws.on('message', (data: WebSocket.Data) => {
+      if (firstMessageTimer) {
+        clearTimeout(firstMessageTimer);
+        firstMessageTimer = undefined;
+      }
       status.messagesReceived++;
       let msg: any;
       try { msg = JSON.parse(data.toString()); } catch { return; }
@@ -296,11 +323,69 @@ function collectWindow(): Promise<{ positions: Map<string, Pos>; statics: Map<st
       // window just ends empty and launchd retries in 10 minutes.
       warn(`AIS websocket error: ${err.message}`);
       // Don't reconnect (this is one-shot); just end the window early.
-      clearTimeout(windowTimer);
       finish();
     });
     ws.on('close', () => { /* handled by finish() */ });
   });
+}
+
+/**
+ * AISStream's free tier occasionally returns 429 or a silent empty window.
+ * Use a public, keyless snapshot before declaring the harvest failed. This is
+ * deliberately separate from the primary path so the menu can state exactly
+ * which data quality/coverage the operator is seeing.
+ */
+async function collectFreeFallback(): Promise<{ positions: Map<string, Pos>; metadata: Map<string, { name: string; shipType: number | null }> }> {
+  const snapshot = await fetchFreeAisFallback(AIS_BOUNDS);
+  const positions = new Map<string, Pos>();
+  const metadata = new Map<string, { name: string; shipType: number | null }>();
+  for (const item of snapshot) {
+    positions.set(item.mmsi, {
+      ...item,
+      imo: null,
+      lowConfidence: isInJammingZone(item.latitude, item.longitude),
+    });
+    metadata.set(item.mmsi, { name: item.name, shipType: item.shipType });
+  }
+  return { positions, metadata };
+}
+
+/**
+ * Public fallback feeds do not publish IMO or destination, so they cannot be
+ * written to the IMO-keyed vessels table. Keep their authoritative current
+ * name/type by MMSI in a sidecar table; API reads coalesce it with richer
+ * AISStream metadata whenever that metadata exists.
+ */
+async function upsertFallbackMetadata(metadata: Map<string, { name: string; shipType: number | null }>): Promise<void> {
+  const rows = [...metadata.entries()];
+  if (rows.length === 0) return;
+  await withDbRetry('fallback metadata schema', () => pool.query(
+    `CREATE TABLE IF NOT EXISTS vessel_fallback_metadata (
+      mmsi VARCHAR(9) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      ship_type INTEGER,
+      last_seen TIMESTAMPTZ NOT NULL,
+      source VARCHAR(40) NOT NULL
+    )`
+  ));
+  const CHUNK = 500;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const chunk = rows.slice(i, i + CHUNK);
+    const values = chunk.map((_, index) => {
+      const base = index * 4;
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, 'vesselfinder')`;
+    }).join(', ');
+    const params = chunk.flatMap(([mmsi, value]) => [mmsi, value.name, value.shipType, new Date()]);
+    await withDbRetry(`fallback metadata upsert chunk ${i / CHUNK + 1}`, () => pool.query(
+      `INSERT INTO vessel_fallback_metadata (mmsi, name, ship_type, last_seen, source)
+       VALUES ${values}
+       ON CONFLICT (mmsi) DO UPDATE SET
+         name = EXCLUDED.name, ship_type = EXCLUDED.ship_type,
+         last_seen = EXCLUDED.last_seen, source = EXCLUDED.source`,
+      params,
+    ));
+  }
+  status.fallbackMetadataUpdated = rows.length;
 }
 
 // ── Bulk upsert vessels (+ batch destination-change logging) ──────────────────
@@ -604,9 +689,23 @@ async function main(): Promise<void> {
   killer.unref();
 
   try {
-    const { positions, statics } = await collectWindow();
+    let { positions, statics } = await collectWindow();
+    let fallbackMetadata = new Map<string, { name: string; shipType: number | null }>();
+    status.positionSource = positions.size > 0 ? 'aisstream' : null;
+    if (positions.size === 0) {
+      try {
+        const fallback = await collectFreeFallback();
+        positions = fallback.positions;
+        fallbackMetadata = fallback.metadata;
+        statics = new Map(); // The public fallback is position-only.
+        status.positionSource = 'free-fallback';
+        warn(`AISStream delivered no positions; using free Middle East fallback (${positions.size} current positions)`);
+      } catch (fallbackErr) {
+        warn(`free AIS fallback failed: ${(fallbackErr as Error).message}`);
+      }
+    }
     status.uniqueVessels = positions.size;
-    console.log(`Window closed: ${status.messagesReceived} msgs, ${positions.size} unique positions, ${statics.size} static records`);
+    console.log(`Window closed via ${status.positionSource ?? 'no source'}: ${status.messagesReceived} msgs, ${positions.size} unique positions, ${statics.size} static records`);
 
     // An empty window is a real condition (no network, AISStream down, a
     // darkwake half-sleep, a quiet patch of ocean), not a crash — but it must
@@ -632,12 +731,20 @@ async function main(): Promise<void> {
     status.aisOutageLastNotifyAt = outage.notifiedAt ? new Date(outage.notifiedAt).toISOString() : null;
     if (outage.shouldNotify) notifyOutage(outage.count);
 
-    // Core: landing AIS data is what "ok" means.
+    // Core: landing positions from either source is what "ok" means. Never
+    // mark an empty window as healthy: it would hide a broken data feed.
+    if (positions.size === 0) throw new Error('No AIS positions from AISStream or the free fallback');
+    await upsertFallbackMetadata(fallbackMetadata);
     await upsertVessels(statics);   // vessels first (anomaly FK targets)
     await insertPositions(positions);
     status.ok = true;
     status.consecutiveFailures = 0;
     status.lastOkRun = status.lastRun;
+
+    // Publish the core result immediately. Detector/enrichment work can take
+    // minutes, but the menu bar's health contract is about whether current
+    // positions were uploaded; it must not wait for optional follow-up work.
+    writeStatus(startedAt);
 
     // Everything past here is best-effort and time-budgeted. Housekeeping runs
     // before enrichment so a slow external API can't starve the prune.

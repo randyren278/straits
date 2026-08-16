@@ -16,7 +16,7 @@ harvester runs where the free AIS key already lives: your laptop.
 launchd  (StartInterval=600, RunAtLoad)
    └─ scripts/harvester/run-harvest.sh        (wrapper: single-flight lock, cd repo, set PATH, load .env.harvester)
         └─ src/services/ais-ingester/harvest-once.ts   (the bounded harvest)
-              1. connect AISStream, collect ~90s
+              1. connect AISStream, collect ~90s; on an empty/rate-limited window, fetch the keyless Middle East fallback
               2. dedupe → latest position per vessel this window
               3. bulk upsert vessels + insert positions  → Supabase (:6543 pooler)   ← the CORE
               4. run anomaly detectors once                       ┐
@@ -47,7 +47,16 @@ The harvest is designed so no single slow or broken dependency can take the
 feed down. Five mechanisms, in the order they engage:
 
 1. **Success is judged on the AIS core alone.** Once vessels and positions are
-   written, the run is `ok: true`. Detectors, prune, and enrichment are
+   written, the run is `ok: true`. If AISStream returns no valid positions, a
+   keyless VesselFinder map-feed fallback is attempted only for the same Middle
+   East coverage boxes before the run is failed. A successful fallback is
+   visibly amber in SwiftBar because it is an independent, best-effort public
+   feed; it never substitutes unrelated regional traffic. It persists the
+   source's live position, heading, vessel name, and broad vessel class, then
+   retains richer existing AISStream/IMO metadata where available. It does not
+   fabricate fields the source lacks (IMO, flag, destination, speed/course, or
+   navigational status). If both sources are empty/unavailable, the run is `ok: false` —
+   it can never masquerade as a healthy harvest. Detectors, prune, and enrichment are
    best-effort — they record entries in `status.warnings` and the menu bar goes
    amber, but the run is not a failure and `launchd` keeps its cadence.
 2. **Every non-core step runs under a time budget** measured against the hard

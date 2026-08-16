@@ -20,11 +20,11 @@ import { StraitsMark } from './StraitsMark';
 import { AisOutageBanner } from './AisOutageBanner';
 
 interface SearchResult {
-  imo: string;
+  imo: string | null;
   mmsi: string;
-  name: string;
+  name: string | null;
   flag: string | null;
-  shipType: number;
+  shipType: number | null;
   latitude: number | null;
   longitude: number | null;
 }

@@ -67,6 +67,24 @@ describe('searchVessels', () => {
     expect(callArgs[1]).toContain('%tanker%');
   });
 
+  it('searches the MMSI-keyed fallback metadata when no IMO is available', async () => {
+    const fallbackVessel = {
+      imo: null,
+      mmsi: '447010146',
+      name: 'FALLBACK TANKER',
+      flag: null,
+      shipType: 80,
+      latitude: 29.39,
+      longitude: 47.71,
+    };
+    (pool.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [fallbackVessel] });
+
+    await expect(searchVessels('fallback')).resolves.toEqual([fallbackVessel]);
+    const [sql] = (pool.query as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(sql).toContain('vessel_fallback_metadata');
+    expect(sql).toContain('FULL OUTER JOIN');
+  });
+
   it('returns results with position data (latitude/longitude)', async () => {
     const mockVessel = {
       imo: '9876543',

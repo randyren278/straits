@@ -9,11 +9,11 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 
 interface SearchResult {
-  imo: string;
+  imo: string | null;
   mmsi: string;
-  name: string;
+  name: string | null;
   flag: string | null;
-  shipType: number;
+  shipType: number | null;
   latitude: number | null;
   longitude: number | null;
 }
@@ -77,7 +77,7 @@ export function SearchInput({ onSelectVessel }: SearchInputProps) {
 
   const handleSelect = (result: SearchResult) => {
     justSelectedRef.current = true;
-    setQuery(result.name);
+    setQuery(result.name ?? result.mmsi);
     setIsOpen(false);
     onSelectVessel?.(result);
   };

@@ -6,11 +6,11 @@
 import { pool } from './index';
 
 export interface VesselSearchResult {
-  imo: string;
+  imo: string | null;
   mmsi: string;
   name: string;
-  flag: string;
-  shipType: number;
+  flag: string | null;
+  shipType: number | null;
   latitude: number | null;
   longitude: number | null;
 }
@@ -30,24 +30,34 @@ export async function searchVessels(query: string): Promise<VesselSearchResult[]
   const q = query.trim();
   if (!q || q.length < 2) return [];
 
-  // Search by IMO (exact), MMSI (exact), or name (partial ILIKE)
-  // Priority: IMO match > MMSI match > name match
+  // Search canonical AISStream metadata and the MMSI-keyed fallback metadata.
+  // A fallback-only vessel has no safe IMO claim, but it remains searchable by
+  // its live name/MMSI and can still be opened on the map.
   const result = await pool.query<VesselSearchResult>(`
-    SELECT v.imo, v.mmsi, v.name, v.flag, v.ship_type as "shipType",
+    SELECT identity.imo, identity.mmsi, identity.name, identity.flag, identity."shipType",
            p.latitude, p.longitude
-    FROM vessels v
+    FROM (
+      SELECT
+        v.imo,
+        COALESCE(v.mmsi, fallback.mmsi) AS mmsi,
+        COALESCE(v.name, fallback.name) AS name,
+        v.flag,
+        COALESCE(v.ship_type, fallback.ship_type) AS "shipType"
+      FROM vessels v
+      FULL OUTER JOIN vessel_fallback_metadata fallback ON fallback.mmsi = v.mmsi
+    ) identity
     LEFT JOIN LATERAL (
       SELECT latitude, longitude FROM vessel_positions
-      WHERE mmsi = v.mmsi ORDER BY time DESC LIMIT 1
+      WHERE mmsi = identity.mmsi ORDER BY time DESC LIMIT 1
     ) p ON true
-    WHERE v.imo = $1
-       OR v.mmsi = $1
-       OR v.name ILIKE $2
+    WHERE identity.imo = $1
+       OR identity.mmsi = $1
+       OR identity.name ILIKE $2
     ORDER BY
-      CASE WHEN v.imo = $1 THEN 0
-           WHEN v.mmsi = $1 THEN 1
+      CASE WHEN identity.imo = $1 THEN 0
+           WHEN identity.mmsi = $1 THEN 1
            ELSE 2 END,
-      v.name
+      identity.name
     LIMIT 10
   `, [q, `%${q}%`]);
 

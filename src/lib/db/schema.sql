@@ -29,6 +29,18 @@ CREATE INDEX IF NOT EXISTS idx_vessels_mmsi ON vessels(mmsi);
 -- Index for filtering by ship type (e.g., tankers only)
 CREATE INDEX IF NOT EXISTS idx_vessels_ship_type ON vessels(ship_type);
 
+-- Public fallback feeds identify vessels by MMSI and do not expose an IMO.
+-- Keep their live name/type separate from IMO-keyed canonical vessel records.
+CREATE TABLE IF NOT EXISTS vessel_fallback_metadata (
+  mmsi VARCHAR(9) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  ship_type INTEGER,
+  last_seen TIMESTAMPTZ NOT NULL,
+  source VARCHAR(40) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_fallback_metadata_last_seen ON vessel_fallback_metadata(last_seen DESC);
+
 -- Vessel positions time-series table
 -- Stores all position reports received from AIS
 -- Will be converted to TimescaleDB hypertable for efficient time-series queries

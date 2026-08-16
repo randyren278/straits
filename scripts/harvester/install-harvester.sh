@@ -55,7 +55,17 @@ plutil -lint "$DEST_PLIST" >/dev/null && echo "✓ plist valid"
 # --- (re)load ---
 echo "▸ Bootstrapping into $DOMAIN ..."
 launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
-launchctl bootstrap "$DOMAIN" "$DEST_PLIST"
+BOOTSTRAPPED=false
+for attempt in 1 2 3 4 5; do
+  if launchctl bootstrap "$DOMAIN" "$DEST_PLIST" 2>/dev/null; then
+    BOOTSTRAPPED=true
+    break
+  fi
+  # bootout is asynchronous on macOS; give launchd a moment to release the
+  # prior instance rather than leaving the harvester unloaded after an EIO.
+  sleep 1
+done
+[ "$BOOTSTRAPPED" = true ] || { echo "✗ Could not bootstrap $LABEL after 5 attempts."; exit 1; }
 launchctl enable "$DOMAIN/$LABEL" 2>/dev/null || true
 
 echo "▸ Kickstarting first run ..."
@@ -68,11 +78,11 @@ echo "  Status:  ~/.straits-harvester/status.json"
 echo "  Check:   launchctl print $DOMAIN/$LABEL | grep -A2 state"
 echo "  Remove:  scripts/harvester/install-harvester.sh --uninstall"
 
-# --- optional: install the SwiftBar menu-bar plugin if the plugins dir exists ---
+# --- install/update the SwiftBar menu-bar plugin when SwiftBar is configured ---
 SWIFTBAR_DIR="$HOME/.swiftbar-plugins"
 if [ -d "$SWIFTBAR_DIR" ]; then
   echo ""
-  echo "▸ SwiftBar plugins dir found — installing straits.10m.sh ..."
+  echo "▸ SwiftBar plugins dir found — updating straits.10m.sh ..."
   sed "s#__REPO__#$REPO#g" "$REPO/scripts/harvester/straits.10m.sh" > "$SWIFTBAR_DIR/straits.10m.sh"
   chmod +x "$SWIFTBAR_DIR/straits.10m.sh"
   echo "✓ Menu-bar plugin installed (SwiftBar will pick it up on next refresh)."

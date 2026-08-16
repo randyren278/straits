@@ -67,6 +67,8 @@ TOTAL=$(read_json '.positionsTotal' 'positionsTotal')
 DBMB=$(read_json '.dbSizeMB' 'dbSizeMB')
 NEWS=$(read_json '.newsRefreshed' 'newsRefreshed')
 PRUNED=$(read_json '.pruned' 'pruned')
+SOURCE=$(read_json '.positionSource' 'positionSource')
+FALLBACK_META=$(read_json '.fallbackMetadataUpdated' 'fallbackMetadataUpdated')
 ERR=$(read_json '.error' 'error')
 FAILS=$(read_json '.consecutiveFailures' 'consecutiveFailures')
 LASTOK=$(read_json '.lastOkRun' 'lastOkRun')
@@ -101,14 +103,15 @@ if [ "$AGE_MIN" != "?" ] && [ "$AGE_MIN" -gt 30 ] 2>/dev/null; then
   REVIVED="yes"
 fi
 
-# --- menu-bar line: hidden entirely when healthy; a colored dot otherwise ---
+# --- menu-bar line: green means the latest run actually uploaded positions,
+# regardless of whether AISStream or the independent fallback supplied them.
 if [ "$OK" = "true" ] || [ "$OK" = "True" ]; then
-  if [ "$AGE_MIN" != "?" ] && [ "$AGE_MIN" -gt 30 ] 2>/dev/null; then
+  if [ "${INSERTED:-0}" -gt 0 ] 2>/dev/null && [ "$AGE_MIN" != "?" ] && [ "$AGE_MIN" -le 30 ] 2>/dev/null; then
+    echo "● | color=green"
+  elif [ "$AGE_MIN" != "?" ] && [ "$AGE_MIN" -gt 30 ] 2>/dev/null; then
     echo "● | color=orange"   # ran ok but data is stale (>30m)
-  elif [ "$WARN_COUNT" -gt 0 ] 2>/dev/null; then
-    echo "● | color=orange"   # AIS landed, some step degraded
   else
-    exit 0                    # healthy — stay out of the menu bar entirely
+    echo "● | color=orange"   # success without a fresh upload is not healthy
   fi
 elif [ -z "$OK" ]; then
   echo "● | color=orange"     # status.json unreadable — not a verdict either way
@@ -119,11 +122,7 @@ fi
 echo "---"
 echo "STRAITS · AIS Harvester | size=11 color=gray"
 if [ "$OK" = "true" ] || [ "$OK" = "True" ]; then
-  if [ "$WARN_COUNT" -gt 0 ] 2>/dev/null; then
-    echo "Last run OK (${AGE_MIN}m ago) · ${WARN_COUNT} degraded | color=orange"
-  else
-    echo "Last run: ${AGE_MIN}m ago | color=gray"
-  fi
+  echo "Last upload: ${INSERTED:-0} positions · ${AGE_MIN}m ago | color=green"
 elif [ -z "$OK" ]; then
   echo "status.json unreadable — next run rewrites it (${AGE_MIN}m old) | color=orange"
 else
@@ -144,6 +143,14 @@ if [ -n "$WARNINGS" ]; then
 fi
 echo "---"
 echo "Positions inserted: ${INSERTED:-0}  (of ${UNIQUE:-0} unique)"
+if [ "$SOURCE" = "free-fallback" ]; then
+  echo "Source: free Middle East fallback | color=orange"
+  echo "Live identity records: ${FALLBACK_META:-0} (name + vessel class) | color=gray"
+elif [ "$SOURCE" = "aisstream" ]; then
+  echo "Source: AISStream | color=gray"
+else
+  echo "Source: unavailable | color=red"
+fi
 echo "Messages this window: ${MSGS:-0}"
 echo "Active anomalies: ${ANOM:-— (detectors did not run)}"
 echo "News refreshed: ${NEWS:-0}"

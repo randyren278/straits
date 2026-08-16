@@ -300,8 +300,8 @@ export async function getVesselsWithSanctions(
       p.nav_status    AS "navStatus",
       p.low_confidence AS "lowConfidence",
       p.time,
-      v.imo, v.name, v.flag,
-      v.ship_type     AS "shipType",
+      v.imo, COALESCE(v.name, fallback.name) AS name, v.flag,
+      COALESCE(v.ship_type, fallback.ship_type) AS "shipType",
       v.destination,
       v.last_seen     AS "lastSeen",
       CASE WHEN s.imo IS NOT NULL THEN true ELSE false END AS "isSanctioned",
@@ -320,6 +320,7 @@ export async function getVesselsWithSanctions(
       ORDER BY mmsi, time DESC
     ) p
     LEFT JOIN vessels v ON v.mmsi = p.mmsi
+    LEFT JOIN vessel_fallback_metadata fallback ON fallback.mmsi = p.mmsi
     LEFT JOIN vessel_sanctions s ON v.imo = s.imo
     LEFT JOIN LATERAL (
       SELECT anomaly_type, confidence, detected_at
@@ -329,7 +330,7 @@ export async function getVesselsWithSanctions(
       LIMIT 1
     ) a ON true
     ${tankersOnly
-      ? 'WHERE (v.ship_type IS NULL OR v.ship_type BETWEEN 80 AND 89)'
+      ? 'WHERE (COALESCE(v.ship_type, fallback.ship_type) IS NULL OR COALESCE(v.ship_type, fallback.ship_type) BETWEEN 80 AND 89)'
       : ''}
     ORDER BY p.time DESC
     `

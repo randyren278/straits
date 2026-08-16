@@ -5,12 +5,27 @@
  * Requirements: MAP-06, MAP-07, HIST-02
  */
 import { create } from 'zustand';
-import type { VesselWithPosition } from '@/types/vessel';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
 import type { WatchlistEntry, Alert } from '@/types/anomaly';
 
-/** Union of vessel types that can be selected on the map */
-type SelectableVessel = VesselWithPosition | VesselWithSanctions;
+/** A selected vessel may be a full AIS dossier or a position-only fallback fix. */
+export interface SelectableVessel {
+  imo: string | null;
+  mmsi: string;
+  name: string | null;
+  flag: string | null;
+  shipType: number | null;
+  destination: string | null;
+  lastSeen: Date | null;
+  isSanctioned?: boolean;
+  sanctioningAuthority?: string | null;
+  sanctionReason?: string | null;
+  sanctionRiskCategory?: string | null;
+  anomalyType?: string | null;
+  anomalyConfidence?: string | null;
+  anomalyDetectedAt?: Date | null;
+  position: VesselWithSanctions['position'] | null;
+}
 
 /** Map center and zoom for flyTo navigation */
 export interface MapCenter {

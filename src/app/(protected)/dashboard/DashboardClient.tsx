@@ -18,11 +18,11 @@ import { IntelDrawer } from '@/components/dashboard/IntelDrawer';
 import { MapFilterChips } from '@/components/map/MapFilterChips';
 
 interface SearchResult {
-  imo: string;
+  imo: string | null;
   mmsi: string;
-  name: string;
+  name: string | null;
   flag: string | null;
-  shipType: number;
+  shipType: number | null;
   latitude: number | null;
   longitude: number | null;
 }
@@ -74,18 +74,45 @@ export function DashboardClient({ initialCenter }: { initialCenter?: MapCenter }
   const handleSearchSelect = useCallback((result: SearchResult) => {
     if (result.latitude !== null && result.longitude !== null) {
       setMapCenter({ lat: result.latitude, lon: result.longitude, zoom: 10 });
-      setTargetVesselImo(result.imo);
+      // The free fallback does not invent an IMO. Select it by the metadata it
+      // actually has instead of targeting the first unrelated null-IMO vessel.
+      if (result.imo) {
+        setTargetVesselImo(result.imo);
+      } else {
+        setSelectedVessel({
+          imo: null,
+          mmsi: result.mmsi,
+          name: result.name,
+          flag: result.flag ?? '',
+          shipType: result.shipType,
+          destination: null,
+          lastSeen: new Date(),
+          isSanctioned: false,
+          sanctioningAuthority: null,
+          sanctionReason: null,
+          sanctionRiskCategory: null,
+          position: {
+            time: new Date(), mmsi: result.mmsi, imo: null,
+            latitude: result.latitude, longitude: result.longitude,
+            speed: null, course: null, heading: null, navStatus: null, lowConfidence: false,
+          },
+        });
+      }
       return;
     }
 
     setSelectedVessel({
       imo: result.imo,
       mmsi: result.mmsi,
-      name: result.name,
+      name: result.name ?? `MMSI ${result.mmsi}`,
       flag: result.flag ?? '',
       shipType: result.shipType,
       destination: null,
       lastSeen: new Date(),
+      isSanctioned: false,
+      sanctioningAuthority: null,
+      sanctionReason: null,
+      sanctionRiskCategory: null,
       position: null,
     });
   }, [setMapCenter, setTargetVesselImo, setSelectedVessel]);
