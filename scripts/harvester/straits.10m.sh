@@ -23,13 +23,35 @@ REPO="__REPO__"   # rewritten by install-harvester.sh; falls back below if not
 [ -d "$REPO" ] || REPO="$HOME/Developer/tanker-tracker"
 SITE="https://straits.randyren.org/dashboard"
 
+# --- shared footer, so every exit path offers the same actions ---
+footer() {
+  echo "---"
+  echo "Open dashboard ↗ | href=$SITE"
+  echo "Run harvest now | bash=/bin/bash param1=$REPO/scripts/harvester/run-harvest.sh terminal=true refresh=true"
+  echo "View log | bash=/usr/bin/open param1=-a param2=Console param3=$LOG terminal=false"
+  echo "Refresh | refresh=true"
+}
+
+# --- minutes -> "8m ago" / "2h 15m ago" / "3d ago", matching the Iris plugin ---
+age_phrase() {
+  local minutes="$1"
+  [ "$minutes" = "?" ] && { echo "at an unknown time"; return; }
+  if [ "$minutes" -lt 60 ] 2>/dev/null; then
+    echo "${minutes}m ago"
+  elif [ "$minutes" -lt 1440 ] 2>/dev/null; then
+    echo "$((minutes / 60))h $((minutes % 60))m ago"
+  else
+    echo "$((minutes / 1440))d ago"
+  fi
+}
+
 # --- no status yet ---
 if [ ! -f "$STATUS" ]; then
-  echo "● | color=orange"
+  echo "◈ | color=gray"
   echo "---"
-  echo "Straits harvester: no run yet"
-  echo "Run now | bash=/bin/bash param1=$REPO/scripts/harvester/run-harvest.sh terminal=true refresh=true"
-  echo "Open dashboard | href=$SITE"
+  echo "STRAITS · AIS Harvester | size=11 color=gray"
+  echo "Not running — no harvest has completed | color=gray"
+  footer
   exit 0
 fi
 
@@ -107,26 +129,28 @@ fi
 # regardless of whether AISStream or the independent fallback supplied them.
 if [ "$OK" = "true" ] || [ "$OK" = "True" ]; then
   if [ "${INSERTED:-0}" -gt 0 ] 2>/dev/null && [ "$AGE_MIN" != "?" ] && [ "$AGE_MIN" -le 30 ] 2>/dev/null; then
-    echo "● | color=green"
+    COLOR=green
+    HEADLINE="Online — uploaded ${INSERTED:-0} positions $(age_phrase "$AGE_MIN")"
   elif [ "$AGE_MIN" != "?" ] && [ "$AGE_MIN" -gt 30 ] 2>/dev/null; then
-    echo "● | color=orange"   # ran ok but data is stale (>30m)
+    COLOR=orange   # ran ok but data is stale (>30m)
+    HEADLINE="Stale — last harvest $(age_phrase "$AGE_MIN")"
   else
-    echo "● | color=orange"   # success without a fresh upload is not healthy
+    COLOR=orange   # success without a fresh upload is not healthy
+    HEADLINE="Degraded — ran $(age_phrase "$AGE_MIN") with no positions uploaded"
   fi
 elif [ -z "$OK" ]; then
-  echo "● | color=orange"     # status.json unreadable — not a verdict either way
+  COLOR=orange     # status.json unreadable — not a verdict either way
+  HEADLINE="status.json unreadable — the next run rewrites it"
 else
-  echo "● | color=red"
+  COLOR=red
+  HEADLINE="Last run FAILED: ${ERR:-unknown}"
 fi
 
+echo "◈ | color=$COLOR"
 echo "---"
 echo "STRAITS · AIS Harvester | size=11 color=gray"
-if [ "$OK" = "true" ] || [ "$OK" = "True" ]; then
-  echo "Last upload: ${INSERTED:-0} positions · ${AGE_MIN}m ago | color=green"
-elif [ -z "$OK" ]; then
-  echo "status.json unreadable — next run rewrites it (${AGE_MIN}m old) | color=orange"
-else
-  echo "Last run FAILED: ${ERR:-unknown} | color=red"
+echo "$HEADLINE | color=$COLOR"
+if [ -n "$OK" ] && [ "$OK" != "true" ] && [ "$OK" != "True" ]; then
   [ -n "$FAILS" ] && [ "$FAILS" -gt 1 ] 2>/dev/null && echo "Failing for ${FAILS} runs in a row | color=red"
   [ -n "$LASTOK" ] && echo "Last good run: $LASTOK | size=11 color=gray"
 fi
@@ -156,10 +180,5 @@ echo "Active anomalies: ${ANOM:-— (detectors did not run)}"
 echo "News refreshed: ${NEWS:-0}"
 echo "Pruned (>7d): ${PRUNED:-0}"
 echo "---"
-echo "DB size: ${DBMB:-?} MB / 500 MB cap | color=gray"
-echo "Total positions stored: ${TOTAL:-?} | color=gray"
-echo "---"
-echo "Open dashboard ↗ | href=$SITE"
-echo "Run harvest now | bash=/bin/bash param1=$REPO/scripts/harvester/run-harvest.sh terminal=true refresh=true"
-echo "View log | bash=/usr/bin/open param1=-a param2=Console param3=$LOG terminal=false"
-echo "Refresh | refresh=true"
+echo "DB ${DBMB:-?} MB / 500 MB cap · ${TOTAL:-?} positions stored | size=11 color=gray"
+footer
