@@ -202,6 +202,31 @@ CREATE TABLE IF NOT EXISTS vessel_risk_scores (
 );
 
 -- =============================================================================
+-- Pipeline execution ledger
+-- =============================================================================
+-- Mirrors scripts/migrations/20260821_pipeline_runs.sql. That migration exists
+-- to add the table to databases provisioned before it landed; this copy is what
+-- gives a freshly provisioned database the table. Both are idempotent, so
+-- applying the schema and then every migration (as CI does) is a no-op here.
+
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+  id BIGSERIAL PRIMARY KEY,
+  job_name TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('running', 'success', 'failed', 'skipped')),
+  worker_id TEXT NOT NULL,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  finished_at TIMESTAMPTZ,
+  duration_ms INTEGER,
+  error TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_pipeline_runs_job_started
+  ON pipeline_runs(job_name, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status_started
+  ON pipeline_runs(status, started_at DESC);
+
+-- =============================================================================
 -- Row-Level Security
 -- =============================================================================
 -- A hosted Supabase project always exposes PostgREST on the project URL, and
