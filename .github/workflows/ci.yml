@@ -47,7 +47,7 @@ jobs:
         run: npm run test:ci
 
   schema:
-    name: Portable schema smoke test
+    name: Portable schema + migrations
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
@@ -72,12 +72,18 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y postgresql-client
 
-      - name: Apply portable schema twice
+      - name: Apply schema and migrations twice
         env:
           PGPASSWORD: postgres
         run: |
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/schema-portable.sql
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/schema-portable.sql
+          for pass in 1 2; do
+            echo "Schema pass $pass"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/schema-portable.sql
+            for migration in scripts/migrations/*.sql; do
+              echo "Applying $migration"
+              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+            done
+          done
 
       - name: Verify schema security invariants
         env:
@@ -85,8 +91,10 @@ jobs:
         run: |
           table_count="$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r','p');")"
           unprotected="$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r','p') AND NOT c.relrowsecurity;")"
-          test "$table_count" -ge 10
+          pipeline_table="$(psql "$DATABASE_URL" -Atc "SELECT to_regclass('public.pipeline_runs') IS NOT NULL;")"
+          test "$table_count" -ge 11
           test "$unprotected" = "0"
+          test "$pipeline_table" = "t"
 
   build:
     name: Production build
