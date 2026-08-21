@@ -1,17 +1,9 @@
 /**
  * Detection Cron Jobs
  *
- * Scheduled jobs that run anomaly detection algorithms at regular intervals.
- * Runs within the AIS ingester service (not the Next.js app).
- *
- * Schedule:
- * - Going dark detection: every 15 minutes
- * - Route anomalies (loitering, speed, deviation, repeat_dark, sts): every 30 minutes
- *
- * Guard: startDetectionJobs() is idempotent — subsequent calls are no-ops.
- * This prevents duplicate cron registrations when the WebSocket reconnects.
- *
- * Requirements: ANOM-01, ANOM-02, DEVI-01, DEVI-02, PATT-01, PATT-03, RISK-02
+ * Scheduled anomaly detection runs inside the standalone AIS worker. The local
+ * `started` flag prevents duplicate cron registration after reconnects; database
+ * advisory locks prevent duplicate execution across horizontally scaled workers.
  */
 import cron from 'node-cron';
 import { detectGoingDark } from '../../lib/detection/going-dark';
@@ -22,27 +14,95 @@ import { detectStsTransfers } from '../../lib/detection/sts-transfer';
 import { detectSpoofedPositions } from '../../lib/detection/teleport';
 import { computeRiskScores } from '../../lib/detection/risk-score';
 import { generateAlertsForNewAnomalies } from '../../lib/db/alerts';
+import { runExclusiveJob } from '../../lib/db/pipeline-runs';
 
-/** Guard flag — ensures cron jobs are only registered once per process. */
 let started = false;
 
-/**
- * Reset the started guard. ONLY for unit tests — allows startDetectionJobs()
- * to be called multiple times in isolated test cases.
- * @internal
- */
 export function _resetStartedForTesting(): void {
   started = false;
 }
 
-/**
- * Start all detection cron jobs.
- * Called after WebSocket connection to AISStream is established.
- *
- * Idempotent: subsequent calls (e.g. after WebSocket reconnect) are no-ops
- * to prevent duplicate cron schedules from stacking up and blocking the
- * event loop.
- */
+async function runGoingDarkDetection(): Promise<void> {
+  await runExclusiveJob('detect:going-dark', async () => {
+    const count = await detectGoingDark();
+    console.log(`[CRON] Going dark: ${count} anomalies detected/updated`);
+    await generateAlertsForNewAnomalies('going_dark');
+  }, { cadence: '15m' });
+}
+
+async function runRouteDetections(): Promise<void> {
+  await runExclusiveJob('detect:route-anomalies', async () => {
+    const t0 = Date.now();
+    const [loiteringResult, speedResult, deviationResult, repeatDarkResult, stsResult, spoofResult] =
+      await Promise.allSettled([
+        detectLoitering(),
+        detectSpeedAnomaly(),
+        detectDeviation(),
+        detectRepeatGoingDark(),
+        detectStsTransfers(),
+        detectSpoofedPositions(),
+      ]);
+
+    const results = [
+      ['loitering', loiteringResult],
+      ['speed', speedResult],
+      ['deviation', deviationResult],
+      ['repeat_dark', repeatDarkResult],
+      ['sts', stsResult],
+      ['spoofed_position', spoofResult],
+    ] as const;
+
+    const failures = results.filter(([, result]) => result.status === 'rejected');
+    for (const [name, result] of failures) {
+      if (result.status === 'rejected') console.error(`[CRON] ${name} detection failed:`, result.reason);
+    }
+
+    // A partial detector failure should not silently become a successful pipeline
+    // run. We still let independent detectors finish, then fail the run before
+    // risk-score materialization so operators can see/retry the degraded cycle.
+    if (failures.length > 0) {
+      throw new AggregateError(
+        failures.map(([, result]) => result.status === 'rejected' ? result.reason : undefined),
+        `${failures.length} anomaly detector(s) failed`
+      );
+    }
+
+    const counts = results.map(([, result]) => result.status === 'fulfilled' ? result.value : 0);
+    const [loiteringCount, speedCount, deviationCount, repeatDarkCount, stsCount, spoofCount] = counts;
+
+    // Risk scores are a materialized derivative of anomaly data, so compute only
+    // after all detector writes have succeeded.
+    const riskCount = await computeRiskScores();
+
+    console.log(
+      `[CRON] Route anomalies: ${loiteringCount} loitering, ${speedCount} speed, ` +
+      `${deviationCount} deviation, ${repeatDarkCount} repeat_dark, ${stsCount} sts, ` +
+      `${spoofCount} spoofed_position, ${riskCount} risk_scores (${Date.now() - t0}ms)`
+    );
+
+    const alertResults = await Promise.allSettled([
+      generateAlertsForNewAnomalies('loitering'),
+      generateAlertsForNewAnomalies('speed'),
+      generateAlertsForNewAnomalies('deviation'),
+      generateAlertsForNewAnomalies('repeat_going_dark'),
+      generateAlertsForNewAnomalies('sts_transfer'),
+      generateAlertsForNewAnomalies('spoofed_position'),
+    ]);
+
+    const alertFailures = alertResults.filter((result) => result.status === 'rejected');
+    if (alertFailures.length > 0) {
+      throw new AggregateError(
+        alertFailures.map((result) => result.status === 'rejected' ? result.reason : undefined),
+        `${alertFailures.length} alert generation task(s) failed`
+      );
+    }
+  }, { cadence: '30m' });
+}
+
+function logDetectionFailure(job: string, error: unknown): void {
+  console.error(`[CRON] ${job} error:`, error);
+}
+
 export function startDetectionJobs(): void {
   if (started) {
     console.log('Detection cron jobs already running — skipping duplicate registration');
@@ -52,82 +112,15 @@ export function startDetectionJobs(): void {
 
   console.log('Starting anomaly detection cron jobs...');
 
-  // Going dark detection every 15 minutes
   cron.schedule('*/15 * * * *', async () => {
-    console.log('[CRON] Running going dark detection...');
-    const t0 = Date.now();
-    try {
-      const count = await detectGoingDark();
-      console.log(`[CRON] Going dark: ${count} anomalies detected/updated (${Date.now() - t0}ms)`);
-      await generateAlertsForNewAnomalies('going_dark');
-    } catch (err) {
-      console.error('[CRON] Going dark detection error:', err);
-    }
+    await runGoingDarkDetection().catch((error) => logDetectionFailure('going dark detection', error));
   });
 
-  // Route anomaly detection every 30 minutes.
-  // Run independent detectors concurrently (Promise.allSettled) to avoid
-  // serializing 6 heavy SQL queries that would block the event loop.
   cron.schedule('*/30 * * * *', async () => {
-    console.log('[CRON] Running route anomaly detection...');
-    const t0 = Date.now();
-    try {
-      // Phase 1: Run all independent detectors in parallel
-      const [loiteringResult, speedResult, deviationResult, repeatDarkResult, stsResult, spoofResult] =
-        await Promise.allSettled([
-          detectLoitering(),
-          detectSpeedAnomaly(),
-          detectDeviation(),
-          detectRepeatGoingDark(),
-          detectStsTransfers(),
-          detectSpoofedPositions(),
-        ]);
-
-      const loiteringCount = loiteringResult.status === 'fulfilled' ? loiteringResult.value : 0;
-      const speedCount = speedResult.status === 'fulfilled' ? speedResult.value : 0;
-      const deviationCount = deviationResult.status === 'fulfilled' ? deviationResult.value : 0;
-      const repeatDarkCount = repeatDarkResult.status === 'fulfilled' ? repeatDarkResult.value : 0;
-      const stsCount = stsResult.status === 'fulfilled' ? stsResult.value : 0;
-      const spoofCount = spoofResult.status === 'fulfilled' ? spoofResult.value : 0;
-
-      // Log any individual failures
-      for (const [name, result] of [
-        ['loitering', loiteringResult],
-        ['speed', speedResult],
-        ['deviation', deviationResult],
-        ['repeat_dark', repeatDarkResult],
-        ['sts', stsResult],
-        ['spoofed_position', spoofResult],
-      ] as const) {
-        if (result.status === 'rejected') {
-          console.error(`[CRON] ${name} detection failed:`, result.reason);
-        }
-      }
-
-      // Phase 2: Risk scores depend on anomaly data, so run after detectors
-      const riskCount = await computeRiskScores();
-
-      console.log(
-        `[CRON] Route anomalies: ${loiteringCount} loitering, ${speedCount} speed, ` +
-        `${deviationCount} deviation, ${repeatDarkCount} repeat_dark, ${stsCount} sts, ` +
-        `${spoofCount} spoofed_position, ${riskCount} risk_scores (${Date.now() - t0}ms)`
-      );
-
-      // Phase 3: Generate alerts concurrently
-      await Promise.allSettled([
-        generateAlertsForNewAnomalies('loitering'),
-        generateAlertsForNewAnomalies('speed'),
-        generateAlertsForNewAnomalies('deviation'),
-        generateAlertsForNewAnomalies('repeat_going_dark'),
-        generateAlertsForNewAnomalies('sts_transfer'),
-        generateAlertsForNewAnomalies('spoofed_position'),
-      ]);
-    } catch (err) {
-      console.error('[CRON] Route anomaly detection error:', err);
-    }
+    await runRouteDetections().catch((error) => logDetectionFailure('route anomaly detection', error));
   });
 
   console.log('Detection cron jobs scheduled:');
   console.log('  - going_dark: every 15 minutes (*/15 * * * *)');
-  console.log('  - loitering/speed/deviation/repeat_dark/sts: every 30 minutes (*/30 * * * *)');
+  console.log('  - loitering/speed/deviation/repeat_dark/sts/spoof: every 30 minutes (*/30 * * * *)');
 }
