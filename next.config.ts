@@ -12,9 +12,6 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
-  // Transpile maplibre-gl for compatibility.
-  transpilePackages: ['maplibre-gl'],
-
   // Empty turbopack config to use Turbopack (Next.js 16 default).
   turbopack: {},
 

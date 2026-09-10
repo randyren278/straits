@@ -1,7 +1,10 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mapHarness = vi.hoisted(() => ({ maps: [] as any[] }));
+const mapHarness = vi.hoisted(() => ({
+  maps: [] as any[],
+  constructorError: null as Error | null,
+}));
 const vesselHarness = vi.hoisted(() => ({
   state: {
     tankersOnly: false,
@@ -27,6 +30,7 @@ vi.mock('maplibre-gl', () => {
     private canvas: HTMLCanvasElement;
 
     constructor(options: { container: HTMLElement }) {
+      if (mapHarness.constructorError) throw mapHarness.constructorError;
       this.canvas = document.createElement('canvas');
       this.canvas.className = 'maplibregl-canvas';
       options.container.appendChild(this.canvas);
@@ -88,7 +92,7 @@ vi.mock('maplibre-gl', () => {
     remove() {}
   }
 
-  return { default: { Map: MockMap } };
+  return { Map: MockMap, setWorkerUrl: vi.fn() };
 });
 
 vi.mock('@/stores/vessel', () => {
@@ -195,6 +199,7 @@ async function emitMapIdle(map: any) {
 
 beforeEach(() => {
   mapHarness.maps.length = 0;
+  mapHarness.constructorError = null;
   vesselHarness.state.tankersOnly = false;
   vesselHarness.state.anomalyFilter = false;
   vi.clearAllMocks();
@@ -208,6 +213,36 @@ afterEach(() => {
 });
 
 describe('VesselMap loading state', () => {
+  it('explains the WebGL2 requirement when map initialization fails', () => {
+    mapHarness.constructorError = new Error('WebGL2 unavailable');
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+
+    render(<VesselMap />);
+
+    expect(screen.getByText('MAP ERROR')).toBeInTheDocument();
+    expect(screen.getByText('WebGL2 unavailable')).toBeInTheDocument();
+    expect(screen.getByText(/WebGL2 required for map rendering/i)).toBeInTheDocument();
+  });
+
+  it('ignores a delayed load event from a disposed map instance', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    const firstView = render(<VesselMap />);
+    await waitFor(() => expect(mapHarness.maps).toHaveLength(1));
+    const staleMap = mapHarness.maps[0];
+
+    firstView.unmount();
+    render(<VesselMap />);
+    await waitFor(() => expect(mapHarness.maps).toHaveLength(2));
+    const activeMap = mapHarness.maps[1];
+
+    act(() => staleMap.emit('load'));
+    expect(staleMap.getSource('vessels')).toBeUndefined();
+    expect(activeMap.getSource('vessels')).toBeUndefined();
+
+    act(() => activeMap.emit('load'));
+    expect(activeMap.getSource('vessels')).toBeDefined();
+  });
+
   it('shows an accessible loading HUD with animation only while acquiring', async () => {
     const gate = deferred<any>();
     vi.stubGlobal('fetch', vi.fn(() => gate.promise));

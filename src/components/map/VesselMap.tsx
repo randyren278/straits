@@ -11,7 +11,8 @@
  * Requirements: MAP-01, MAP-02, MAP-03, MAP-06, MAP-07, INTL-01, ANOM-01
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import maplibregl from 'maplibre-gl';
+import { Map as MapLibreMap, setWorkerUrl } from 'maplibre-gl';
+import type { GeoJSONSource, MapGeoJSONFeature, MapMouseEvent } from 'maplibre-gl';
 import { useVesselStore } from '@/stores/vessel';
 import { vesselsToGeoJSON } from '@/lib/map/geojson';
 import { filterTankers } from '@/lib/map/filter';
@@ -24,6 +25,10 @@ import type { ClusterVessel, MapCenter } from '@/stores/vessel';
  * No API token required — served free by CARTO's basemaps CDN.
  */
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+
+// MapLibre v6 is ESM-only. Next/Turbopack cannot emit the worker beside its
+// shared module, so predev/prebuild copy both files to this stable public URL.
+setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
 
 /**
  * Minimum zoom level before proximity detection kicks in.
@@ -52,7 +57,7 @@ const VESSEL_LOAD_COPY: Record<VesselLoadState, { title: string; detail: string 
 
 export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {}) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
+  const map = useRef<MapLibreMap | null>(null);
   const mapLoadedRef = useRef(false);
   const requestControllerRef = useRef<AbortController | null>(null);
   const requestSequenceRef = useRef(0);
@@ -77,7 +82,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     const mapInstance = map.current;
     if (!mapInstance || !mapLoadedRef.current) return;
 
-    const source = mapInstance.getSource('vessels') as maplibregl.GeoJSONSource | undefined;
+    const source = mapInstance.getSource('vessels') as GeoJSONSource | undefined;
     if (!source) return;
 
     let filtered = filterTankers(nextVessels, tankersOnly);
@@ -116,7 +121,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
 
     // Query all rendered vessel features in the viewport
     const canvas = map.current.getCanvas();
-    let features: maplibregl.MapGeoJSONFeature[];
+    let features: MapGeoJSONFeature[];
     try {
       features = map.current.queryRenderedFeatures(
         [[0, 0], [canvas.width, canvas.height]],
@@ -210,9 +215,9 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
-    let mapInstance: maplibregl.Map;
+    let mapInstance: MapLibreMap;
     try {
-      mapInstance = new maplibregl.Map({
+      mapInstance = new MapLibreMap({
         container: mapContainer.current,
         style: MAP_STYLE,
         // Server-picked densest chokepoint when available; otherwise the
@@ -240,7 +245,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
 
     // Named handler refs so the cleanup can detach each listener explicitly
     // (prevents handler accumulation across React Strict Mode re-mounts).
-    const handleClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+    const handleClick = (e: MapMouseEvent & { features?: MapGeoJSONFeature[] }) => {
       if (!e.features?.length) return;
       const props = e.features[0].properties;
       const coords = (e.features[0].geometry as GeoJSON.Point).coordinates;
@@ -282,26 +287,26 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     };
     const handleMoveEnd = () => detectProximityGroup();
 
-    map.current.on('load', () => {
-      if (!map.current) return;
+    mapInstance.on('load', () => {
+      if (map.current !== mapInstance) return;
 
       // ─── Vessel source — NO clustering ─────────────────────────
       // Every vessel renders as its own dot at all zoom levels.
       // Guard against duplicate ids if the style ever reloads.
-      if (!map.current.getSource('vessels')) {
-        map.current.addSource('vessels', {
+      if (!mapInstance.getSource('vessels')) {
+        mapInstance.addSource('vessels', {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] },
         });
       }
 
       // ─── Vessel circles — always visible ───────────────────────
-      if (!map.current.getLayer('vessel-circles')) {
-      map.current.addLayer({
-        id: 'vessel-circles',
-        type: 'circle',
-        source: 'vessels',
-        paint: {
+      if (!mapInstance.getLayer('vessel-circles')) {
+        mapInstance.addLayer({
+          id: 'vessel-circles',
+          type: 'circle',
+          source: 'vessels',
+          paint: {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 10, 8],
           'circle-color': [
             'case',
@@ -360,8 +365,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
           'circle-stroke-width': 1,
           'circle-stroke-color': '#ffffff',
           'circle-stroke-opacity': 1,
-        },
-      });
+          },
+        });
       }
 
       // ─── Chokepoint bounding box overlays ──────────────────────
@@ -380,15 +385,15 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         properties: { name: cp.name },
       }));
 
-      if (!map.current.getSource('chokepoints')) {
-        map.current.addSource('chokepoints', {
+      if (!mapInstance.getSource('chokepoints')) {
+        mapInstance.addSource('chokepoints', {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: chokepointFeatures },
         });
       }
 
-      if (!map.current.getLayer('chokepoint-fill')) {
-        map.current.addLayer({
+      if (!mapInstance.getLayer('chokepoint-fill')) {
+        mapInstance.addLayer({
           id: 'chokepoint-fill',
           type: 'fill',
           source: 'chokepoints',
@@ -396,8 +401,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         }, 'vessel-circles');
       }
 
-      if (!map.current.getLayer('chokepoint-outline')) {
-        map.current.addLayer({
+      if (!mapInstance.getLayer('chokepoint-outline')) {
+        mapInstance.addLayer({
           id: 'chokepoint-outline',
           type: 'line',
           source: 'chokepoints',
@@ -405,8 +410,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         }, 'vessel-circles');
       }
 
-      if (!map.current.getLayer('chokepoint-labels')) {
-        map.current.addLayer({
+      if (!mapInstance.getLayer('chokepoint-labels')) {
+        mapInstance.addLayer({
           id: 'chokepoint-labels',
           type: 'symbol',
           source: 'chokepoints',
@@ -423,14 +428,14 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       }
 
       // ─── Interaction handlers (named refs, detached in cleanup) ─
-      map.current.on('click', 'vessel-circles', handleClick);
-      map.current.on('mouseenter', 'vessel-circles', handleMouseEnter);
-      map.current.on('mouseleave', 'vessel-circles', handleMouseLeave);
+      mapInstance.on('click', 'vessel-circles', handleClick);
+      mapInstance.on('mouseenter', 'vessel-circles', handleMouseEnter);
+      mapInstance.on('mouseleave', 'vessel-circles', handleMouseLeave);
 
       // ─── Proximity detection on zoom/pan ──────────────────────
       // After the map settles, detect dense vessel groups and auto-
       // populate the sidebar panel.
-      map.current.on('moveend', handleMoveEnd);
+      mapInstance.on('moveend', handleMoveEnd);
 
       mapLoadedRef.current = true;
       setMapLoaded(true);
@@ -610,7 +615,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         <div className="text-center">
           <div className="text-amber-500 uppercase tracking-widest mb-2">MAP ERROR</div>
           <div>{mapError}</div>
-          <div className="mt-2 text-xs text-gray-600">WebGL required for map rendering</div>
+          <div className="mt-2 text-xs text-gray-600">WebGL2 required for map rendering</div>
         </div>
       </div>
     );

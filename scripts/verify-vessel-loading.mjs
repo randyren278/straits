@@ -91,6 +91,18 @@ const assert = (condition, message) => {
   if (!condition) throw new Error(message);
 };
 
+for (const asset of ['maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs']) {
+  const response = await fetch(new URL(`/maplibre/${asset}`, BASE_URL));
+  const body = await response.arrayBuffer();
+  assert(response.ok, `${asset}: expected HTTP 200, got ${response.status}`);
+  assert(
+    response.headers.get('content-type')?.includes('javascript'),
+    `${asset}: expected a JavaScript content type, got ${response.headers.get('content-type')}`,
+  );
+  assert(body.byteLength > 0, `${asset}: response body was empty`);
+}
+console.log('PASS MapLibre worker and shared module are available');
+
 const browser = await chromium.launch();
 const viewports = [
   ['phone', { width: 390, height: 844 }],

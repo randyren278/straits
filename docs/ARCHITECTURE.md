@@ -479,7 +479,7 @@ deployment topology where the two runtimes meet the database.
 | `src/types/analytics.ts` | `TimeRange`, `ShipTypeFilter`, traffic point types, `timeRangeToDays` |
 | `src/lib/hooks/useLocalStorage.ts` | SSR-safe localStorage hook (reads in `useEffect`, not render) |
 | `package.json` | Next.js 16, React 19, TypeScript 5, Tailwind v4, MapLibre, pg, Zustand, Recharts |
-| `next.config.ts` | `transpilePackages: ['maplibre-gl']`, Turbopack |
+| `next.config.ts` | Turbopack and response security headers |
 | `run.sh` | Local orchestration: Docker DB, idempotent schema, seed-if-empty, dev server |
 
 **Cross-cutting concerns.**
@@ -502,8 +502,8 @@ deployment topology where the two runtimes meet the database.
 
 **Gotchas.**
 
-- `next.config.ts` needs `transpilePackages: ['maplibre-gl']`, or MapLibre bundles
-  as CommonJS and bloats the build.
+- MapLibre v6 is ESM-only. `predev` and `prebuild` copy its worker and shared
+  module into `public/maplibre/` so Next/Turbopack can load both at runtime.
 - `useLocalStorage` must read inside `useEffect`; reading localStorage in render
   breaks SSR.
 - `run.sh` writes `DATABASE_URL` to `.env.local` only if it isn't already set, so a
