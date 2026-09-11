@@ -50,7 +50,7 @@ type VesselLoadState = 'loading' | 'ready' | 'empty' | 'error';
 
 const VESSEL_LOAD_COPY: Record<VesselLoadState, { title: string; detail: string }> = {
   loading: { title: 'AIS / ACQUIRING POSITIONS', detail: 'AWAITING FIRST FIX' },
-  ready: { title: '', detail: '' },
+  ready: { title: 'POSITIONS ACQUIRED', detail: 'RENDER CONFIRMED' },
   empty: { title: 'NO LIVE VESSEL POSITIONS', detail: 'AIS RESPONSE RETURNED NO POSITIONS' },
   error: { title: 'VESSEL FEED UNAVAILABLE · RETRYING', detail: 'MAP ONLINE · NEXT REQUEST IN 30S' },
 };
@@ -622,7 +622,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
   }
 
   const vesselLoadCopy = VESSEL_LOAD_COPY[vesselLoadState];
-  const showVesselHud = vesselLoadState !== 'ready';
+  const vesselsReady = vesselLoadState === 'ready';
   const hudAlert = vesselLoadState === 'error';
 
   return (
@@ -634,12 +634,22 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       aria-busy={vesselLoadState === 'loading' ? true : undefined}
       className="relative w-full h-full"
     >
-      <div ref={mapContainer} className="w-full h-full" />
+      <div
+        ref={mapContainer}
+        data-testid="vessel-map-surface"
+        data-reveal-state={vesselsReady ? 'ready' : 'covered'}
+        className="straits-map-surface w-full h-full"
+      />
 
-      {showVesselHud && (
+      <div
+        data-testid="vessel-loading-overlay"
+        data-reveal-state={vesselsReady ? 'ready' : 'covered'}
+        aria-hidden={vesselsReady ? true : undefined}
+        className="straits-map-loading-overlay pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4"
+      >
         <div
           data-testid="vessel-loading-hud"
-          className="pointer-events-none absolute right-3 top-3 z-10 min-w-[15rem] border border-amber-500/40 border-l-2 border-l-amber-500 bg-black/90 px-3 py-2.5 shadow-lg phone:top-16"
+          className="straits-map-loading-hud w-full max-w-[19rem] border border-amber-500/40 border-l-2 border-l-amber-500 bg-black/92 px-4 py-3 shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
         >
           <div
             role="status"
@@ -663,7 +673,11 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
             ))}
           </div>
         </div>
-      )}
+      </div>
+
+      <span aria-live="polite" className="sr-only">
+        {vesselsReady ? `${vessels.length} vessel position${vessels.length === 1 ? '' : 's'} loaded` : ''}
+      </span>
     </div>
   );
 }

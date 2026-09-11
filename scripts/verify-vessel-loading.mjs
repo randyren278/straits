@@ -151,7 +151,11 @@ try {
         };
         const overlaps = (a, b) => !!a && !!b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
         const map = document.querySelector('[data-testid="vessel-map"]');
+        const surface = document.querySelector('[data-testid="vessel-map-surface"]');
+        const overlay = document.querySelector('[data-testid="vessel-loading-overlay"]');
         const hud = document.querySelector('[data-testid="vessel-loading-hud"]');
+        const mapRect = rect('[data-testid="vessel-map"]');
+        const overlayRect = rect('[data-testid="vessel-loading-overlay"]');
         const hudRect = rect('[data-testid="vessel-loading-hud"]');
         const chipsRect = rect('[data-testid="map-filter-chips"]');
         return {
@@ -161,6 +165,18 @@ try {
           hud: !!hud,
           status: document.querySelector('[data-testid="vessel-loading-hud"] [role="status"]')?.textContent ?? '',
           canvas: !!document.querySelector('.maplibregl-canvas'),
+          surfaceState: surface?.getAttribute('data-reveal-state'),
+          surfaceFilter: surface ? getComputedStyle(surface).filter : '',
+          surfaceTransitionDuration: surface ? getComputedStyle(surface).transitionDuration : '',
+          overlayState: overlay?.getAttribute('data-reveal-state'),
+          overlayOpacity: overlay ? Number(getComputedStyle(overlay).opacity) : 0,
+          overlayTransitionDuration: overlay ? getComputedStyle(overlay).transitionDuration : '',
+          overlayVisibility: overlay ? getComputedStyle(overlay).visibility : '',
+          overlayCoversMap: !!mapRect && !!overlayRect
+            && Math.abs(mapRect.left - overlayRect.left) <= 1
+            && Math.abs(mapRect.right - overlayRect.right) <= 1
+            && Math.abs(mapRect.top - overlayRect.top) <= 1
+            && Math.abs(mapRect.bottom - overlayRect.bottom) <= 1,
           chips: chipsRect,
           hudOverlapsChips: overlaps(hudRect, chipsRect),
           overflowX: document.documentElement.scrollWidth - window.innerWidth,
@@ -172,6 +188,14 @@ try {
       assert(/MAP ONLINE/i.test(pending.status), `${label}: pending HUD status did not contain MAP ONLINE (${pending.status})`);
       assert(pending.state === 'loading', `${label}: expected loading state, got ${pending.state}`);
       assert(pending.busy === 'true', `${label}: expected aria-busy=true, got ${pending.busy}`);
+      assert(pending.surfaceState === 'covered', `${label}: expected covered map surface, got ${pending.surfaceState}`);
+      assert(pending.surfaceFilter.includes('blur(6px)'), `${label}: map surface was not blurred (${pending.surfaceFilter})`);
+      assert(pending.surfaceTransitionDuration !== '0s', `${label}: map reveal has no transition duration`);
+      assert(pending.overlayState === 'covered', `${label}: expected covered overlay, got ${pending.overlayState}`);
+      assert(pending.overlayOpacity >= 0.99, `${label}: loading overlay was not opaque (${pending.overlayOpacity})`);
+      assert(pending.overlayTransitionDuration !== '0s', `${label}: loading overlay has no fade duration`);
+      assert(pending.overlayVisibility === 'visible', `${label}: loading overlay was not visible`);
+      assert(pending.overlayCoversMap, `${label}: loading overlay did not cover the full map`);
       if (label === 'phone') {
         assert(pending.chips, 'phone: visible map-filter chips missing while HUD is pending');
         assert(!pending.hudOverlapsChips, 'phone: loading HUD overlaps visible map-filter chips');
@@ -183,21 +207,48 @@ try {
       releaseResponse();
       await waitFor(
         page,
-        () => document.querySelector('[data-testid="vessel-map"]')?.getAttribute('data-vessel-state') === 'ready',
-        `${label} vessel map ready state`,
+        () => {
+          const map = document.querySelector('[data-testid="vessel-map"]');
+          const surface = document.querySelector('[data-testid="vessel-map-surface"]');
+          const overlay = document.querySelector('[data-testid="vessel-loading-overlay"]');
+          if (!surface || !overlay) return false;
+          const filter = getComputedStyle(surface).filter;
+          return map?.getAttribute('data-vessel-state') === 'ready'
+            && Number(getComputedStyle(overlay).opacity) <= 0.01
+            && getComputedStyle(overlay).visibility === 'hidden'
+            && (filter === 'none' || filter.includes('blur(0px)'));
+        },
+        `${label} vessel reveal transition`,
       );
-      const ready = await page.evaluate(() => ({
-        state: document.querySelector('[data-testid="vessel-map"]')?.getAttribute('data-vessel-state'),
-        count: document.querySelector('[data-testid="vessel-map"]')?.getAttribute('data-vessel-count'),
-        hud: !!document.querySelector('[data-testid="vessel-loading-hud"]'),
-      }));
+      const ready = await page.evaluate(() => {
+        const map = document.querySelector('[data-testid="vessel-map"]');
+        const surface = document.querySelector('[data-testid="vessel-map-surface"]');
+        const overlay = document.querySelector('[data-testid="vessel-loading-overlay"]');
+        return {
+          state: map?.getAttribute('data-vessel-state'),
+          count: map?.getAttribute('data-vessel-count'),
+          surfaceState: surface?.getAttribute('data-reveal-state'),
+          surfaceFilter: surface ? getComputedStyle(surface).filter : '',
+          overlayState: overlay?.getAttribute('data-reveal-state'),
+          overlayHidden: overlay?.getAttribute('aria-hidden'),
+          overlayOpacity: overlay ? Number(getComputedStyle(overlay).opacity) : 1,
+          overlayVisibility: overlay ? getComputedStyle(overlay).visibility : '',
+          hud: !!document.querySelector('[data-testid="vessel-loading-hud"]'),
+        };
+      });
       assert(ready.state === 'ready', `${label}: expected ready state, got ${ready.state}`);
       assert(ready.count === String(VESSELS.length), `${label}: expected ${VESSELS.length} vessels, got ${ready.count}`);
-      assert(!ready.hud, `${label}: loading HUD remained after map idle`);
+      assert(ready.surfaceState === 'ready', `${label}: map surface did not reach ready reveal state`);
+      assert(ready.surfaceFilter === 'none' || ready.surfaceFilter.includes('blur(0px)'), `${label}: map remained blurred (${ready.surfaceFilter})`);
+      assert(ready.overlayState === 'ready', `${label}: overlay did not reach ready reveal state`);
+      assert(ready.overlayHidden === 'true', `${label}: completed overlay was not hidden from assistive technology`);
+      assert(ready.overlayOpacity <= 0.01, `${label}: loading overlay did not fade out (${ready.overlayOpacity})`);
+      assert(ready.overlayVisibility === 'hidden', `${label}: loading overlay remained visible`);
+      assert(ready.hud, `${label}: HUD was unmounted before its exit transition could complete`);
       assert(pageErrors.length === 0, `${label}: page errors: ${pageErrors.join(' | ')}`);
       assert(consoleErrors.length === 0, `${label}: console errors: ${consoleErrors.join(' | ')}`);
       await page.screenshot({ path: path.join(OUT, `${label}-after.png`), fullPage: false });
-      console.log(`PASS ${label}: delayed data reached ready state and HUD was removed`);
+      console.log(`PASS ${label}: delayed data rendered, then the HUD and blur faded out`);
     } catch (error) {
       if (pageErrors.length) console.error(`${label}: page errors: ${pageErrors.join(' | ')}`);
       if (consoleErrors.length) console.error(`${label}: console errors: ${consoleErrors.join(' | ')}`);

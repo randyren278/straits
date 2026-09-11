@@ -52,10 +52,55 @@
   --straits-nav-h: calc(3.5rem + env(safe-area-inset-bottom));
 }
 
-/* Acquisition HUD — a compact, pointer-transparent map status treatment.
-   The map remains the primary surface while the first AIS response is being
-   submitted and rendered. Motion is decorative only and is disabled for users
-   who prefer reduced motion. */
+/* Acquisition reveal — keep the complete basemap visible but deliberately
+   softened until the first vessel source update has reached MapLibre's idle
+   event. The overlay stays mounted so the exit can dissolve instead of pop. */
+.straits-map-surface {
+  filter: blur(6px) saturate(0.58) brightness(0.62);
+  transform: scale(1.015);
+  transition-property: filter, transform;
+  transition-duration: 560ms, 680ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.straits-map-surface[data-reveal-state='ready'] {
+  filter: blur(0) saturate(1) brightness(1);
+  transform: scale(1);
+}
+
+.straits-map-loading-overlay {
+  background-color: rgb(0 0 0 / 0.3);
+  opacity: 1;
+  visibility: visible;
+  transition-property: opacity, background-color, visibility;
+  transition-duration: 420ms, 560ms, 0s;
+  transition-delay: 0s;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1), cubic-bezier(0.2, 0, 0, 1), linear;
+}
+
+.straits-map-loading-overlay[data-reveal-state='ready'] {
+  background-color: transparent;
+  opacity: 0;
+  visibility: hidden;
+  transition-delay: 0s, 0s, 560ms;
+}
+
+.straits-map-loading-hud {
+  filter: blur(0);
+  opacity: 1;
+  transform: translateY(0);
+  transition-property: filter, opacity, transform;
+  transition-duration: 260ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.straits-map-loading-overlay[data-reveal-state='ready'] .straits-map-loading-hud {
+  filter: blur(3px);
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* Motion within the HUD remains decorative. */
 @keyframes straits-acquisition-signal {
   0%, 100% { background: rgb(75 85 99); opacity: 0.55; }
   42% { background: rgb(251 191 36); opacity: 1; }
@@ -74,6 +119,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .straits-map-surface,
+  .straits-map-loading-overlay,
+  .straits-map-loading-hud {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
   .straits-acquisition-bar {
     animation: none;
     opacity: 0.75;

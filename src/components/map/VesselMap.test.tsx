@@ -252,6 +252,9 @@ describe('VesselMap loading state', () => {
     expect(map).toHaveAttribute('data-map-state', 'loading');
     expect(map).toHaveAttribute('data-vessel-state', 'loading');
     expect(map).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByTestId('vessel-map-surface')).toHaveAttribute('data-reveal-state', 'covered');
+    expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('data-reveal-state', 'covered');
+    expect(screen.getByTestId('vessel-loading-overlay')).not.toHaveAttribute('aria-hidden');
     expect(screen.getByTestId('vessel-loading-hud')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');
     expect(screen.getByRole('status')).toHaveTextContent(/map initializing/i);
@@ -274,7 +277,11 @@ describe('VesselMap loading state', () => {
 
     await emitMapIdle(activeMap);
     await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'ready'));
-    expect(screen.queryByTestId('vessel-loading-hud')).not.toBeInTheDocument();
+    expect(screen.getByTestId('vessel-loading-hud')).toBeInTheDocument();
+    expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('data-reveal-state', 'ready');
+    expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByTestId('vessel-map-surface')).toHaveAttribute('data-reveal-state', 'ready');
+    expect(screen.getByText('1 vessel position loaded')).toBeInTheDocument();
     expect(screen.getByTestId('vessel-map')).not.toHaveAttribute('aria-busy');
   });
 
@@ -309,6 +316,8 @@ describe('VesselMap loading state', () => {
     await emitMapIdle(activeMap);
 
     await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'empty'));
+    expect(screen.getByTestId('vessel-map-surface')).toHaveAttribute('data-reveal-state', 'covered');
+    expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('data-reveal-state', 'covered');
     expect(screen.getByTestId('vessel-loading-hud')).toHaveTextContent(/no live vessel positions/i);
     expect(document.querySelectorAll('.straits-acquisition-bar-static')).toHaveLength(4);
     expect(document.querySelectorAll('.straits-acquisition-bar')).toHaveLength(0);
@@ -325,6 +334,7 @@ describe('VesselMap loading state', () => {
     const activeMap = await emitMapLoad(map);
 
     await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'error'));
+    expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('data-reveal-state', 'covered');
     expect(errorSpy).toHaveBeenCalledWith('Failed to fetch vessels:', expect.any(Error));
     expect(screen.getByRole('status')).toHaveTextContent(/feed unavailable/i);
     expect(document.querySelectorAll('.straits-acquisition-bar-static')).toHaveLength(4);
@@ -340,7 +350,8 @@ describe('VesselMap loading state', () => {
     await emitMapIdle(activeMap);
 
     await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'ready'));
-    expect(screen.queryByTestId('vessel-loading-hud')).not.toBeInTheDocument();
+    expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('data-reveal-state', 'ready');
+    expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('ignores an aborted stale response from the previous filter request', async () => {
@@ -398,6 +409,7 @@ describe('VesselMap loading state', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'ready');
     expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-count', '1');
-    expect(screen.queryByTestId('vessel-loading-hud')).not.toBeInTheDocument();
+    expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('data-reveal-state', 'ready');
+    expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('aria-hidden', 'true');
   });
 });
