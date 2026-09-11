@@ -11,7 +11,8 @@
  * Requirements: MAP-01, MAP-02, MAP-03, MAP-06, MAP-07, INTL-01, ANOM-01
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import maplibregl from 'maplibre-gl';
+import { Map as MapLibreMap, setWorkerUrl } from 'maplibre-gl';
+import type { GeoJSONSource, MapGeoJSONFeature, MapMouseEvent } from 'maplibre-gl';
 import { useVesselStore } from '@/stores/vessel';
 import { vesselsToGeoJSON } from '@/lib/map/geojson';
 import { filterTankers } from '@/lib/map/filter';
@@ -24,6 +25,10 @@ import type { ClusterVessel, MapCenter } from '@/stores/vessel';
  * No API token required — served free by CARTO's basemaps CDN.
  */
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+
+// MapLibre v6 is ESM-only. Next/Turbopack cannot emit the worker beside its
+// shared module, so predev/prebuild copy both files to this stable public URL.
+setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
 
 /**
  * Minimum zoom level before proximity detection kicks in.
@@ -41,22 +46,72 @@ const PROXIMITY_PIXEL_RADIUS = 25;
 /** Minimum number of vessels in a pixel cluster to trigger the sidebar */
 const PROXIMITY_MIN_COUNT = 2;
 
+type VesselLoadState = 'loading' | 'ready' | 'empty' | 'error';
+
+const VESSEL_LOAD_COPY: Record<VesselLoadState, { title: string; detail: string }> = {
+  loading: { title: 'AIS / ACQUIRING POSITIONS', detail: 'AWAITING FIRST FIX' },
+  ready: { title: '', detail: '' },
+  empty: { title: 'NO LIVE VESSEL POSITIONS', detail: 'AIS RESPONSE RETURNED NO POSITIONS' },
+  error: { title: 'VESSEL FEED UNAVAILABLE · RETRYING', detail: 'MAP ONLINE · NEXT REQUEST IN 30S' },
+};
+
 export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {}) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
-  const vesselsRef = useRef<VesselWithSanctions[]>([]);
+  const map = useRef<MapLibreMap | null>(null);
+  const mapLoadedRef = useRef(false);
+  const requestControllerRef = useRef<AbortController | null>(null);
+  const requestSequenceRef = useRef(0);
+  const acceptedResponseSequenceRef = useRef(0);
+  const firstRequestAttemptedRef = useRef(false);
+  const mapInstanceSequenceRef = useRef(0);
   const [vessels, setVessels] = useState<VesselWithSanctions[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [vesselLoadState, setVesselLoadState] = useState<VesselLoadState>('loading');
 
   const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack, mapCenter, setMapCenter, anomalyFilter, targetVesselImo, setTargetVesselImo } =
     useVesselStore();
+
+  /**
+   * Submit a response to MapLibre and only settle the initial loading state
+   * after the source has been submitted and the map has rendered that update.
+   * This covers both orderings: the map can load first, or the data can arrive
+   * first and wait for the map's `load` callback.
+   */
+  const submitVesselGeoJson = useCallback((nextVessels: VesselWithSanctions[], responseSequence: number) => {
+    const mapInstance = map.current;
+    if (!mapInstance || !mapLoadedRef.current) return;
+
+    const source = mapInstance.getSource('vessels') as GeoJSONSource | undefined;
+    if (!source) return;
+
+    let filtered = filterTankers(nextVessels, tankersOnly);
+    if (anomalyFilter) {
+      filtered = filtered.filter((v) => v.anomalyType !== null && v.anomalyType !== undefined);
+    }
+
+    // Register before setData: MapLibre emits idle after the source update has
+    // been rendered, which is the point at which it is safe to remove the HUD.
+    const mapSequence = mapInstanceSequenceRef.current;
+    mapInstance.once('idle', () => {
+      if (
+        map.current !== mapInstance ||
+        !mapLoadedRef.current ||
+        mapSequence !== mapInstanceSequenceRef.current ||
+        responseSequence !== acceptedResponseSequenceRef.current
+      ) return;
+
+      setVesselLoadState(nextVessels.length > 0 ? 'ready' : 'empty');
+    });
+
+    source.setData(vesselsToGeoJSON(filtered));
+  }, [anomalyFilter, tankersOnly]);
 
   // ─── Proximity detection ────────────────────────────────────────
   // After zooming/panning, find groups of vessels that overlap on screen.
   // When a dense group is found near map center, auto-populate the sidebar.
   const detectProximityGroup = useCallback(() => {
-    if (!map.current || !mapLoaded) return;
+    if (!map.current || !mapLoadedRef.current) return;
     if (!map.current.isStyleLoaded()) return;
     if (map.current.getZoom() < PROXIMITY_MIN_ZOOM) {
       // Too zoomed out — clear any existing cluster panel
@@ -66,7 +121,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
 
     // Query all rendered vessel features in the viewport
     const canvas = map.current.getCanvas();
-    let features: maplibregl.MapGeoJSONFeature[];
+    let features: MapGeoJSONFeature[];
     try {
       features = map.current.queryRenderedFeatures(
         [[0, 0], [canvas.width, canvas.height]],
@@ -154,15 +209,15 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     } else {
       useVesselStore.getState().setClusterVessels(null);
     }
-  }, [mapLoaded]);
+  }, []);
 
   // Initialize map
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
-    let mapInstance: maplibregl.Map;
+    let mapInstance: MapLibreMap;
     try {
-      mapInstance = new maplibregl.Map({
+      mapInstance = new MapLibreMap({
         container: mapContainer.current,
         style: MAP_STYLE,
         // Server-picked densest chokepoint when available; otherwise the
@@ -185,10 +240,12 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     });
 
     map.current = mapInstance;
+    const mapSequence = mapInstanceSequenceRef.current + 1;
+    mapInstanceSequenceRef.current = mapSequence;
 
     // Named handler refs so the cleanup can detach each listener explicitly
     // (prevents handler accumulation across React Strict Mode re-mounts).
-    const handleClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+    const handleClick = (e: MapMouseEvent & { features?: MapGeoJSONFeature[] }) => {
       if (!e.features?.length) return;
       const props = e.features[0].properties;
       const coords = (e.features[0].geometry as GeoJSON.Point).coordinates;
@@ -230,26 +287,26 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     };
     const handleMoveEnd = () => detectProximityGroup();
 
-    map.current.on('load', () => {
-      if (!map.current) return;
+    mapInstance.on('load', () => {
+      if (map.current !== mapInstance) return;
 
       // ─── Vessel source — NO clustering ─────────────────────────
       // Every vessel renders as its own dot at all zoom levels.
       // Guard against duplicate ids if the style ever reloads.
-      if (!map.current.getSource('vessels')) {
-        map.current.addSource('vessels', {
+      if (!mapInstance.getSource('vessels')) {
+        mapInstance.addSource('vessels', {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] },
         });
       }
 
       // ─── Vessel circles — always visible ───────────────────────
-      if (!map.current.getLayer('vessel-circles')) {
-      map.current.addLayer({
-        id: 'vessel-circles',
-        type: 'circle',
-        source: 'vessels',
-        paint: {
+      if (!mapInstance.getLayer('vessel-circles')) {
+        mapInstance.addLayer({
+          id: 'vessel-circles',
+          type: 'circle',
+          source: 'vessels',
+          paint: {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 10, 8],
           'circle-color': [
             'case',
@@ -308,8 +365,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
           'circle-stroke-width': 1,
           'circle-stroke-color': '#ffffff',
           'circle-stroke-opacity': 1,
-        },
-      });
+          },
+        });
       }
 
       // ─── Chokepoint bounding box overlays ──────────────────────
@@ -328,15 +385,15 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         properties: { name: cp.name },
       }));
 
-      if (!map.current.getSource('chokepoints')) {
-        map.current.addSource('chokepoints', {
+      if (!mapInstance.getSource('chokepoints')) {
+        mapInstance.addSource('chokepoints', {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: chokepointFeatures },
         });
       }
 
-      if (!map.current.getLayer('chokepoint-fill')) {
-        map.current.addLayer({
+      if (!mapInstance.getLayer('chokepoint-fill')) {
+        mapInstance.addLayer({
           id: 'chokepoint-fill',
           type: 'fill',
           source: 'chokepoints',
@@ -344,8 +401,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         }, 'vessel-circles');
       }
 
-      if (!map.current.getLayer('chokepoint-outline')) {
-        map.current.addLayer({
+      if (!mapInstance.getLayer('chokepoint-outline')) {
+        mapInstance.addLayer({
           id: 'chokepoint-outline',
           type: 'line',
           source: 'chokepoints',
@@ -353,8 +410,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         }, 'vessel-circles');
       }
 
-      if (!map.current.getLayer('chokepoint-labels')) {
-        map.current.addLayer({
+      if (!mapInstance.getLayer('chokepoint-labels')) {
+        mapInstance.addLayer({
           id: 'chokepoint-labels',
           type: 'symbol',
           source: 'chokepoints',
@@ -371,30 +428,17 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       }
 
       // ─── Interaction handlers (named refs, detached in cleanup) ─
-      map.current.on('click', 'vessel-circles', handleClick);
-      map.current.on('mouseenter', 'vessel-circles', handleMouseEnter);
-      map.current.on('mouseleave', 'vessel-circles', handleMouseLeave);
+      mapInstance.on('click', 'vessel-circles', handleClick);
+      mapInstance.on('mouseenter', 'vessel-circles', handleMouseEnter);
+      mapInstance.on('mouseleave', 'vessel-circles', handleMouseLeave);
 
       // ─── Proximity detection on zoom/pan ──────────────────────
       // After the map settles, detect dense vessel groups and auto-
       // populate the sidebar panel.
-      map.current.on('moveend', handleMoveEnd);
+      mapInstance.on('moveend', handleMoveEnd);
 
+      mapLoadedRef.current = true;
       setMapLoaded(true);
-
-      // Eagerly push any vessels that arrived before the map loaded.
-      // The data-update effect will also fire when mapLoaded flips,
-      // but this guarantees the source gets data immediately.
-      const currentVessels = vesselsRef.current;
-      if (currentVessels.length > 0) {
-        const source = mapInstance.getSource('vessels') as maplibregl.GeoJSONSource;
-        if (source) {
-          const { tankersOnly: t, anomalyFilter: af } = useVesselStore.getState();
-          let filtered = filterTankers(currentVessels, t);
-          if (af) filtered = filtered.filter((v) => v.anomalyType !== null && v.anomalyType !== undefined);
-          source.setData(vesselsToGeoJSON(filtered));
-        }
-      }
     });
 
     // Cleanup
@@ -414,54 +458,67 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       } catch {
         // GL teardown can throw if async callbacks fire after disposal.
       }
+      mapLoadedRef.current = false;
+      mapInstanceSequenceRef.current = mapSequence + 1;
       map.current = null;
     };
   }, [setSelectedVessel, detectProximityGroup, initialCenter]);
 
   // Fetch vessels periodically
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchVessels() {
+      requestControllerRef.current?.abort();
+      const controller = new AbortController();
+      requestControllerRef.current = controller;
+      const requestSequence = requestSequenceRef.current + 1;
+      requestSequenceRef.current = requestSequence;
+
       try {
-        const res = await fetch(`/api/vessels?tankersOnly=${tankersOnly}`);
+        const res = await fetch(`/api/vessels?tankersOnly=${tankersOnly}`, { signal: controller.signal });
         if (!res.ok) {
           throw new Error(`Failed to fetch vessels: ${res.status}`);
         }
         const data = await res.json();
-        setVessels(data.vessels || []);
+        if (cancelled || controller.signal.aborted || requestSequence !== requestSequenceRef.current) return;
+
+        const nextVessels = data.vessels || [];
+        acceptedResponseSequenceRef.current += 1;
+        const isFirstRequest = !firstRequestAttemptedRef.current;
+        firstRequestAttemptedRef.current = true;
+        setVessels(nextVessels);
         setLastUpdate(new Date(data.timestamp));
+        // Keep the HUD until submitVesselGeoJson has handed this response to
+        // MapLibre and the following idle event confirms it was rendered.
+        if (isFirstRequest) setVesselLoadState('loading');
       } catch (err) {
+        if (cancelled || controller.signal.aborted || requestSequence !== requestSequenceRef.current) return;
+        firstRequestAttemptedRef.current = true;
+        setVesselLoadState((current) => current === 'loading' ? 'error' : current);
         console.error('Failed to fetch vessels:', err);
       }
     }
 
-    fetchVessels();
+    void fetchVessels();
     const interval = setInterval(fetchVessels, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      requestControllerRef.current?.abort();
+      requestSequenceRef.current += 1;
+    };
   }, [tankersOnly, setLastUpdate]);
 
   // Update map data when vessels change (or anomaly filter changes)
   useEffect(() => {
-    // Keep ref in sync so the map-load callback can access latest data
-    vesselsRef.current = vessels;
+    if (!map.current || !mapLoaded || acceptedResponseSequenceRef.current === 0) return;
 
-    if (!map.current || !mapLoaded) return;
-
-    let filtered = filterTankers(vessels, tankersOnly);
-
-    if (anomalyFilter) {
-      filtered = filtered.filter((v) => v.anomalyType !== null && v.anomalyType !== undefined);
-    }
-
-    const geojson = vesselsToGeoJSON(filtered);
-
-    const source = map.current.getSource('vessels') as maplibregl.GeoJSONSource;
-    if (source) {
-      source.setData(geojson);
-    }
+    submitVesselGeoJson(vessels, acceptedResponseSequenceRef.current);
 
     // Re-run proximity detection after data update
     detectProximityGroup();
-  }, [vessels, tankersOnly, anomalyFilter, mapLoaded, detectProximityGroup]);
+  }, [vessels, mapLoaded, submitVesselGeoJson, detectProximityGroup]);
 
   // Handle track layer for selected vessel
   const updateTrackLayer = useCallback(async () => {
@@ -558,11 +615,55 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         <div className="text-center">
           <div className="text-amber-500 uppercase tracking-widest mb-2">MAP ERROR</div>
           <div>{mapError}</div>
-          <div className="mt-2 text-xs text-gray-600">WebGL required for map rendering</div>
+          <div className="mt-2 text-xs text-gray-600">WebGL2 required for map rendering</div>
         </div>
       </div>
     );
   }
 
-  return <div ref={mapContainer} className="w-full h-full" />;
+  const vesselLoadCopy = VESSEL_LOAD_COPY[vesselLoadState];
+  const showVesselHud = vesselLoadState !== 'ready';
+  const hudAlert = vesselLoadState === 'error';
+
+  return (
+    <div
+      data-testid="vessel-map"
+      data-map-state={mapLoaded ? 'ready' : 'loading'}
+      data-vessel-state={vesselLoadState}
+      data-vessel-count={vessels.length}
+      aria-busy={vesselLoadState === 'loading' ? true : undefined}
+      className="relative w-full h-full"
+    >
+      <div ref={mapContainer} className="w-full h-full" />
+
+      {showVesselHud && (
+        <div
+          data-testid="vessel-loading-hud"
+          className="pointer-events-none absolute right-3 top-3 z-10 min-w-[15rem] border border-amber-500/40 border-l-2 border-l-amber-500 bg-black/90 px-3 py-2.5 shadow-lg phone:top-16"
+        >
+          <div
+            role="status"
+            aria-live="polite"
+            className={`font-mono uppercase tracking-widest ${hudAlert ? 'text-red-400' : 'text-amber-500'}`}
+          >
+            <p className="text-[9px] text-amber-500/60">{mapLoaded ? 'MAP ONLINE' : 'MAP INITIALIZING'}</p>
+            <p className="text-[10px]">{vesselLoadCopy.title}</p>
+            <p className="mt-1 text-[9px] tracking-wider text-gray-500">{vesselLoadCopy.detail}</p>
+          </div>
+
+          <div
+            aria-hidden="true"
+            className="straits-acquisition-signal mt-2 flex gap-1"
+          >
+            {[0, 1, 2, 3].map((bar) => (
+              <span
+                key={bar}
+                className={`${vesselLoadState === 'loading' ? 'straits-acquisition-bar' : 'straits-acquisition-bar-static'} h-0.5 w-5 bg-gray-700`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

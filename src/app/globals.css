@@ -52,6 +52,34 @@
   --straits-nav-h: calc(3.5rem + env(safe-area-inset-bottom));
 }
 
+/* Acquisition HUD — a compact, pointer-transparent map status treatment.
+   The map remains the primary surface while the first AIS response is being
+   submitted and rendered. Motion is decorative only and is disabled for users
+   who prefer reduced motion. */
+@keyframes straits-acquisition-signal {
+  0%, 100% { background: rgb(75 85 99); opacity: 0.55; }
+  42% { background: rgb(251 191 36); opacity: 1; }
+}
+
+.straits-acquisition-bar {
+  animation: straits-acquisition-signal 1.2s ease-in-out infinite;
+}
+
+.straits-acquisition-bar:nth-child(2) { animation-delay: 140ms; }
+.straits-acquisition-bar:nth-child(3) { animation-delay: 280ms; }
+.straits-acquisition-bar:nth-child(4) { animation-delay: 420ms; }
+
+.straits-acquisition-bar-static {
+  opacity: 0.75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .straits-acquisition-bar {
+    animation: none;
+    opacity: 0.75;
+  }
+}
+
 /* MapLibre attribution — override the default white rounded pill to match the
    terminal aesthetic (Tailwind utilities don't apply to vendor DOM, so literal
    values; amber-500 = rgb(245 158 11)). */

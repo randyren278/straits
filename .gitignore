@@ -9,6 +9,7 @@ node_modules/
 # Next.js build output
 .next/
 out/
+public/maplibre/
 
 # TypeScript build info
 tsconfig.tsbuildinfo
