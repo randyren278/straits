@@ -3,7 +3,7 @@
  * Tests for storing and retrieving news items from database.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { insertNewsItem, getLatestNews, purgeOldNews, type NewsHeadline } from './news';
+import { insertNewsItem, getLatestNews, purgeOldNews, NEWS_MAX_AGE_HOURS, type NewsHeadline } from './news';
 
 // Mock the database pool
 vi.mock('./index', () => ({
@@ -71,10 +71,22 @@ describe('News Database', () => {
       const news = await getLatestNews();
 
       expect(pool.query).toHaveBeenCalledWith(
-        expect.stringContaining('ORDER BY relevance_score DESC, published_at DESC'),
+        expect.stringContaining('ORDER BY "relevanceScore" DESC, "publishedAt" DESC'),
         expect.arrayContaining([15])
       );
       expect(news.length).toBe(2);
+    });
+
+    it('excludes demo records, applies a publication-age cutoff, and dedupes titles', async () => {
+      vi.mocked(pool.query).mockResolvedValue({ rows: [] } as any);
+
+      await getLatestNews();
+
+      const [sql, params] = vi.mocked(pool.query).mock.calls[0] as unknown as [string, unknown[]];
+      expect(sql).toContain("url NOT LIKE '%example.com%'");
+      expect(sql).toContain("published_at > NOW() - ($2 || ' hours')::interval");
+      expect(sql).toContain('DISTINCT ON (lower(regexp_replace(title');
+      expect(params).toEqual([15, NEWS_MAX_AGE_HOURS]);
     });
 
     it('accepts custom limit parameter', async () => {

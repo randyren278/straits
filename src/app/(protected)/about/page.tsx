@@ -7,6 +7,17 @@
 'use client';
 
 import { Header } from '@/components/ui/Header';
+import { LEGEND_ACTIVITY, LEGEND_IDENTITY, FRESHNESS_STOPS, ACTIVITY_COLORS, IDENTITY_COLORS } from '@/lib/map/marker-style';
+
+function Swatch({ fill, stroke, opacity = 1 }: { fill: string; stroke: string; opacity?: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block w-3.5 h-3.5 rounded-full shrink-0"
+      style={{ backgroundColor: fill, boxShadow: `0 0 0 1.5px ${stroke}`, opacity }}
+    />
+  );
+}
 
 const RISK_ROWS = [
   { factor: 'Going Dark History', points: '8 pts / event', note: 'Capped at 40 pts (5 events max contribution)' },
@@ -24,10 +35,93 @@ export default function AboutPage() {
       <main className="p-6 max-w-7xl mx-auto phone:p-3 phone:pb-[calc(var(--straits-nav-h)+1rem)]">
         {/* Page title */}
         <div className="mb-6">
-          <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">About Straits</h1>
+          <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500">Field manual</h1>
           <p className="text-xs text-gray-600 mt-0.5">
-            Anomaly detection definitions and risk scoring methodology
+            How to read the map, what the signals mean, and where the uncertainty is
           </p>
+        </div>
+
+        {/* Section 0: Reading the map */}
+        <div className="bg-gray-900 border border-amber-500/20 mb-6" id="reading-the-map">
+          <div className="px-3 py-1.5 border-b border-amber-500/20">
+            <span className="text-xs font-mono uppercase tracking-wider text-amber-500">Reading the map</span>
+          </div>
+          <div className="p-4 space-y-6">
+            <p className="text-gray-300 text-sm">
+              Every contact carries three independent signals. They never share a colour, so a sanctioned hull that
+              goes dark shows both facts at once instead of one hiding the other.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <div className="text-amber-500 font-mono text-sm mb-2">FILL · ACTIVITY</div>
+                <p className="text-gray-400 text-xs mb-2">What a detector concluded the vessel is doing right now.</p>
+                <ul className="space-y-1.5 text-xs font-mono text-gray-300">
+                  {LEGEND_ACTIVITY.map(({ label, color }) => (
+                    <li key={label} className="flex items-center gap-2"><Swatch fill={color} stroke={IDENTITY_COLORS.none} />{label}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div className="text-amber-500 font-mono text-sm mb-2">OUTLINE · IDENTITY</div>
+                <p className="text-gray-400 text-xs mb-2">Which lists the hull is on. Reference data, not a detector.</p>
+                <ul className="space-y-1.5 text-xs font-mono text-gray-300">
+                  {LEGEND_IDENTITY.map(({ label, color }) => (
+                    <li key={label} className="flex items-center gap-2"><Swatch fill={ACTIVITY_COLORS.normal} stroke={color} />{label}</li>
+                  ))}
+                  <li className="flex items-center gap-2 text-gray-500"><Swatch fill={ACTIVITY_COLORS.normal} stroke={IDENTITY_COLORS.none} />Not on any list</li>
+                </ul>
+              </div>
+              <div>
+                <div className="text-amber-500 font-mono text-sm mb-2">OPACITY · FIX AGE</div>
+                <p className="text-gray-400 text-xs mb-2">How old the last received position is. Faded contacts are last-known, not live.</p>
+                <ul className="flex items-end gap-4 text-xs font-mono text-gray-300">
+                  {FRESHNESS_STOPS.filter(([h]) => h > 0).map(([hours, opacity]) => (
+                    <li key={hours} className="flex flex-col items-center gap-1">
+                      <Swatch fill={ACTIVITY_COLORS.normal} stroke={IDENTITY_COLORS.none} opacity={opacity} />
+                      <span className="text-gray-500">{hours >= 24 ? `${Math.round(hours / 24)}d` : `${hours}h`}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-gray-500 text-xs mt-2">Contacts drop off the map after 7 days without a fix.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="text-amber-500 font-mono text-sm mb-2">OVERLAYS</div>
+                <ul className="space-y-1.5 text-xs text-gray-300">
+                  <li><span className="font-mono text-gray-200">Dashed amber box</span> — a chokepoint zone. Counts in the header are contacts inside it.</li>
+                  <li><span className="font-mono text-gray-200">Dotted amber outline</span> — monitored coverage. Empty sea outside it means <em>unwatched</em>, not empty.</li>
+                  <li><span className="font-mono text-gray-200">Amber ring</span> — the selected contact. The rest of the field recedes while you investigate.</li>
+                  <li><span className="font-mono text-gray-200">Amber line</span> — the last 24 hours of fixes for the selected contact, when any exist.</li>
+                  <li><span className="font-mono text-gray-200">White chevron</span> — reported heading, drawn only when the vessel is under way and the heading is valid.</li>
+                </ul>
+              </div>
+              <div>
+                <div className="text-amber-500 font-mono text-sm mb-2">THREE KINDS OF STATEMENT</div>
+                <ul className="space-y-1.5 text-xs text-gray-300">
+                  <li><span className="font-mono text-[10px] px-1 border border-gray-600 text-gray-400">OBS</span> <span className="ml-1">Observed — a fact from the AIS feed: a fix, a destination change. Reliable to the extent the transponder is.</span></li>
+                  <li><span className="font-mono text-[10px] px-1 border border-orange-500/60 text-orange-300">DET</span> <span className="ml-1">Detector — a conclusion drawn from observations, with a confidence. Can be wrong; the thresholds are below.</span></li>
+                  <li><span className="font-mono text-[10px] px-1 border border-red-500/60 text-red-300">REF</span> <span className="ml-1">Reference — an external listing (OpenSanctions). Authoritative about the list, not about what the vessel is doing today.</span></li>
+                </ul>
+                <p className="text-gray-500 text-xs mt-3">
+                  Timestamps are separated on purpose: <span className="text-gray-300">refreshed</span> is when the site last asked the database;
+                  <span className="text-gray-300"> latest fix</span> is the newest observation anywhere; <span className="text-gray-300">observed</span> on
+                  a contact is that contact&apos;s own last fix. Only the last one tells you how current a position is.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-amber-500 font-mono text-sm mb-2">GETTING AROUND</div>
+              <ul className="space-y-1 text-xs text-gray-300">
+                <li><kbd className="font-mono text-[10px] px-1 border border-gray-700 text-gray-400">⌘K</kbd> jumps to a vessel, a chokepoint or a page from anywhere.</li>
+                <li>The link icon on a contact copies a URL that reproduces the contact, the map view and your filters.</li>
+                <li><span className="font-mono text-gray-200">Current watch</span> on the live map lists the three things most worth a look right now, each one tap from its evidence.</li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         {/* Section 1: Anomaly Events */}

@@ -21,6 +21,8 @@ interface VesselForGeoJSON {
   anomalyConfidence?: string | null;
   anomalyDetectedAt?: Date | null;
   position: {
+    /** Observation time of this fix. Optional for position-only fallbacks. */
+    time?: Date | string | null;
     latitude: number;
     longitude: number;
     speed: number | null;
@@ -38,8 +40,20 @@ interface VesselForGeoJSON {
  * @param vessels - Array of vessels with position data
  * @returns GeoJSON FeatureCollection for map rendering
  */
+/**
+ * Hours since a fix was observed, or null when the fix carries no time.
+ * Exposed as a feature property so the map can fade stale contacts.
+ */
+export function observationAgeHours(time: Date | string | null | undefined, now: number = Date.now()): number | null {
+  if (!time) return null;
+  const t = time instanceof Date ? time.getTime() : new Date(time).getTime();
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, (now - t) / 3_600_000);
+}
+
 export function vesselsToGeoJSON(
-  vessels: VesselForGeoJSON[]
+  vessels: VesselForGeoJSON[],
+  now: number = Date.now()
 ): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: 'FeatureCollection',
@@ -64,6 +78,12 @@ export function vesselsToGeoJSON(
           heading: v.position!.heading,
           navStatus: v.position!.navStatus,
           lowConfidence: v.position!.lowConfidence,
+          // Observation time (ISO) and age — the marker's own freshness, not
+          // the API response's. Selecting a contact must preserve this.
+          time: v.position!.time
+            ? (v.position!.time instanceof Date ? v.position!.time.toISOString() : String(v.position!.time))
+            : null,
+          ageHours: observationAgeHours(v.position!.time, now),
           // Sanctions properties
           isSanctioned: v.isSanctioned || false,
           sanctioningAuthority: v.sanctioningAuthority || null,

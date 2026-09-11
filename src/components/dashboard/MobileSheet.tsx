@@ -12,6 +12,7 @@
 
 import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useSheetDetent, type Detent } from '@/lib/hooks/useSheetDetent';
+import type { WatchItem } from '@/lib/watch/compose';
 
 export interface Chokepoint {
   name: string;
@@ -24,6 +25,10 @@ export interface MobileSheetProps {
   /** Forced back to peek by the parent — e.g. a vessel was selected. */
   collapsed: boolean;
   panels: { prices: ReactNode; intel: ReactNode };
+  /** Lead observation from the current watch; the peek strip advertises it. */
+  watch?: WatchItem | null;
+  /** Called when the advertised observation is tapped. */
+  onOpenWatch?: (item: WatchItem) => void;
 }
 
 type TabId = 'choke' | 'prices' | 'intel';
@@ -40,7 +45,7 @@ const HEIGHT: Record<Detent, string> = {
   full: 'h-[72dvh]',
 };
 
-export function MobileSheet({ chokepoints, collapsed, panels }: MobileSheetProps) {
+export function MobileSheet({ chokepoints, collapsed, panels, watch = null, onOpenWatch }: MobileSheetProps) {
   const { detent, cycle, collapse, isOpen } = useSheetDetent();
   const [active, setActive] = useState<TabId>('choke');
   const baseId = useId();
@@ -84,7 +89,25 @@ export function MobileSheet({ chokepoints, collapsed, panels }: MobileSheetProps
         <span className="w-9 h-[3px] bg-amber-500/50" />
       </button>
 
-      {!isOpen && (
+      {!isOpen && watch && (
+        // The peek advertises the lead observation rather than a count: the
+        // count says the sea is busy; the observation says where to look.
+        <button
+          type="button"
+          data-testid="sheet-peek-watch"
+          onClick={() => onOpenWatch?.(watch)}
+          disabled={!watch.target}
+          className="h-11 shrink-0 w-full flex items-center gap-2 px-4 text-left disabled:cursor-default"
+          aria-label={`Current watch: ${watch.title}. ${watch.target ? 'Open on map' : ''}`}
+        >
+          <span className={`w-1.5 h-1.5 shrink-0 ${watch.tone === 'alert' ? 'bg-red-500' : 'bg-amber-500'}`} aria-hidden="true" />
+          <span className="text-[10px] font-mono uppercase tracking-wider text-amber-500 shrink-0">Watch</span>
+          <span className="text-xs font-mono text-gray-100 truncate">{watch.title}</span>
+          <span className="ml-auto text-[10px] font-mono text-gray-500 shrink-0">{watch.evidence}</span>
+        </button>
+      )}
+
+      {!isOpen && !watch && (
         // A per-chokepoint list here needed ~668px in a 390px viewport, so it
         // could only be a horizontal scroll strip — and this project has already
         // shipped one of those that hid 404px with no cue it existed. An

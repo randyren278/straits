@@ -3,7 +3,7 @@
  * Requirements: MAP-01
  */
 import { describe, it, expect } from 'vitest';
-import { vesselsToGeoJSON } from './geojson';
+import { vesselsToGeoJSON, observationAgeHours } from './geojson';
 import type { VesselWithPosition } from '@/types/vessel';
 
 describe('GeoJSON Conversion', () => {
@@ -82,6 +82,20 @@ describe('GeoJSON Conversion', () => {
       const result = vesselsToGeoJSON([mockVesselWithPosition]);
       const props = result.features[0].properties;
       expect(props?.lowConfidence).toBe(false);
+    });
+  });
+
+  describe('observation freshness', () => {
+    it('carries the fix time as an ISO string and its age in hours', () => {
+      const now = new Date('2026-03-11T15:00:00Z').getTime();
+      const result = vesselsToGeoJSON([mockVesselWithPosition], now);
+      expect(result.features[0].properties?.time).toBe('2026-03-11T12:00:00.000Z');
+      expect(result.features[0].properties?.ageHours).toBeCloseTo(3, 5);
+    });
+
+    it('reports null age when the fix has no time', () => {
+      expect(observationAgeHours(null)).toBeNull();
+      expect(observationAgeHours('not a date')).toBeNull();
     });
   });
 

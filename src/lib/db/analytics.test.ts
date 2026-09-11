@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getTrafficByChokepoint, getTrafficByRoute, getPriceHistoryForOverlay } from './analytics';
+import { getTrafficByChokepoint, getTrafficByRoute, getPriceHistoryForOverlay, getChokepointCoverage, COVERAGE_LOOKBACK_DAYS } from './analytics';
 
 // Mock the database pool
 vi.mock('./index', () => ({
@@ -209,5 +209,38 @@ describe('getPriceHistoryForOverlay', () => {
       { date: '2026-03-01', price: 75.50 },
       { date: '2026-03-02', price: 76.25 },
     ]);
+  });
+});
+
+describe('getChokepointCoverage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns null for an unknown chokepoint', async () => {
+    expect(await getChokepointCoverage('atlantis')).toBeNull();
+  });
+
+  it('summarises the observed day span over the 90-day lookback', async () => {
+    vi.mocked(pool.query).mockResolvedValue({
+      rows: [{ first_day: new Date('2026-09-03T00:00:00Z'), last_day: new Date('2026-09-11T00:00:00Z'), observed_days: '7' }],
+    } as any);
+
+    const coverage = await getChokepointCoverage('hormuz');
+
+    expect(coverage).toEqual({
+      firstObservation: '2026-09-03',
+      lastObservation: '2026-09-11',
+      observedDays: 7,
+      lookbackDays: COVERAGE_LOOKBACK_DAYS,
+    });
+    expect(vi.mocked(pool.query).mock.calls[0][1]).toEqual(['90 days', 23.5, 27.0, 55.5, 57.5]);
+  });
+
+  it('reports zero coverage when nothing was ever observed', async () => {
+    vi.mocked(pool.query).mockResolvedValue({ rows: [{ first_day: null, last_day: null, observed_days: '0' }] } as any);
+    const coverage = await getChokepointCoverage('suez');
+    expect(coverage?.firstObservation).toBeNull();
+    expect(coverage?.observedDays).toBe(0);
   });
 });

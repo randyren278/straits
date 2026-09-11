@@ -15,9 +15,12 @@ const vesselHarness = vi.hoisted(() => ({
     targetVesselImo: null,
     setSelectedVessel: vi.fn(),
     setLastUpdate: vi.fn(),
+    setLastObservation: vi.fn(),
+    setTrackStatus: vi.fn(),
     setMapCenter: vi.fn(),
     setTargetVesselImo: vi.fn(),
     setClusterVessels: vi.fn(),
+    setViewport: vi.fn(),
   },
 }));
 
@@ -83,9 +86,16 @@ vi.mock('maplibre-gl', () => {
     addLayer(layer: { id: string }) { this.layers.add(layer.id); }
     getLayer(id: string) { return this.layers.has(id) ? { id } : undefined; }
     removeLayer(id: string) { this.layers.delete(id); }
+    setFilter() {}
+    hasImage() { return false; }
+    addImage() {}
+    setPaintProperty() {}
+    setLayoutProperty() {}
+    getStyle() { return { layers: [] }; }
     getCanvas() { return this.canvas; }
     isStyleLoaded() { return true; }
     getZoom() { return 5; }
+    getCenter() { return { lat: 25, lng: 55 }; }
     queryRenderedFeatures() { return []; }
     project(coords: [number, number]) { return { x: coords[0], y: coords[1] }; }
     flyTo() {}
@@ -411,5 +421,101 @@ describe('VesselMap loading state', () => {
     expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-count', '1');
     expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('data-reveal-state', 'ready');
     expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('aria-hidden', 'true');
+  });
+});
+
+describe('VesselMap freshness and selection', () => {
+  it('records the initial viewport for shareable investigation links', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => response([vessel(1)])));
+    const { map } = await renderMap();
+    await emitMapLoad(map);
+
+    expect(vesselHarness.state.setViewport).toHaveBeenCalledWith({ lat: 25, lon: 55, zoom: 5 });
+  });
+
+  it('records the newest observation separately from the response timestamp', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        vessels: [vessel(1)],
+        timestamp: '2026-09-11T12:00:00.000Z',
+        latestObservation: '2026-09-05T08:00:00.000Z',
+      }),
+    })));
+    const { map } = await renderMap();
+    await emitMapLoad(map);
+    await waitFor(() => expect(vesselHarness.state.setLastUpdate).toHaveBeenCalled());
+
+    expect(vesselHarness.state.setLastUpdate).toHaveBeenCalledWith(new Date('2026-09-11T12:00:00.000Z'));
+    expect(vesselHarness.state.setLastObservation).toHaveBeenCalledWith(new Date('2026-09-05T08:00:00.000Z'));
+  });
+
+  it('keeps the fix time when a marker is clicked instead of stamping "now"', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => response([vessel(1)])));
+    const { map } = await renderMap();
+    const activeMap = await emitMapLoad(map);
+
+    act(() => activeMap.emit('click', {
+      features: [{
+        geometry: { type: 'Point', coordinates: [55.1, 25.1] },
+        properties: { mmsi: '123456781', imo: '9000001', name: 'TEST VESSEL 1', time: '2026-09-05T08:00:00.000Z' },
+      }],
+    }));
+
+    expect(vesselHarness.state.setSelectedVessel).toHaveBeenCalledWith(expect.objectContaining({
+      mmsi: '123456781',
+      lastSeen: new Date('2026-09-05T08:00:00.000Z'),
+      position: expect.objectContaining({ time: new Date('2026-09-05T08:00:00.000Z') }),
+    }));
+  });
+
+  it('reports an empty 24h track as "empty", not as a drawn track', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).startsWith('/api/positions/')) {
+        return { ok: true, status: 200, json: async () => ({ positions: [] }) };
+      }
+      return response([vessel(1)]);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vesselHarness.state.selectedVessel = vessel(1) as any;
+    vesselHarness.state.showTrack = true;
+
+    const { map } = await renderMap();
+    await emitMapLoad(map);
+
+    await waitFor(() => expect(vesselHarness.state.setTrackStatus).toHaveBeenCalledWith({ state: 'empty', hours: 24 }));
+    expect(map.getLayer('vessel-track')).toBeUndefined();
+
+    vesselHarness.state.selectedVessel = null;
+    vesselHarness.state.showTrack = false;
+  });
+
+  it('reports a drawn track with its fix count', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).startsWith('/api/positions/')) {
+        return {
+          ok: true, status: 200,
+          json: async () => ({ positions: [
+            { time: '2026-09-10T10:00:00Z', latitude: 25, longitude: 55 },
+            { time: '2026-09-10T11:00:00Z', latitude: 25.1, longitude: 55.1 },
+            { time: '2026-09-10T12:00:00Z', latitude: 25.2, longitude: 55.2 },
+          ] }),
+        };
+      }
+      return response([vessel(1)]);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vesselHarness.state.selectedVessel = vessel(1) as any;
+    vesselHarness.state.showTrack = true;
+
+    const { map } = await renderMap();
+    await emitMapLoad(map);
+
+    await waitFor(() => expect(vesselHarness.state.setTrackStatus).toHaveBeenCalledWith({ state: 'ready', count: 3, hours: 24 }));
+    expect(map.getLayer('vessel-track')).toBeDefined();
+
+    vesselHarness.state.selectedVessel = null;
+    vesselHarness.state.showTrack = false;
   });
 });

@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { AnomalyBadge } from '@/components/ui/AnomalyBadge';
 import { useVesselStore } from '@/stores/vessel';
 import { formatAnomalyDetails } from '@/lib/anomaly/format-details';
+import { authorityLabel, riskCategoryLabel } from '@/lib/sanctions/labels';
 import type { RiskFactors } from '@/lib/db/risk-scores';
 import type {
   AnomalyType,
@@ -289,7 +290,7 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
                     </span>
                   </div>
                   {detailLine && (
-                    <div className="text-gray-400 mt-0.5 font-mono">{detailLine}</div>
+                    <div className="text-gray-300 mt-0.5 font-mono">{detailLine}</div>
                   )}
                 </div>
                 );
@@ -385,9 +386,12 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
             <div className="border border-red-700 bg-red-900/30">
               <div className="px-3 py-1.5 border-b border-red-700 flex items-center gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                <span className="text-xs text-red-400 font-mono uppercase tracking-widest">SANCTIONED</span>
+                <span className="text-xs text-red-400 font-mono uppercase tracking-widest">
+                  {riskCategoryLabel(sanctionDetail.riskCategory).label}
+                </span>
               </div>
               <div className="px-3 py-2 space-y-1.5">
+                <p className="text-xs text-red-200/90">{riskCategoryLabel(sanctionDetail.riskCategory).meaning}</p>
                 <div className="flex justify-between text-xs">
                   <span className="text-red-300">Authority</span>
                   <span className="font-mono text-white">{sanctionDetail.authority}</span>
@@ -395,8 +399,8 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
                 {sanctionDetail.datasets && sanctionDetail.datasets.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {sanctionDetail.datasets.map((d) => (
-                      <span key={d} className="text-[10px] font-mono px-1.5 py-0.5 border border-red-700 text-red-300">
-                        {d.replace(/_/g, ' ')}
+                      <span key={d} className="text-[11px] font-mono px-1.5 py-0.5 border border-red-700 text-red-200" title={d}>
+                        {authorityLabel(d)}
                       </span>
                     ))}
                   </div>
@@ -412,7 +416,7 @@ export function FleetVesselDetail({ imo, anomalyDetails, anomalyType }: FleetVes
                     <span className="text-xs text-red-300">Aliases:</span>
                     <div className="mt-0.5 flex flex-wrap gap-1">
                       {sanctionDetail.aliases.map((alias) => (
-                        <span key={alias} className="text-[10px] font-mono text-gray-400 bg-gray-800/50 px-1 py-0.5">
+                        <span key={alias} className="text-[11px] font-mono text-gray-300 bg-gray-800/60 px-1 py-0.5">
                           {alias}
                         </span>
                       ))}

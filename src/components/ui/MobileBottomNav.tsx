@@ -16,7 +16,7 @@ const DESTINATIONS = [
   { href: '/dashboard', label: 'Map', Icon: Map },
   { href: '/analytics', label: 'Analytics', Icon: BarChart3 },
   { href: '/fleet', label: 'Fleet', Icon: Ship },
-  { href: '/about', label: 'About', Icon: Info },
+  { href: '/about', label: 'Manual', Icon: Info },
 ] as const;
 
 export function MobileBottomNav() {

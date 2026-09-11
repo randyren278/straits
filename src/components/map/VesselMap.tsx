@@ -17,6 +17,14 @@ import { useVesselStore } from '@/stores/vessel';
 import { vesselsToGeoJSON } from '@/lib/map/geojson';
 import { filterTankers } from '@/lib/map/filter';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
+import { AIS_COVERAGE } from '@/lib/geo/coverage-constants';
+import {
+  ACTIVITY_COLOR_EXPRESSION,
+  IDENTITY_STROKE_COLOR_EXPRESSION,
+  IDENTITY_STROKE_WIDTH_EXPRESSION,
+  freshnessOpacityExpression,
+} from '@/lib/map/marker-style';
+import { BASEMAP_CLUTTER_PATTERN } from '@/lib/map/basemap';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
 import type { ClusterVessel, MapCenter } from '@/stores/vessel';
 
@@ -69,8 +77,10 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
   const [mapError, setMapError] = useState<string | null>(null);
   const [vesselLoadState, setVesselLoadState] = useState<VesselLoadState>('loading');
 
-  const { tankersOnly, setSelectedVessel, setLastUpdate, selectedVessel, showTrack, mapCenter, setMapCenter, anomalyFilter, targetVesselImo, setTargetVesselImo } =
-    useVesselStore();
+  const {
+    tankersOnly, setSelectedVessel, setLastUpdate, setLastObservation, setTrackStatus,
+    selectedVessel, showTrack, mapCenter, setMapCenter, anomalyFilter, targetVesselImo, setTargetVesselImo,
+  } = useVesselStore();
 
   /**
    * Submit a response to MapLibre and only settle the initial loading state
@@ -249,6 +259,11 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       if (!e.features?.length) return;
       const props = e.features[0].properties;
       const coords = (e.features[0].geometry as GeoJSON.Point).coordinates;
+      // The fix's own observation time, carried through the GeoJSON properties.
+      // Falling back to "now" here is what made every selected contact read as
+      // observed "less than a minute ago" regardless of its real age.
+      const observedAt = props?.time ? new Date(props.time) : null;
+      const observed = observedAt && !Number.isNaN(observedAt.getTime()) ? observedAt : new Date();
 
       const vessel: VesselWithSanctions = {
         imo: props?.imo || null,
@@ -257,7 +272,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         flag: props?.flag || null,
         shipType: props?.shipType ?? null,
         destination: props?.destination || null,
-        lastSeen: new Date(),
+        lastSeen: observed,
         isSanctioned: props?.isSanctioned || false,
         sanctioningAuthority: props?.sanctioningAuthority || null,
         sanctionReason: null,
@@ -265,7 +280,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         anomalyType: props?.anomalyType || null,
         anomalyConfidence: props?.anomalyConfidence || null,
         position: {
-          time: new Date(),
+          time: observed,
           mmsi: props?.mmsi || '',
           imo: props?.imo || null,
           latitude: coords[1],
@@ -285,7 +300,16 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     const handleMouseLeave = () => {
       if (map.current) map.current.getCanvas().style.cursor = '';
     };
-    const handleMoveEnd = () => detectProximityGroup();
+    const handleMoveEnd = () => {
+      detectProximityGroup();
+      // Keep the store's notion of the viewport current for shareable links.
+      try {
+        const c = mapInstance.getCenter();
+        useVesselStore.getState().setViewport({ lat: c.lat, lon: c.lng, zoom: mapInstance.getZoom() });
+      } catch {
+        // Not fatal; the link simply omits the view.
+      }
+    };
 
     mapInstance.on('load', () => {
       if (map.current !== mapInstance) return;
@@ -307,66 +331,133 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
           type: 'circle',
           source: 'vessels',
           paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 10, 8],
-          'circle-color': [
-            'case',
-            // Priority 1: Going dark confirmed (bright red)
-            ['all',
-              ['==', ['get', 'anomalyType'], 'going_dark'],
-              ['==', ['get', 'anomalyConfidence'], 'confirmed']
-            ],
-            '#ef4444',
-            // Priority 2: Going dark suspected (yellow)
-            ['all',
-              ['==', ['get', 'anomalyType'], 'going_dark'],
-              ['==', ['get', 'anomalyConfidence'], 'suspected']
-            ],
-            '#eab308',
-            // Priority 3: Loitering (orange)
-            ['==', ['get', 'anomalyType'], 'loitering'],
-            '#f97316',
-            // Priority 4: Speed anomaly (blue)
-            ['==', ['get', 'anomalyType'], 'speed'],
-            '#3b82f6',
-            // Priority 5: Deviation (purple)
-            ['==', ['get', 'anomalyType'], 'deviation'],
-            '#a855f7',
-            // Priority 6: Sanctioned vessels (bright red)
-            ['all',
-              ['==', ['get', 'isSanctioned'], true],
-              ['==', ['get', 'sanctionRiskCategory'], 'sanction']
-            ],
-            '#ef4444',
-            // Priority 7: Shadow fleet vessels (purple)
-            ['all',
-              ['==', ['get', 'isSanctioned'], true],
-              ['==', ['get', 'sanctionRiskCategory'], 'mare.shadow;poi']
-            ],
-            '#a855f7',
-            // Priority 8: Detained vessels (dim red/rose)
-            ['all',
-              ['==', ['get', 'isSanctioned'], true],
-              ['any',
-                ['==', ['get', 'sanctionRiskCategory'], 'mare.detained'],
-                ['==', ['get', 'sanctionRiskCategory'], 'mare.detained;reg.warn']
-              ]
-            ],
-            '#fb7185',
-            // Priority 9: Other sanctioned/listed vessels (red fallback)
-            ['==', ['get', 'isSanctioned'], true],
-            '#ef4444',
-            // Normal traffic is intentionally source- and type-neutral. The
-            // Middle East fallback must not create a second visual vocabulary; only
-            // genuine anomalies and sanctions above receive alert colors.
-            '#6b7280',
-          ],
-          // Keep normal points visually uniform; confidence remains available
-          // in the vessel panel instead of being mistaken for a feed/source key.
-          'circle-stroke-width': 1,
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-opacity': 1,
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 10, 8],
+            // Three independent channels (see src/lib/map/marker-style.ts):
+            //   fill    = activity (what the vessel is doing right now)
+            //   outline = identity (what lists it is on)
+            //   opacity = freshness (how old the fix is)
+            // Red used to mean both "sanctioned" and "going dark confirmed";
+            // purple meant both "shadow fleet" and "route deviation".
+            'circle-color': ACTIVITY_COLOR_EXPRESSION,
+            'circle-stroke-color': IDENTITY_STROKE_COLOR_EXPRESSION,
+            'circle-stroke-width': IDENTITY_STROKE_WIDTH_EXPRESSION,
+            'circle-opacity': freshnessOpacityExpression(null),
+            'circle-stroke-opacity': freshnessOpacityExpression(null),
           },
         });
+      }
+
+      // ─── Heading indicators ────────────────────────────────────
+      // A small chevron ahead of the dot, only where AIS reports a real
+      // heading (511 = unavailable) and the vessel is actually under way.
+      // Stationary or heading-less contacts get no arrow rather than a
+      // misleading one.
+      try {
+        if (!mapInstance.hasImage('vessel-heading')) {
+          const size = 32;
+          const canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(size / 2, 2);
+            ctx.lineTo(size / 2 + 7, 16);
+            ctx.lineTo(size / 2, 12);
+            ctx.lineTo(size / 2 - 7, 16);
+            ctx.closePath();
+            ctx.fill();
+            mapInstance.addImage('vessel-heading', ctx.getImageData(0, 0, size, size), { sdf: true });
+          }
+        }
+        if (mapInstance.hasImage('vessel-heading') && !mapInstance.getLayer('vessel-headings')) {
+          mapInstance.addLayer({
+            id: 'vessel-headings',
+            type: 'symbol',
+            source: 'vessels',
+            minzoom: 7,
+            filter: ['all',
+              ['has', 'heading'],
+              ['<', ['coalesce', ['get', 'heading'], 511], 360],
+              ['>', ['coalesce', ['get', 'speed'], 0], 0.5],
+            ],
+            layout: {
+              'icon-image': 'vessel-heading',
+              'icon-size': ['interpolate', ['linear'], ['zoom'], 7, 0.35, 12, 0.6],
+              'icon-rotate': ['get', 'heading'],
+              'icon-rotation-alignment': 'map',
+              'icon-offset': [0, -22],
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
+            },
+            paint: { 'icon-color': '#ffffff', 'icon-opacity': 0.75 },
+          });
+        }
+      } catch {
+        // Canvas or image support missing (tests, headless); dots still render.
+      }
+
+      // ─── Selection lock ────────────────────────────────────────
+      // A restrained ring around the acquired contact; the filter is set on
+      // selection change (see the selection effect below).
+      if (!mapInstance.getLayer('vessel-selected-ring')) {
+        mapInstance.addLayer({
+          id: 'vessel-selected-ring',
+          type: 'circle',
+          source: 'vessels',
+          filter: ['==', ['get', 'mmsi'], '__none__'],
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 9, 10, 16],
+            'circle-color': '#f59e0b',
+            'circle-opacity': 0.08,
+            'circle-stroke-color': '#f59e0b',
+            'circle-stroke-width': 1.5,
+            'circle-stroke-opacity': 0.95,
+          },
+        });
+      }
+
+      // ─── Monitored coverage ────────────────────────────────────
+      // The harvester's subscription boxes. Outside these, an empty sea means
+      // "not watched", not "no traffic".
+      const coverageFeatures: GeoJSON.Feature<GeoJSON.Polygon>[] = AIS_COVERAGE.map((b, i) => ({
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [b.minLon, b.minLat], [b.maxLon, b.minLat], [b.maxLon, b.maxLat], [b.minLon, b.maxLat], [b.minLon, b.minLat],
+          ]],
+        },
+        properties: { index: i },
+      }));
+      if (!mapInstance.getSource('coverage')) {
+        mapInstance.addSource('coverage', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: coverageFeatures },
+        });
+      }
+      if (!mapInstance.getLayer('coverage-outline')) {
+        mapInstance.addLayer({
+          id: 'coverage-outline',
+          type: 'line',
+          source: 'coverage',
+          paint: { 'line-color': '#f59e0b', 'line-width': 1, 'line-opacity': 0.14, 'line-dasharray': [1, 3] },
+        }, 'vessel-circles');
+      }
+
+      // ─── Basemap declutter ─────────────────────────────────────
+      // This is a maritime picture: inland roads, buildings and POIs compete
+      // with the contacts for attention at operational zooms. Water, coast,
+      // country/major-city labels stay.
+      try {
+        for (const layer of mapInstance.getStyle()?.layers ?? []) {
+          if (BASEMAP_CLUTTER_PATTERN.test(layer.id)) {
+            mapInstance.setLayoutProperty(layer.id, 'visibility', 'none');
+          }
+        }
+      } catch {
+        // Style introspection is best-effort; a basemap change must not break the map.
       }
 
       // ─── Chokepoint bounding box overlays ──────────────────────
@@ -437,6 +528,16 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       // populate the sidebar panel.
       mapInstance.on('moveend', handleMoveEnd);
 
+      // A user can copy a contact link before ever panning. Seed the current
+      // view as soon as the map is usable so that link still carries the map
+      // position promised by the dossier action.
+      try {
+        const c = mapInstance.getCenter();
+        useVesselStore.getState().setViewport({ lat: c.lat, lon: c.lng, zoom: mapInstance.getZoom() });
+      } catch {
+        // Map remains usable; copied links will omit the view until moveend.
+      }
+
       mapLoadedRef.current = true;
       setMapLoaded(true);
     });
@@ -489,6 +590,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         firstRequestAttemptedRef.current = true;
         setVessels(nextVessels);
         setLastUpdate(new Date(data.timestamp));
+        setLastObservation(data.latestObservation ? new Date(data.latestObservation) : null);
         // Keep the HUD until submitVesselGeoJson has handed this response to
         // MapLibre and the following idle event confirms it was rendered.
         if (isFirstRequest) setVesselLoadState('loading');
@@ -508,7 +610,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       requestControllerRef.current?.abort();
       requestSequenceRef.current += 1;
     };
-  }, [tankersOnly, setLastUpdate]);
+  }, [tankersOnly, setLastUpdate, setLastObservation]);
 
   // Update map data when vessels change (or anomaly filter changes)
   useEffect(() => {
@@ -521,6 +623,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
   }, [vessels, mapLoaded, submitVesselGeoJson, detectProximityGroup]);
 
   // Handle track layer for selected vessel
+  const TRACK_HOURS = 24;
   const updateTrackLayer = useCallback(async () => {
     if (!map.current || !mapLoaded) return;
 
@@ -533,12 +636,23 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
 
     if (!selectedVessel || !showTrack) return;
 
+    // Every outcome is reported to the store so the panel can distinguish
+    // "loading", "no observations in the window", "request failed" and "drawn".
+    setTrackStatus({ state: 'loading' });
+    const mmsi = selectedVessel.mmsi;
     try {
-      const res = await fetch(`/api/positions/${selectedVessel.mmsi}?hours=24`);
+      const res = await fetch(`/api/positions/${mmsi}?hours=${TRACK_HOURS}`);
+      if (!res.ok) throw new Error(`Failed to load track: ${res.status}`);
       const data = await res.json();
       const positions = data.positions || [];
 
-      if (positions.length < 2) return;
+      // Selection changed while the request was in flight — drop it.
+      if (useVesselStore.getState().selectedVessel?.mmsi !== mmsi || !map.current) return;
+
+      if (positions.length < 2) {
+        setTrackStatus({ state: 'empty', hours: TRACK_HOURS });
+        return;
+      }
 
       const sorted = [...positions].sort(
         (a: { time: string }, b: { time: string }) =>
@@ -554,7 +668,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
             p.latitude,
           ]),
         },
-        properties: { mmsi: selectedVessel.mmsi },
+        properties: { mmsi },
       };
 
       map.current.addSource('vessel-track', {
@@ -571,15 +685,33 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
           'line-width': 2,
           'line-opacity': 0.8,
         },
-      });
+      }, 'vessel-circles');
+      setTrackStatus({ state: 'ready', count: positions.length, hours: TRACK_HOURS });
     } catch (err) {
       console.error('Failed to load track:', err);
+      if (useVesselStore.getState().selectedVessel?.mmsi === mmsi) {
+        setTrackStatus({ state: 'error' });
+      }
     }
-  }, [selectedVessel, showTrack, mapLoaded]);
+  }, [selectedVessel, showTrack, mapLoaded, setTrackStatus]);
 
   useEffect(() => {
     updateTrackLayer();
   }, [updateTrackLayer]);
+
+  // Selection lock: ring the acquired contact and let the rest of the field
+  // recede. Opacity stays freshness-weighted for every marker.
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+    const selectedMmsi = selectedVessel?.mmsi ?? null;
+    try {
+      map.current.setFilter('vessel-selected-ring', ['==', ['get', 'mmsi'], selectedMmsi ?? '__none__']);
+      map.current.setPaintProperty('vessel-circles', 'circle-opacity', freshnessOpacityExpression(selectedMmsi));
+      map.current.setPaintProperty('vessel-circles', 'circle-stroke-opacity', freshnessOpacityExpression(selectedMmsi));
+    } catch {
+      // Layers not present yet (style still loading); the load handler sets defaults.
+    }
+  }, [selectedVessel, mapLoaded]);
 
   // Handle map navigation from search or chokepoint selection
   useEffect(() => {

@@ -11,6 +11,7 @@
  */
 'use client';
 
+import { CurrentWatchPanel } from './CurrentWatchPanel';
 import { ClusterPanel } from './ClusterPanel';
 import { VesselPanel } from './VesselPanel';
 import { WatchlistPanel } from './WatchlistPanel';
@@ -21,13 +22,16 @@ import { useVesselStore } from '@/stores/vessel';
 export function RailPanels() {
   const selectedVessel = useVesselStore((state) => state.selectedVessel);
 
+  // Hierarchy: the selected contact leads while someone is investigating;
+  // the watch stays reachable above it. Prices and news collapse beneath.
   return (
     <>
-      <ClusterPanel />
       {selectedVessel && <VesselPanel />}
+      <CurrentWatchPanel />
+      <ClusterPanel />
       <WatchlistPanel />
       <OilPricePanel />
-      <NewsPanel />
+      <NewsPanel collapseOnSelection />
     </>
   );
 }

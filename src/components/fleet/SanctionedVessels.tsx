@@ -8,6 +8,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { riskCategoryLabel } from '@/lib/sanctions/labels';
 import { FleetVesselDetail } from '@/components/fleet/FleetVesselDetail';
 import { TablePager } from '@/components/fleet/TablePager';
 import { SortableHeader, MobileSortBar } from '@/components/fleet/SortControls';
@@ -24,6 +25,26 @@ export const SANCTIONED_SORT_COLUMNS: SortColumn<Anomaly>[] = [
   { key: 'vesselName', label: 'Vessel Name', defaultDir: 'asc', value: (v) => v.vesselName ?? null },
   { key: 'riskScore', label: 'Risk Score', defaultDir: 'desc', value: (v) => v.riskScore ?? null },
 ];
+
+const BADGE_TONE: Record<ReturnType<typeof riskCategoryLabel>['tone'], string> = {
+  red: 'border-red-500/60 text-red-300',
+  purple: 'border-purple-500/60 text-purple-300',
+  rose: 'border-rose-500/60 text-rose-300',
+  amber: 'border-amber-500/60 text-amber-300',
+};
+
+/** Readable category badge — the raw OpenSanctions code lives in the tooltip. */
+function RiskCategoryBadge({ code }: { code: string | null | undefined }) {
+  const cat = riskCategoryLabel(code);
+  return (
+    <span
+      className={`inline-block text-xs font-mono uppercase tracking-wider px-1.5 py-0.5 border ${BADGE_TONE[cat.tone]}`}
+      title={`${cat.meaning}${code ? ` (${code})` : ''}`}
+    >
+      {cat.label}
+    </span>
+  );
+}
 
 export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
   const [expandedImo, setExpandedImo] = useState<string | null>(null);
@@ -141,8 +162,8 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
                       <span className="text-gray-400">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-sm font-mono text-gray-400">
-                    {vessel.sanctionRiskCategory || '—'}
+                  <td className="px-4 py-2 text-sm font-mono">
+                    <RiskCategoryBadge code={vessel.sanctionRiskCategory} />
                   </td>
                 </tr>
                 {expandedImo === vessel.imo && (
@@ -193,8 +214,8 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
               <div className="text-xs font-mono text-gray-500 mt-1">
                 IMO {vessel.imo} · {vessel.flag || '—'}
               </div>
-              <div className="text-xs font-mono text-red-400/90 mt-1.5 border-t border-red-500/15 pt-1.5">
-                {vessel.sanctionRiskCategory || '—'}
+              <div className="text-xs font-mono mt-1.5 border-t border-red-500/15 pt-1.5">
+                <RiskCategoryBadge code={vessel.sanctionRiskCategory} />
               </div>
             </button>
             {expandedImo === vessel.imo && (

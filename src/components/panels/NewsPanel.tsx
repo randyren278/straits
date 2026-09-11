@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { useVesselStore } from '@/stores/vessel';
 
 interface NewsItem {
   title: string;
@@ -29,11 +30,18 @@ export const VISIBLE_HEADLINES = 8;
  * - Collapse/expand toggle
  * - Auto-refresh every 5 minutes
  */
-export function NewsPanel() {
+export function NewsPanel({ collapseOnSelection = false }: { collapseOnSelection?: boolean } = {}) {
   const [headlines, setHeadlines] = useState<NewsItem[]>([]);
   const [collapsed, setCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const hasSelection = useVesselStore((s) => s.selectedVessel !== null);
+
+  // While someone is investigating a contact the dossier needs the room;
+  // general news folds away and can be reopened with one tap.
+  useEffect(() => {
+    if (collapseOnSelection && hasSelection) setCollapsed(true);
+  }, [collapseOnSelection, hasSelection]);
 
   useEffect(() => {
     const fetchNews = async () => {

@@ -29,10 +29,24 @@ export async function insertNewsItem(item: NewsHeadline): Promise<void> {
 }
 
 /**
+ * Maximum publication age for a headline to appear in the live feed.
+ * Relevance still ranks first, but without a cutoff a high-scoring week-old
+ * story outranked today's news indefinitely.
+ */
+export const NEWS_MAX_AGE_HOURS = 72;
+
+/**
  * Get the latest news headlines from the database.
  * Returns headlines ranked by relevance to the tracker (highest first),
  * tie-broken by publication date (newest first) so the most operationally
  * relevant items surface ahead of merely-recent noise.
+ *
+ * Production hygiene:
+ * - Demo records (seeded with example.com URLs by scripts/seed-demo.ts) are
+ *   excluded so placeholder headlines attributed to real outlets never reach
+ *   the live feed.
+ * - Only headlines published within NEWS_MAX_AGE_HOURS are returned.
+ * - Syndicated duplicates (same title, different URL) collapse to the newest.
  *
  * @param limit - Maximum number of headlines to return (default 15)
  * @returns Array of news headlines with relevance scores
@@ -45,11 +59,18 @@ export async function getLatestNews(limit: number = 15): Promise<NewsHeadline[]>
     publishedAt: Date;
     relevanceScore: number;
   }>(`
-    SELECT title, source, url, published_at as "publishedAt", relevance_score as "relevanceScore"
-    FROM news_items
-    ORDER BY relevance_score DESC, published_at DESC
+    SELECT title, source, url, "publishedAt", "relevanceScore"
+    FROM (
+      SELECT DISTINCT ON (lower(regexp_replace(title, '\\s+', ' ', 'g')))
+        title, source, url, published_at AS "publishedAt", relevance_score AS "relevanceScore"
+      FROM news_items
+      WHERE url NOT LIKE '%example.com%'
+        AND published_at > NOW() - ($2 || ' hours')::interval
+      ORDER BY lower(regexp_replace(title, '\\s+', ' ', 'g')), published_at DESC
+    ) deduped
+    ORDER BY "relevanceScore" DESC, "publishedAt" DESC
     LIMIT $1
-  `, [limit]);
+  `, [limit, NEWS_MAX_AGE_HOURS]);
   return result.rows;
 }
 

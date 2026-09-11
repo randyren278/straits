@@ -14,7 +14,8 @@ import { ChokepointSelector } from '@/components/ui/ChokepointSelector';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
-import type { TrafficWithPrices, RouteTrafficPoint, RouteRegion } from '@/types/analytics';
+import { describeEmptyTraffic } from '@/components/charts/TrafficChart';
+import type { TrafficWithPrices, RouteTrafficPoint, RouteRegion, TrafficCoverage } from '@/types/analytics';
 
 interface CorrelationData {
   chokepoint: string;
@@ -22,6 +23,7 @@ interface CorrelationData {
   priceSymbol: string;
   range: string;
   data: TrafficWithPrices[];
+  coverage: TrafficCoverage | null;
 }
 
 /** Human-readable labels for route regions used as chart titles. */
@@ -51,6 +53,8 @@ export default function AnalyticsPage() {
 
   // Chokepoint view: correlation data keyed by chokepoint ID.
   const [chartData, setChartData] = useState<Record<string, TrafficWithPrices[]>>({});
+  // Per-chokepoint coverage so an empty chart can say where the data is.
+  const [coverage, setCoverage] = useState<Record<string, TrafficCoverage | null>>({});
   // Route view: traffic data keyed by route region.
   const [routeData, setRouteData] = useState<Record<string, TrafficWithPrices[]>>({});
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +87,7 @@ export default function AnalyticsPage() {
         setRouteData(grouped);
       } else {
         const results: Record<string, TrafficWithPrices[]> = {};
+        const coverages: Record<string, TrafficCoverage | null> = {};
 
         await Promise.all(
           selectedChokepoints.map(async (cpId) => {
@@ -96,10 +101,12 @@ export default function AnalyticsPage() {
 
             const json: CorrelationData = await res.json();
             results[cpId] = json.data;
+            coverages[cpId] = json.coverage ?? null;
           })
         );
 
         setChartData(results);
+        setCoverage(coverages);
       }
     } catch (err) {
       console.error('Analytics fetch error:', err);
@@ -231,6 +238,19 @@ export default function AnalyticsPage() {
               {selectedChokepoints.map((cpId) => {
                 const chokepoint = CHOKEPOINTS[cpId];
                 const data = chartData[cpId] || [];
+                const cpCoverage = coverage[cpId] ?? null;
+
+                // Offer the cheapest way out of an empty chart: a range that
+                // reaches the observed days, or dropping the ship-type filter.
+                let action: { label: string; onClick: () => void } | null = null;
+                if (data.length === 0 && cpCoverage && cpCoverage.observedDays > 0) {
+                  const { suggestedRange } = describeEmptyTraffic(cpCoverage, timeRange);
+                  if (suggestedRange) {
+                    action = { label: `Show ${suggestedRange}`, onClick: () => setTimeRange(suggestedRange) };
+                  } else if (shipTypeFilter !== 'all') {
+                    action = { label: 'Show all ship types', onClick: () => setShipTypeFilter('all') };
+                  }
+                }
 
                 return (
                   <TrafficChart
@@ -240,6 +260,9 @@ export default function AnalyticsPage() {
                     showPrice={true}
                     priceLabel={priceSymbol}
                     height={350}
+                    coverage={cpCoverage}
+                    range={timeRange}
+                    action={action}
                   />
                 );
               })}
@@ -261,6 +284,7 @@ export default function AnalyticsPage() {
                     title={`${ROUTE_LABELS[route]} - Vessel Traffic`}
                     showPrice={false}
                     height={350}
+                    range={timeRange}
                   />
                 );
               })}

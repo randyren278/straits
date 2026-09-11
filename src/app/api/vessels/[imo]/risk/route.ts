@@ -24,6 +24,7 @@ export async function GET(
         ? {
             authority: sanction.sanctioningAuthority,
             riskCategory: sanction.riskCategory,
+            listDate: sanction.listDate,
             datasets: sanction.datasets,
             flag: sanction.flag,
             aliases: sanction.aliases,

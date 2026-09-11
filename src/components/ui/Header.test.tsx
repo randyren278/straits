@@ -3,7 +3,7 @@ import { render, screen, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Header } from './Header';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/dashboard' }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/dashboard', useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('./StatusChip', () => ({ StatusChip: () => <div data-testid="status-chip" /> }));
 vi.mock('./NotificationBell', () => ({ NotificationBell: () => <button>Notifications</button> }));
 vi.mock('./ChokepointWidget', () => ({ ChokepointWidgets: () => <div data-testid="chokepoints" /> }));

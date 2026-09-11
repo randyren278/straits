@@ -82,3 +82,11 @@ describe('SanctionedVessels', () => {
     expect(screen.getByText('[60]')).toBeInTheDocument();
   });
 });
+
+describe('SanctionedVessels — category labels', () => {
+  it('renders a readable category instead of the raw OpenSanctions code', () => {
+    render(<SanctionedVessels vessels={[makeVessel(1, { sanctionRiskCategory: 'mare.shadow;poi' })]} />);
+    expect(screen.queryByText('mare.shadow;poi')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Shadow fleet').length).toBeGreaterThan(0);
+  });
+});

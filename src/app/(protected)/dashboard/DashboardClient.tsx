@@ -4,7 +4,7 @@
  * Dashboard page with interactive vessel map.
  * Requirements: MAP-01, MAP-02, MAP-03, MAP-04, MAP-05, MAP-06, MAP-07, MAP-08, INTL-02, INTL-03, ANOM-01, HIST-02
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { VesselMap } from '@/components/map/VesselMap';
 import { VesselPanel } from '@/components/panels/VesselPanel';
 import { OilPricePanel } from '@/components/panels/OilPricePanel';
@@ -16,6 +16,10 @@ import { useVesselStore, type MapCenter } from '@/stores/vessel';
 import { MobileSheet, type Chokepoint } from '@/components/dashboard/MobileSheet';
 import { IntelDrawer } from '@/components/dashboard/IntelDrawer';
 import { MapFilterChips } from '@/components/map/MapFilterChips';
+import { MapLegend } from '@/components/map/MapLegend';
+import { useCurrentWatch, openWatchItem } from '@/components/panels/CurrentWatchPanel';
+import { parseInvestigation, serializeInvestigation } from '@/lib/dashboard/investigation-link';
+import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
 
 interface SearchResult {
   imo: string | null;
@@ -32,8 +36,56 @@ export function DashboardClient({ initialCenter }: { initialCenter?: MapCenter }
   const setTargetVesselImo = useVesselStore((state) => state.setTargetVesselImo);
   const setSelectedVessel = useVesselStore((state) => state.setSelectedVessel);
   const selectedVessel = useVesselStore((state) => state.selectedVessel);
+  const tankersOnly = useVesselStore((state) => state.tankersOnly);
+  const anomalyFilter = useVesselStore((state) => state.anomalyFilter);
+  const targetVesselImo = useVesselStore((state) => state.targetVesselImo);
+  const mapCenter = useVesselStore((state) => state.mapCenter);
+  const viewport = useVesselStore((state) => state.viewport);
+  const skippedInitialLinkWrite = useRef(false);
+
+  // Shareable investigation links — read once on mount, write on change.
+  // replaceState keeps the address bar honest without a Next navigation.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const link = parseInvestigation(window.location.search);
+    const store = useVesselStore.getState();
+    if (link.tankersOnly) store.setTankersOnly(true);
+    if (link.anomaliesOnly) store.setAnomalyFilter(true);
+    if (link.view) store.setMapCenter(link.view);
+    else if (link.chokepoint) {
+      const b = CHOKEPOINTS[link.chokepoint].bounds;
+      store.setMapCenter({ lat: (b.minLat + b.maxLat) / 2, lon: (b.minLon + b.maxLon) / 2, zoom: 8 });
+    }
+    if (link.vessel) store.setTargetVesselImo(link.vessel);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // The hydration effect above updates Zustand synchronously, but this
+    // effect still belongs to the pre-hydration render. Let the resulting
+    // store update render once before writing, otherwise a deep link such as
+    // ?cp=suez or ?lat=... is stripped before the map can consume it.
+    if (!skippedInitialLinkWrite.current) {
+      skippedInitialLinkWrite.current = true;
+      return;
+    }
+    const qs = serializeInvestigation({
+      vessel: selectedVessel?.imo ?? targetVesselImo,
+      // mapCenter is the requested destination while a fly-to is pending;
+      // viewport becomes authoritative after MapLibre reports moveend.
+      view: mapCenter ?? viewport,
+      tankersOnly,
+      anomaliesOnly: anomalyFilter,
+    });
+    const next = `${window.location.pathname}${qs}`;
+    if (next !== `${window.location.pathname}${window.location.search}`) {
+      window.history.replaceState(window.history.state, '', next);
+    }
+  }, [selectedVessel?.imo, targetVesselImo, mapCenter, viewport, tankersOnly, anomalyFilter]);
 
   const [chokepoints, setChokepoints] = useState<Chokepoint[]>([]);
+  // Shares the rail panel's poller (usePolledJson is keyed by URL).
+  const watchItems = useCurrentWatch();
 
   // One fetch for both the desktop widgets and the mobile sheet strip.
   useEffect(() => {
@@ -148,6 +200,7 @@ export function DashboardClient({ initialCenter }: { initialCenter?: MapCenter }
           <div className="relative overflow-hidden flex-1 min-h-0">
             <VesselMap initialCenter={initialCenter} />
             <MapFilterChips />
+            <MapLegend />
             <IntelDrawer>
               <RailPanels />
             </IntelDrawer>
@@ -168,6 +221,8 @@ export function DashboardClient({ initialCenter }: { initialCenter?: MapCenter }
         chokepoints={chokepoints}
         collapsed={!!selectedVessel}
         panels={{ prices: <OilPricePanel />, intel: <NewsPanel /> }}
+        watch={watchItems?.[0] ?? null}
+        onOpenWatch={openWatchItem}
       />
 
       {/* Sits above the bottom nav. At bottom-0 the nav would cover its

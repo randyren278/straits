@@ -6,7 +6,10 @@ import { StatusChip, worstStatus, compactAge } from './StatusChip';
 // Mutable so individual tests can flip lastUpdate to null without relying on
 // vi.doMock racing an already-resolved static import (doMock isn't hoisted,
 // so it can't retroactively change what a module-scope `import` bound).
-const vesselMock = vi.hoisted(() => ({ lastUpdate: new Date(Date.now() - 60_000) as Date | null }));
+const vesselMock = vi.hoisted(() => ({
+  lastUpdate: new Date(Date.now() - 60_000) as Date | null,
+  lastObservation: new Date(Date.now() - 60_000) as Date | null,
+}));
 vi.mock('@/stores/vessel', () => ({
   useVesselStore: () => vesselMock,
 }));
@@ -21,6 +24,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vesselMock.lastUpdate = new Date(Date.now() - 60_000);
+  vesselMock.lastObservation = new Date(Date.now() - 60_000);
 });
 
 describe('worstStatus', () => {
@@ -73,8 +77,18 @@ describe('StatusChip', () => {
 
   it('still shows a status dot when there is no vessel timestamp', async () => {
     vesselMock.lastUpdate = null;
+    vesselMock.lastObservation = null;
     render(<StatusChip />);
     await waitFor(() => expect(screen.getByTestId('status-chip-mobile')).toBeInTheDocument());
+  });
+
+  it('reports the age of the newest observation, not the API refresh', async () => {
+    vesselMock.lastUpdate = new Date(Date.now() - 10_000);
+    vesselMock.lastObservation = new Date(Date.now() - 3 * 3_600_000);
+    render(<StatusChip />);
+    await waitFor(() =>
+      expect(screen.getByTestId('status-chip-mobile')).toHaveAccessibleName(/latest AIS fix 3h ago/i),
+    );
   });
 });
 

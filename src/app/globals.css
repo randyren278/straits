@@ -118,6 +118,17 @@
   opacity: 0.75;
 }
 
+/* Contact acquisition — a single brief amber sweep on the dossier header when
+   a contact is selected. Tied to a real state change (selection), not idle. */
+@keyframes straits-acquire {
+  0% { box-shadow: inset 3px 0 0 rgb(245 158 11 / 0.9); background-color: rgb(245 158 11 / 0.12); }
+  100% { box-shadow: inset 3px 0 0 rgb(245 158 11 / 0.35); background-color: transparent; }
+}
+
+.straits-acquire {
+  animation: straits-acquire 700ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .straits-map-surface,
   .straits-map-loading-overlay,
@@ -129,6 +140,11 @@
   .straits-acquisition-bar {
     animation: none;
     opacity: 0.75;
+  }
+
+  .straits-acquire {
+    animation: none;
+    box-shadow: inset 3px 0 0 rgb(245 158 11 / 0.35);
   }
 }
 

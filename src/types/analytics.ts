@@ -34,6 +34,22 @@ export interface TrafficWithPrices extends DailyTrafficPoint {
   oilPrice?: number;      // WTI or Brent price for that day
 }
 
+/**
+ * What position history actually exists for a zone, independent of the
+ * requested range. Lets an empty chart say *why* it is empty and where the
+ * data is, instead of drawing an empty frame.
+ */
+export interface TrafficCoverage {
+  /** Earliest observed day (YYYY-MM-DD) within the coverage lookback, or null. */
+  firstObservation: string | null;
+  /** Latest observed day (YYYY-MM-DD) within the coverage lookback, or null. */
+  lastObservation: string | null;
+  /** Number of distinct days with at least one fix in the lookback. */
+  observedDays: number;
+  /** Lookback window the coverage summary was computed over. */
+  lookbackDays: number;
+}
+
 /** Route destination regions for grouping */
 export type RouteRegion = 'east_asia' | 'europe' | 'americas' | 'unknown';
 

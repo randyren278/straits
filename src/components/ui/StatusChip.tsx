@@ -82,19 +82,20 @@ export function StatusChip() {
   const status = usePolledJson('/api/status', fetchStatus, 60 * 1000) ?? DEFAULT_STATUS;
   const [open, setOpen] = useState(false);
   const [age, setAge] = useState<string | null>(null);
-  const { lastUpdate } = useVesselStore();
+  // The age shown is the newest AIS *observation*, not when the API last
+  // answered — a fresh response full of week-old fixes is not fresh data.
+  const { lastObservation } = useVesselStore();
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Recomputed on a tick so the impure clock read never happens during render.
   useEffect(() => {
-    if (!lastUpdate || !isValid(lastUpdate)) {
-      return;
-    }
-    const compute = () => setAge(compactAge(lastUpdate));
+    const valid = !!lastObservation && isValid(lastObservation);
+    const compute = () => setAge(valid ? compactAge(lastObservation) : null);
     compute();
+    if (!valid) return;
     const interval = setInterval(compute, 10_000);
     return () => clearInterval(interval);
-  }, [lastUpdate]);
+  }, [lastObservation]);
 
   useEffect(() => {
     if (!open) return;
@@ -106,7 +107,7 @@ export function StatusChip() {
   const worst = worstStatus(status);
   const worstLabel = worst ?? 'unknown';
   // The chip's label is abbreviated for space; the accessible name is not.
-  const spoken = age === 'now' ? 'data updated just now' : age ? `data updated ${age} ago` : null;
+  const spoken = age === 'now' ? 'latest AIS fix just now' : age ? `latest AIS fix ${age} ago` : null;
   const summary = spoken ? `Systems ${worstLabel}, ${spoken}` : `Systems ${worstLabel}`;
 
   return (
@@ -123,7 +124,11 @@ export function StatusChip() {
           className="desk:hidden min-h-[44px] min-w-[44px] px-2 inline-flex items-center gap-1.5"
         >
           <span className={`w-1.5 h-1.5 ${dotClass(worst)}`} />
-          {age && <span className="text-xs font-mono text-gray-400">{age}</span>}
+          {age && (
+            <span className="text-xs font-mono text-gray-400">
+              <span className="text-gray-600">fix </span>{age}
+            </span>
+          )}
         </button>
         {open && (
           <div

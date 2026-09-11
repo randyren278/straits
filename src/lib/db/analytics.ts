@@ -8,7 +8,7 @@
 import { pool } from './index';
 import { CHOKEPOINTS } from '../geo/chokepoints';
 import { classifyRoute } from '../analytics/routes';
-import type { DailyTrafficPoint, RouteTrafficPoint, TimeRange, ShipTypeFilter } from '@/types/analytics';
+import type { DailyTrafficPoint, RouteTrafficPoint, TimeRange, ShipTypeFilter, TrafficCoverage } from '@/types/analytics';
 import { timeRangeToDays } from '@/types/analytics';
 
 /**
@@ -65,6 +65,38 @@ export async function getTrafficByChokepoint(
     vesselCount: parseInt(row.vessel_count, 10),
     tankerCount: parseInt(row.tanker_count, 10),
   }));
+}
+
+/** Coverage lookback — the widest range the analytics view offers. */
+export const COVERAGE_LOOKBACK_DAYS = 90;
+
+/**
+ * Summarise what position history exists inside a chokepoint over the
+ * coverage lookback, regardless of the range the user asked for.
+ */
+export async function getChokepointCoverage(chokepointId: string): Promise<TrafficCoverage | null> {
+  const chokepoint = CHOKEPOINTS[chokepointId];
+  if (!chokepoint) return null;
+  const { minLat, maxLat, minLon, maxLon } = chokepoint.bounds;
+
+  const result = await pool.query<{ first_day: Date | null; last_day: Date | null; observed_days: string }>(`
+    SELECT
+      MIN(date_trunc('day', time)) AS first_day,
+      MAX(date_trunc('day', time)) AS last_day,
+      COUNT(DISTINCT date_trunc('day', time))::text AS observed_days
+    FROM vessel_positions
+    WHERE time > NOW() - $1::interval
+      AND latitude BETWEEN $2 AND $3
+      AND longitude BETWEEN $4 AND $5
+  `, [`${COVERAGE_LOOKBACK_DAYS} days`, minLat, maxLat, minLon, maxLon]);
+
+  const row = result.rows[0];
+  return {
+    firstObservation: row?.first_day ? row.first_day.toISOString().split('T')[0] : null,
+    lastObservation: row?.last_day ? row.last_day.toISOString().split('T')[0] : null,
+    observedDays: row ? parseInt(row.observed_days, 10) || 0 : 0,
+    lookbackDays: COVERAGE_LOOKBACK_DAYS,
+  };
 }
 
 /**

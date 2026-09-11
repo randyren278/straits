@@ -11,7 +11,7 @@
  * - shipType: ShipTypeFilter ('all'|'tanker'|'cargo'|'other') - default 'all'
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getTrafficByChokepoint, getPriceHistoryForOverlay } from '@/lib/db/analytics';
+import { getTrafficByChokepoint, getPriceHistoryForOverlay, getChokepointCoverage } from '@/lib/db/analytics';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints';
 import type { TimeRange, TrafficWithPrices, ShipTypeFilter } from '@/types/analytics';
 
@@ -49,9 +49,11 @@ export async function GET(request: NextRequest) {
       : 'all';
 
     // Fetch traffic and prices in parallel — oil prices are independent of ship type
-    const [trafficData, priceData] = await Promise.all([
+    const [trafficData, priceData, coverage] = await Promise.all([
       getTrafficByChokepoint(chokepointId, range, shipTypeFilter),
       getPriceHistoryForOverlay(priceSymbol, range),
+      // Only needed to explain an empty chart, but cheap enough to always send.
+      getChokepointCoverage(chokepointId),
     ]);
 
     // Create price lookup by date
@@ -69,6 +71,7 @@ export async function GET(request: NextRequest) {
       priceSymbol,
       range,
       data: correlationData,
+      coverage,
     });
   } catch (error) {
     console.error('Analytics correlation API error:', error);

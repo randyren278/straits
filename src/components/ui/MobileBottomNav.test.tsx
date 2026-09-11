@@ -10,7 +10,7 @@ afterEach(() => { cleanup(); pathname.current = '/dashboard'; });
 describe('MobileBottomNav', () => {
   it('renders all four destinations', () => {
     render(<MobileBottomNav />);
-    for (const label of ['Map', 'Analytics', 'Fleet', 'About']) {
+    for (const label of ['Map', 'Analytics', 'Fleet', 'Manual']) {
       expect(screen.getByRole('link', { name: new RegExp(label, 'i') })).toBeInTheDocument();
     }
   });

@@ -18,6 +18,7 @@ import { AnomalyFilter } from './AnomalyFilter';
 import { StatusChip } from './StatusChip';
 import { StraitsMark } from './StraitsMark';
 import { AisOutageBanner } from './AisOutageBanner';
+import { CommandPalette } from './CommandPalette';
 
 interface SearchResult {
   imo: string | null;
@@ -45,7 +46,7 @@ const NAV_ITEMS = [
   { href: '/dashboard', label: 'Live Map', id: 'dashboard' },
   { href: '/analytics', label: 'Analytics', id: 'analytics' },
   { href: '/fleet', label: 'Fleet', id: 'fleet' },
-  { href: '/about', label: 'About', id: 'about' },
+  { href: '/about', label: 'Manual', id: 'about' },
 ] as const;
 
 export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
@@ -54,6 +55,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
+    <>
     <header className="bg-black border-b border-amber-500/20">
       <div className="min-h-14 phone:min-h-11 flex items-center justify-between px-4 roomy:flex-wrap phone:h-auto phone:flex-col phone:items-stretch phone:gap-0">
         <div className="flex items-center phone:justify-between phone:min-h-11 phone:w-full">
@@ -122,10 +124,10 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
           {activeTab === 'dashboard' && (
             <SearchInput onSelectVessel={onSearchSelect} />
           )}
+          <CommandPalette />
           <div className="flex items-center gap-4">
             {activeTab === 'dashboard' && (
               <div className="hidden desk:flex items-center gap-4">
-                <DataFreshness />
                 <TankerFilter />
                 <AnomalyFilter />
               </div>
@@ -145,17 +147,23 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
       {activeTab === 'dashboard' && (
         <div
           data-testid="header-chokepoints"
-          className="phone:hidden flex items-start px-4 py-2 border-t border-amber-500/10"
+          className="phone:hidden flex items-center gap-4 px-4 py-2 border-t border-amber-500/10"
         >
-          <div className="w-full">
+          <div className="flex-1 min-w-0">
             <ChokepointWidgets onSelect={onChokepointSelect} />
+          </div>
+          <div className="hidden desk:block shrink-0">
+            <DataFreshness />
           </div>
         </div>
       )}
 
-      {/* Not gated on activeTab: a dark AIS feed empties the fleet table and
-          analytics charts too, so the explanation belongs on every route. */}
-      <AisOutageBanner />
     </header>
+    {/* Not gated on activeTab: a dark AIS feed empties the fleet table and
+        analytics charts too, so the explanation belongs on every route. Keep
+        it outside the header so an outage message does not turn into permanent
+        navigation chrome on a phone. */}
+    <AisOutageBanner />
+    </>
   );
 }

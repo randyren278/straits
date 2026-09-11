@@ -13,10 +13,16 @@ export async function GET(request: Request) {
     // Use getVesselsWithSanctions which includes LEFT JOIN to vessel_sanctions
     const vessels = await getVesselsWithSanctions(tankersOnly);
 
+    // `timestamp` is when this response was assembled. `latestObservation` is
+    // the newest AIS fix in the set — the number that actually says how
+    // current the picture is. Rows are ordered by p.time DESC, so it's row 0.
+    const latestObservation = vessels[0]?.position?.time ?? null;
+
     return NextResponse.json(
       {
         vessels,
         timestamp: new Date().toISOString(),
+        latestObservation: latestObservation ? new Date(latestObservation).toISOString() : null,
       },
       {
         // Positions refresh on a multi-minute cadence; serve a cached copy for

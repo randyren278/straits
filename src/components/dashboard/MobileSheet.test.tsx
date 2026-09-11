@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MobileSheet } from './MobileSheet';
 
@@ -124,5 +124,21 @@ describe('MobileSheet', () => {
 
     await user.click(handle);
     expect(screen.getByRole('tab', { name: /prices/i })).toBeInTheDocument();
+  });
+});
+
+describe('MobileSheet peek — current watch', () => {
+  it('advertises the lead observation instead of the aggregate count when one exists', () => {
+    const onOpenWatch = vi.fn();
+    const watch = {
+      kind: 'event' as const, title: 'ABROS — going dark', detail: 'confirmed', evidence: 'risk 72',
+      at: '2026-09-11T10:00:00Z', target: { lat: 25, lon: 56, zoom: 9, imo: '9000001' }, tone: 'alert' as const,
+    };
+    setup({ watch, onOpenWatch });
+    expect(screen.queryByTestId('sheet-peek-strip')).not.toBeInTheDocument();
+    const peek = screen.getByTestId('sheet-peek-watch');
+    expect(peek).toHaveTextContent('ABROS — going dark');
+    fireEvent.click(peek);
+    expect(onOpenWatch).toHaveBeenCalledWith(watch);
   });
 });

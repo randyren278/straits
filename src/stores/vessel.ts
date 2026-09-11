@@ -27,6 +27,18 @@ export interface SelectableVessel {
   position: VesselWithSanctions['position'] | null;
 }
 
+/**
+ * Track-history load state. 'empty' means the request succeeded but returned
+ * fewer than two fixes — distinct from 'error' (request failed) and from
+ * 'idle' (track not requested) so the panel can say which one it is.
+ */
+export type TrackStatus =
+  | { state: 'idle' }
+  | { state: 'loading' }
+  | { state: 'ready'; count: number; hours: number }
+  | { state: 'empty'; hours: number }
+  | { state: 'error' };
+
 /** Map center and zoom for flyTo navigation */
 export interface MapCenter {
   lat: number;
@@ -62,10 +74,16 @@ interface VesselStore {
   tankersOnly: boolean;
   /** Whether to show track history for selected vessel */
   showTrack: boolean;
-  /** Timestamp of last data refresh */
+  /** Timestamp of last data refresh (when the vessel API responded) */
   lastUpdate: Date | null;
+  /** Newest AIS observation in the last response (how current the picture is) */
+  lastObservation: Date | null;
+  /** Outcome of the most recent track-history load for the selected vessel */
+  trackStatus: TrackStatus;
   /** Target map center for flyTo navigation (null = no navigation pending) */
   mapCenter: MapCenter | null;
+  /** Where the map currently is (updated on moveend) — for shareable links */
+  viewport: MapCenter | null;
   /** User's vessel watchlist */
   watchlist: WatchlistEntry[];
   /** User's alerts (recent) */
@@ -86,8 +104,14 @@ interface VesselStore {
   setShowTrack: (value: boolean) => void;
   /** Update last refresh timestamp */
   setLastUpdate: (date: Date) => void;
+  /** Update newest-observation timestamp */
+  setLastObservation: (date: Date | null) => void;
+  /** Record the result of a track-history load */
+  setTrackStatus: (status: TrackStatus) => void;
   /** Set map center for flyTo navigation */
   setMapCenter: (center: MapCenter | null) => void;
+  /** Record the current map viewport */
+  setViewport: (view: MapCenter | null) => void;
   /** Set watchlist entries */
   setWatchlist: (entries: WatchlistEntry[]) => void;
   /** Set alerts and recalculate unread count */
@@ -114,7 +138,10 @@ export const useVesselStore = create<VesselStore>((set) => ({
   tankersOnly: false,
   showTrack: false,
   lastUpdate: null,
+  lastObservation: null,
+  trackStatus: { state: 'idle' },
   mapCenter: null,
+  viewport: null,
 
   // Watchlist and alerts state
   watchlist: [],
@@ -125,11 +152,14 @@ export const useVesselStore = create<VesselStore>((set) => ({
   clusterVessels: null,
 
   // Existing setters
-  setSelectedVessel: (vessel) => set({ selectedVessel: vessel, showTrack: false }),
+  setSelectedVessel: (vessel) => set({ selectedVessel: vessel, showTrack: false, trackStatus: { state: 'idle' } }),
   setTankersOnly: (tankersOnly) => set({ tankersOnly }),
   setShowTrack: (showTrack) => set({ showTrack }),
   setLastUpdate: (lastUpdate) => set({ lastUpdate }),
+  setLastObservation: (lastObservation) => set({ lastObservation }),
+  setTrackStatus: (trackStatus) => set({ trackStatus }),
   setMapCenter: (mapCenter) => set({ mapCenter }),
+  setViewport: (viewport) => set({ viewport }),
 
   // Watchlist and alerts setters
   setWatchlist: (watchlist) => set({ watchlist }),

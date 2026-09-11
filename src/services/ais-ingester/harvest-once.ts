@@ -66,6 +66,7 @@ import { fetchFREDPrices } from '../../lib/external/fred';
 import { fetchAlphaVantagePrices, type OilPriceData } from '../../lib/external/alphavantage';
 import { insertPrice } from '../../lib/db/prices';
 import { fetchNews } from '../../lib/news/fetcher';
+import { AIS_COVERAGE } from '../../lib/geo/coverage-constants';
 import { insertNewsItem } from '../../lib/db/news';
 import { fetchSanctionsList } from '../../lib/external/opensanctions';
 import { batchUpsertSanctions, migrateSanctionsSchema } from '../../lib/db/sanctions';
@@ -117,14 +118,9 @@ const JAMMING_ZONES = [
 const isInJammingZone = (lat: number, lon: number) =>
   JAMMING_ZONES.some((z) => lat >= z.minLat && lat <= z.maxLat && lon >= z.minLon && lon <= z.maxLon);
 
-const AIS_BOUNDS = [
-  { minLat: 23.0, minLon: 47.0, maxLat: 30.0, maxLon: 57.5 },
-  { minLat: 15.0, minLon: 55.0, maxLat: 26.0, maxLon: 66.0 },
-  { minLat: 8.0, minLon: 60.0, maxLat: 25.0, maxLon: 78.0 },
-  { minLat: 12.0, minLon: 32.0, maxLat: 30.0, maxLon: 45.0 },
-  { minLat: 11.0, minLon: 42.0, maxLat: 14.0, maxLon: 52.0 },
-  { minLat: 29.5, minLon: 31.5, maxLat: 37.0, maxLon: 37.0 },
-] as const;
+// Shared with the dashboard's coverage overlay so the map can show what is
+// actually monitored (src/lib/geo/coverage-constants.ts).
+const AIS_BOUNDS = AIS_COVERAGE;
 const subscription = {
   APIKey: process.env.AISSTREAM_API_KEY,
   BoundingBoxes: AIS_BOUNDS.map((b) => [[b.minLat, b.minLon], [b.maxLat, b.maxLon]]),
