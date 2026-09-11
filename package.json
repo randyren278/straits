@@ -42,7 +42,7 @@
     "autoprefixer": "^10.5.4",
     "bcrypt": "^6.0.0",
     "date-fns": "^4.4.0",
-    "eslint": "^9.39.5",
+    "eslint": "^10.10.0",
     "eslint-config-next": "^16.3.4",
     "jose": "^6.2.9",
     "lucide-react": "^0.577.0",
