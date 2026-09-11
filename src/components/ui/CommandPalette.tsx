@@ -174,7 +174,7 @@ export function CommandPalette() {
         onClick={() => setOpen(true)}
         aria-label="Open command palette"
         title="Jump to a vessel, chokepoint or page (⌘K)"
-        className="hidden roomy:inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-1 px-2 py-1 border border-gray-800 text-[10px] font-mono uppercase tracking-wider text-gray-500 hover:text-amber-500 hover:border-amber-500/40"
+        className="hidden roomy:inline-flex tablet:min-h-[44px] min-w-[44px] items-center justify-center gap-1 px-3 py-1 border border-gray-700 text-xs font-mono uppercase tracking-wider text-gray-400 hover:text-amber-500 hover:border-amber-500/40"
       >
         <Command className="w-3 h-3" aria-hidden="true" />
         K
