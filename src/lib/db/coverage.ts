@@ -66,13 +66,22 @@ export async function upsertCollectionBuckets(rows: readonly CollectionBucketRow
   return written;
 }
 
+/**
+ * One row per 10-minute bucket with sources merged. Sources are disjoint per
+ * harvest (primary wins per MMSI before anything is written), so unique
+ * counts add across sources.
+ */
 export async function getRecentBuckets(region: string, hours: number): Promise<QualityBucket[]> {
   const result = await pool.query<{
     bucket_start: Date; message_count: number; unique_mmsi: number; latest_fix: Date | null;
   }>(
-    `SELECT bucket_start, message_count, unique_mmsi, latest_fix
+    `SELECT bucket_start,
+            SUM(message_count)::int AS message_count,
+            SUM(unique_mmsi)::int AS unique_mmsi,
+            MAX(latest_fix) AS latest_fix
      FROM collection_buckets
      WHERE region = $1 AND bucket_start > NOW() - ($2 || ' hours')::interval
+     GROUP BY bucket_start
      ORDER BY bucket_start DESC`,
     [region, String(hours)],
   );
@@ -104,8 +113,9 @@ export interface HourlyBucket {
   /** ISO start of the hour (UTC). */
   hour: string;
   messages: number;
-  /** Peak per-bucket unique MMSI within the hour (buckets are 10 min; a sum would double count). */
+  /** Peak per-bucket unique MMSI within the hour, sources summed per bucket (a sum across buckets would double count). */
   unique: number;
+  /** Peak per-bucket unique MMSI heard from the primary / the fallback. */
   aisstream: number;
   fallback: number;
   /** Number of 10-minute collection rows in the hour — 0 means the harvester never ran. */
@@ -126,15 +136,24 @@ export async function getCoverageHistory(hours: number): Promise<RegionHistory[]
   const result = await pool.query<{
     region: string; hour: Date; messages: number; unique: number; aisstream: number; fallback: number; attempted: number;
   }>(
-    `SELECT region,
+    `WITH per_bucket AS (
+       SELECT region, bucket_start,
+              SUM(message_count) AS messages,
+              SUM(unique_mmsi) AS unique_all,
+              SUM(unique_mmsi) FILTER (WHERE source = 'aisstream') AS unique_primary,
+              SUM(unique_mmsi) FILTER (WHERE source <> 'aisstream') AS unique_fallback
+       FROM collection_buckets
+       WHERE region = ANY($1) AND bucket_start > NOW() - ($2 || ' hours')::interval
+       GROUP BY region, bucket_start
+     )
+     SELECT region,
             date_trunc('hour', bucket_start) AS hour,
-            SUM(message_count)::int AS messages,
-            MAX(unique_mmsi)::int AS unique,
-            MAX(unique_mmsi) FILTER (WHERE source = 'aisstream')::int AS aisstream,
-            MAX(unique_mmsi) FILTER (WHERE source <> 'aisstream')::int AS fallback,
-            COUNT(DISTINCT bucket_start)::int AS attempted
-     FROM collection_buckets
-     WHERE region = ANY($1) AND bucket_start > NOW() - ($2 || ' hours')::interval
+            SUM(messages)::int AS messages,
+            MAX(unique_all)::int AS unique,
+            COALESCE(MAX(unique_primary), 0)::int AS aisstream,
+            COALESCE(MAX(unique_fallback), 0)::int AS fallback,
+            COUNT(*)::int AS attempted
+     FROM per_bucket
      GROUP BY region, hour
      ORDER BY region, hour`,
     [Object.keys(CHOKEPOINTS), String(hours)],

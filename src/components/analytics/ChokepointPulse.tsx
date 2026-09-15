@@ -5,7 +5,7 @@
  * Loads /api/chokepoints/suez/crossings for the range, then again with ?day=
  * when a bar is picked. Only Suez has a crossing model today.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CrossingsChart } from './CrossingsChart';
 import { VoyagesTable } from './VoyagesTable';
 import type { DailyCrossingCounts } from '@/lib/analytics/crossings';
@@ -31,6 +31,7 @@ export function ChokepointPulse({ range }: { range: TimeRange }) {
   const [voyages, setVoyages] = useState<VoyageRow[] | null>(null);
   const [reason, setReason] = useState<string | null>(null);
   const [loadingDay, setLoadingDay] = useState(false);
+  const requestSeq = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,15 +43,19 @@ export function ChokepointPulse({ range }: { range: TimeRange }) {
   }, [range]);
 
   const selectDay = (day: string) => {
+    const seq = ++requestSeq.current;
     setSelectedDay(day);
     setLoadingDay(true);
     setVoyages(null);
     setReason(null);
     fetch(`/api/chokepoints/suez/crossings?range=${range}&day=${day}`)
       .then((r) => r.json() as Promise<CrossingsResponse>)
-      .then((json) => { setVoyages(json.voyages ?? null); setReason(json.reason ?? null); })
-      .catch(() => { setVoyages(null); setReason('failed to load voyages'); })
-      .finally(() => setLoadingDay(false));
+      .then((json) => {
+        if (seq !== requestSeq.current) return; // a later click superseded this one
+        setVoyages(json.voyages ?? null); setReason(json.reason ?? null);
+      })
+      .catch(() => { if (seq === requestSeq.current) { setVoyages(null); setReason('failed to load voyages'); } })
+      .finally(() => { if (seq === requestSeq.current) setLoadingDay(false); });
   };
 
   return (

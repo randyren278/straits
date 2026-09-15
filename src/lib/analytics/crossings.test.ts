@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeCrossings, aggregateDaily, type TrackPoint } from './crossings';
+import { computeCrossings, aggregateDaily, aggregateDailyRange, dayRange, type TrackPoint } from './crossings';
 
 const T0 = Date.parse('2026-09-12T00:00:00Z');
 const at = (minutes: number, lat: number, lon: number): TrackPoint => ({ time: new Date(T0 + minutes * 60_000), latitude: lat, longitude: lon });
@@ -122,5 +122,63 @@ describe('aggregateDaily', () => {
       { day: '2026-09-12', northbound: 0, southbound: 1, waiting: 0, incomplete: 0, distinctMmsi: 1 },
       { day: '2026-09-13', northbound: 0, southbound: 1, waiting: 0, incomplete: 1, distinctMmsi: 2 },
     ]);
+  });
+});
+
+describe('window discipline', () => {
+  it('a window that starts mid-passage loses the transit — which is why partial windows are never written', () => {
+    const full = southbound(0);
+    const truncated = full.filter((p) => p.time.getTime() >= T0 + 120 * 60_000); // window opens at 02:00
+    expect(computeCrossings(tracks({ a: full })).filter((c) => c.status === 'complete')).toHaveLength(1);
+    expect(computeCrossings(tracks({ a: truncated })).filter((c) => c.status === 'complete')).toHaveLength(0);
+  });
+
+  it('aggregateDailyRange zero-fills every requested day and drops days outside the range', () => {
+    const out = aggregateDailyRange(computeCrossings(tracks({ a: southbound(0) })), ['2026-09-11', '2026-09-12']);
+    expect(out).toEqual([
+      { day: '2026-09-11', northbound: 0, southbound: 0, waiting: 0, incomplete: 0, distinctMmsi: 0 },
+      { day: '2026-09-12', northbound: 0, southbound: 1, waiting: 0, incomplete: 0, distinctMmsi: 1 },
+    ]);
+    expect(aggregateDailyRange(computeCrossings(tracks({ a: southbound(0) })), ['2026-09-13'])[0].southbound).toBe(0);
+  });
+
+  it('dayRange counts back from the end day inclusive', () => {
+    expect(dayRange('2026-09-15', 3)).toEqual(['2026-09-13', '2026-09-14', '2026-09-15']);
+  });
+});
+
+describe('edge cases from review', () => {
+  it('far gate reached implausibly fast is labelled as such, not as "track ended"', () => {
+    const track = [at(0, PORT_SAID.lat, PORT_SAID.lon), at(30, CANAL.lat, CANAL.lon), at(60, SUEZ.lat, SUEZ.lon)];
+    const out = computeCrossings(tracks({ teleport: track }));
+    expect(out).toHaveLength(1);
+    expect(out[0].status).toBe('incomplete');
+    expect(out[0].reason).toMatch(/physically implausible/);
+  });
+
+  it('a false start (gate → canal → back to the same gate → canal → far gate) is exactly one transit', () => {
+    const track = [
+      at(0, PORT_SAID.lat, PORT_SAID.lon),
+      at(60, CANAL.lat + 0.5, CANAL.lon),   // poked into the corridor
+      at(120, PORT_SAID.lat, PORT_SAID.lon), // came back
+      at(180, PORT_SAID.lat, PORT_SAID.lon),
+      at(420, CANAL.lat, CANAL.lon),
+      at(900, SUEZ.lat, SUEZ.lon),
+    ];
+    const out = computeCrossings(tracks({ v: track }));
+    expect(out.filter((c) => c.status === 'complete')).toHaveLength(1);
+    expect(out.filter((c) => c.status === 'incomplete')).toHaveLength(0);
+  });
+
+  it('a 9-hour edge-to-edge passage at a normal canal speed is a transit', () => {
+    const track = [at(0, 31.21, 32.33), at(240, CANAL.lat, CANAL.lon), at(540, 30.04, 32.55)];
+    expect(computeCrossings(tracks({ slow: track })).filter((c) => c.status === 'complete')).toHaveLength(1);
+  });
+
+  it('the same vessel can wait at the anchorage and then transit — both are recorded', () => {
+    const wait = Array.from({ length: 40 }, (_, i) => at(i * 10, PS_ANCHOR.lat, PS_ANCHOR.lon)); // 6.5 h
+    const track = [...wait, ...southbound(500)];
+    const out = computeCrossings(tracks({ w: track }));
+    expect(out.map((c) => c.status).sort()).toEqual(['complete', 'waiting']);
   });
 });

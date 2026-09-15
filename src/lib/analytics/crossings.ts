@@ -1,6 +1,11 @@
 /**
  * Suez crossing model — pure.
  *
+ * Input caveat: fallback-relayed fixes are stamped with the harvest time, so a
+ * vessel the provider holds at a last-known position looks like a stationary
+ * track with fresh timestamps. Inside an anchorage that reads as "waiting";
+ * it never reads as a transit (a transit needs both gates in time order).
+ *
  * Turns per-vessel position tracks into observed corridor movements:
  *
  *   complete    gate-in at one end, then gate-out at the other, in time order,
@@ -46,7 +51,7 @@ export interface CrossingOptions {
   gates?: Record<SuezGateId, GateBox>;
   corridor?: GateBox;
   waitingZones?: Record<string, GateBox>;
-  /** Fastest plausible passage between the gates. */
+  /** Fastest plausible passage between the gates (inner edges ~128 km apart; ~6 h at a fast 12 kn). */
   minTravelMinutes?: number;
   /** A contact must be this far outside a gate box before its visit closes. */
   hysteresisKm?: number;
@@ -62,7 +67,7 @@ const DEFAULTS: Required<CrossingOptions> = {
   gates: SUEZ_GATES,
   corridor: SUEZ_CORRIDOR,
   waitingZones: SUEZ_WAITING_ZONES,
-  minTravelMinutes: 600,
+  minTravelMinutes: 360,
   hysteresisKm: 3,
   incompleteAfterHours: 48,
   waitingMinHours: 6,
@@ -147,7 +152,8 @@ export function computeCrossings(
     const trackEnd = track[track.length - 1];
 
     let pending: Visit | null = null;
-    const settlePending = (nextIndex: number, nextEntry: Date | null) => {
+    const direction = (gate: SuezGateId): CrossingDirection => (gate === 'port_said' ? 'southbound' : 'northbound');
+    const settlePending = (nextIndex: number, nextEntry: Date | null, reason?: string) => {
       if (!pending) return;
       const entered = enteredCorridorBetween(track, pending.exitIndex, nextIndex, o.corridor);
       if (!entered) return;
@@ -155,30 +161,28 @@ export function computeCrossings(
       const elapsedH = (horizon.getTime() - pending.exit.getTime()) / 3_600_000;
       crossings.push({
         mmsi, status: 'incomplete', gateInAt: pending.exit, gateOutAt: null,
-        direction: pending.gate === 'port_said' ? 'southbound' : 'northbound',
-        reason: elapsedH >= o.incompleteAfterHours
+        direction: direction(pending.gate),
+        reason: reason ?? (elapsedH >= o.incompleteAfterHours
           ? `no far-gate fix within ${o.incompleteAfterHours}h`
-          : 'track ended before the far gate',
+          : 'track ended before the far gate'),
       });
     };
 
     for (const v of visits) {
       if (pending && v.gate === OTHER[pending.gate]) {
-        const travelMin = (v.entry.getTime() - pending.exit.getTime()) / 60_000;
+        const travelMin = Math.round((v.entry.getTime() - pending.exit.getTime()) / 60_000);
         if (travelMin >= o.minTravelMinutes) {
-          crossings.push({
-            mmsi, status: 'complete', gateInAt: pending.exit, gateOutAt: v.entry,
-            direction: pending.gate === 'port_said' ? 'southbound' : 'northbound',
-          });
-          pending = v;
-          continue;
+          crossings.push({ mmsi, status: 'complete', gateInAt: pending.exit, gateOutAt: v.entry, direction: direction(pending.gate) });
+        } else {
+          // The far gate was seen, but sooner than a ship can get there — a
+          // duplicate MMSI, a bad fix, or a spoof. Never a transit.
+          settlePending(v.exitIndex, v.entry, `far gate reached in ${travelMin}min — physically implausible`);
         }
-        // Too fast to be a passage: the entry visit is not a transit start.
-        settlePending(v.exitIndex, v.entry);
         pending = v;
         continue;
       }
-      if (pending) settlePending(v.exitIndex, v.entry);
+      // Same gate again (a false start into the corridor, then back): the
+      // later visit is the real candidate; the excursion is not a journey.
       pending = v;
     }
     settlePending(track.length, null);
@@ -201,6 +205,28 @@ export interface DailyCrossingCounts {
 /** Day a crossing belongs to: gate-out for completes, dwell/gate-in start otherwise. UTC. */
 export function crossingDay(c: Crossing): string {
   return (c.gateOutAt ?? c.gateInAt).toISOString().slice(0, 10);
+}
+
+/** UTC calendar day of a Date as YYYY-MM-DD. */
+export function utcDay(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** The `count` UTC days ending at `endDay` inclusive, oldest first. */
+export function dayRange(endDay: string, count: number): string[] {
+  const end = Date.parse(`${endDay}T00:00:00Z`);
+  return Array.from({ length: count }, (_, i) => new Date(end - (count - 1 - i) * 86_400_000).toISOString().slice(0, 10));
+}
+
+/**
+ * Daily counts for exactly `days`, zero-filled — a day with nothing observed
+ * is stored as zeros, never left missing. Crossings outside `days` are
+ * dropped: they belong to days the caller has not loaded whole tracks for.
+ */
+export function aggregateDailyRange(crossings: readonly Crossing[], days: readonly string[]): DailyCrossingCounts[] {
+  const wanted = new Set(days);
+  const computed = new Map(aggregateDaily(crossings.filter((c) => wanted.has(crossingDay(c)))).map((d) => [d.day, d]));
+  return days.map((day) => computed.get(day) ?? { day, northbound: 0, southbound: 0, waiting: 0, incomplete: 0, distinctMmsi: 0 });
 }
 
 export function aggregateDaily(crossings: readonly Crossing[]): DailyCrossingCounts[] {

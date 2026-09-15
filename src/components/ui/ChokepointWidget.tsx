@@ -154,12 +154,12 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
             <Anchor className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
             <div className="text-left flex-1 min-w-0">
               <p className="flex items-center justify-between gap-2">
-                <span className="text-xs text-gray-300 font-medium whitespace-nowrap">
+                <span className="text-xs font-mono text-gray-300 font-medium whitespace-nowrap">
                   {cp.name.replace('Strait of ', '').replace(' Canal', '')}
                 </span>
                 {quality && <QualityChip id={cp.id} quality={quality.quality} basis={quality.basis} />}
               </p>
-              <p className="text-xs text-gray-500 whitespace-nowrap" data-testid={`chokepoint-count-${cp.id}`}>
+              <p className="text-xs font-mono text-gray-500 whitespace-nowrap" data-testid={`chokepoint-count-${cp.id}`}>
                 {unobserved ? '— unobserved' : `${cp.tankerCount} tankers / ${cp.totalVessels} total`}
               </p>
             </div>

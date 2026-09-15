@@ -41,26 +41,26 @@ export function VoyagesTable({ day, voyages, reason, loading = false }: VoyagesT
       )}
       {day && !loading && voyages && voyages.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="w-full text-xs font-mono">
+          <table className="w-full text-sm font-mono">
             <thead>
-              <tr className="text-[10px] uppercase tracking-widest text-amber-500">
-                <th className="text-left px-4 py-1.5">MMSI</th>
-                <th className="text-left px-4 py-1.5">Route</th>
-                <th className="text-left px-4 py-1.5">Gate in</th>
-                <th className="text-left px-4 py-1.5">Gate out</th>
-                <th className="text-left px-4 py-1.5">Duration</th>
-                <th className="text-left px-4 py-1.5">Status</th>
+              <tr className="text-xs font-normal uppercase tracking-widest text-amber-500">
+                <th className="text-left px-4 py-2 font-normal">MMSI</th>
+                <th className="text-left px-4 py-2 font-normal">Route</th>
+                <th className="text-left px-4 py-2 font-normal">Gate in</th>
+                <th className="text-left px-4 py-2 font-normal">Gate out</th>
+                <th className="text-left px-4 py-2 font-normal">Duration</th>
+                <th className="text-left px-4 py-2 font-normal">Status</th>
               </tr>
             </thead>
             <tbody>
               {voyages.map((v, i) => (
                 <tr key={`${v.mmsi}-${v.gateInAt}-${i}`} data-testid="voyage-row" className="border-t border-amber-500/10 hover:bg-amber-500/5">
-                  <td className="px-4 py-1.5 text-gray-200">{v.mmsi}</td>
-                  <td className="px-4 py-1.5 text-gray-300">{v.status === 'waiting' ? `waiting (${v.direction})` : ROUTE[v.direction]}</td>
-                  <td className="px-4 py-1.5 text-gray-400">{hhmm(v.gateInAt)}</td>
-                  <td className="px-4 py-1.5 text-gray-400">{v.gateOutAt ? hhmm(v.gateOutAt) : '—'}</td>
-                  <td className="px-4 py-1.5 text-gray-400">{duration(v.durationMinutes)}</td>
-                  <td className={`px-4 py-1.5 ${v.status === 'complete' ? 'text-green-400' : v.status === 'waiting' ? 'text-gray-400' : 'text-yellow-300'}`}>
+                  <td className="px-4 py-2 text-gray-200">{v.mmsi}</td>
+                  <td className="px-4 py-2 text-gray-300">{v.status === 'waiting' ? `waiting (${v.direction})` : ROUTE[v.direction]}</td>
+                  <td className="px-4 py-2 text-gray-400">{hhmm(v.gateInAt)}</td>
+                  <td className="px-4 py-2 text-gray-400">{v.gateOutAt ? hhmm(v.gateOutAt) : '—'}</td>
+                  <td className="px-4 py-2 text-gray-400">{duration(v.durationMinutes)}</td>
+                  <td className={`px-4 py-2 ${v.status === 'complete' ? 'text-green-400' : v.status === 'waiting' ? 'text-gray-400' : 'text-yellow-300'}`}>
                     {v.status}{v.reason ? ` · ${v.reason}` : ''}
                   </td>
                 </tr>

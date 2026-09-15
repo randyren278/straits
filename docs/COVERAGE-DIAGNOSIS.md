@@ -103,3 +103,13 @@ therefore scope the per-region fallback to the **four chokepoint boxes**
 silent there), not the six coverage boxes. That bounds the added load to roughly
 +300 rows per harvest (~+43k/day) and still gives every chokepoint a real
 observation. Widening to the full boxes is a separate storage decision.
+
+**Revised 2026-09-15 (densify).** On request, the fallback now runs for all
+four chokepoint boxes every harvest, Suez included, so the crossing model sees
+one fix per vessel per harvest instead of AISStream's ~35–90-contact trickle.
+Measured cost: ~560 rows per harvest (~80k/day, ~560k rows over the 7-day
+retention). At the measured ~100 B heap per row plus three btree indexes that
+is on the order of 150 MB against the 500 MB Supabase cap. The 83 MB of index
+bloat found at rollout was reclaimed with a one-time `REINDEX` (→ 3.5 MB); if
+the table's indexes creep past ~100 MB again, reindex, and if row growth
+exceeds this estimate, drop Suez from the per-harvest fallback first.

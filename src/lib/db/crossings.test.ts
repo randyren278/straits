@@ -19,10 +19,12 @@ describe('loadSuezTracks', () => {
       { mmsi: 'a', time: new Date('2026-09-12T04:00:00Z'), latitude: 30.6, longitude: 32.33 },
       { mmsi: 'b', time: new Date('2026-09-12T01:00:00Z'), latitude: 29.95, longitude: 32.55 },
     ] } as never);
-    const tracks = await loadSuezTracks(7);
+    const since = new Date('2026-09-08T00:00:00Z');
+    const until = new Date('2026-09-15T03:00:00Z');
+    const tracks = await loadSuezTracks(since, until);
     expect([...tracks.keys()]).toEqual(['a', 'b']);
     expect(tracks.get('a')).toHaveLength(2);
-    expect(query.mock.calls[0][1]).toEqual(['7', 29.5, 32.5, 31.5, 33]);
+    expect(query.mock.calls[0][1]).toEqual([since, until, 29.5, 32.5, 31.5, 33]);
   });
 });
 

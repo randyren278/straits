@@ -50,19 +50,32 @@ export function classifyQuality(buckets: readonly QualityBucket[], now: Date): Q
 
   let latestFix: Date | null = null;
   let unique24h = 0;
-  let bucketsLast6h = 0;
+  const attemptedBuckets = new Set<number>();
   const nonEmptyHours = new Set<number>();
 
+  // Rows may arrive one per source; merge them per bucket first so a two-source
+  // harvest is one attempt and its unique counts add (sources are disjoint).
+  const merged = new Map<number, { messages: number; unique: number; latest: Date | null }>();
   for (const b of buckets) {
-    const age = nowMs - b.bucketStart.getTime();
+    const key = b.bucketStart.getTime();
+    const m = merged.get(key) ?? { messages: 0, unique: 0, latest: null };
+    m.messages += b.messageCount;
+    m.unique += b.uniqueMmsi;
+    if (b.latestFix && (!m.latest || b.latestFix > m.latest)) m.latest = b.latestFix;
+    merged.set(key, m);
+  }
+
+  for (const [start, b] of merged) {
+    const age = nowMs - start;
     if (age < 0) continue;
-    if (age <= 24 * hourMs && b.uniqueMmsi > unique24h) unique24h = b.uniqueMmsi;
-    if (b.latestFix && (!latestFix || b.latestFix > latestFix)) latestFix = b.latestFix;
+    if (age <= 24 * hourMs && b.unique > unique24h) unique24h = b.unique;
+    if (b.latest && (!latestFix || b.latest > latestFix)) latestFix = b.latest;
     if (age < lookbackMs) {
-      bucketsLast6h++;
-      if (b.messageCount > 0) nonEmptyHours.add(Math.floor(age / hourMs));
+      attemptedBuckets.add(start);
+      if (b.messages > 0) nonEmptyHours.add(Math.floor(age / hourMs));
     }
   }
+  const bucketsLast6h = attemptedBuckets.size;
 
   const latestFixAgeMinutes = latestFix ? Math.round((nowMs - latestFix.getTime()) / 60_000) : null;
   const nonEmptyLast6h = nonEmptyHours.size;

@@ -65,9 +65,9 @@ export function CrossingsChart({ days, selectedDay, onSelectDay, incompleteRatio
               contentStyle={{ backgroundColor: '#000000', border: '1px solid #374151', borderRadius: '0', fontFamily: MONO, fontSize: 11 }}
               labelFormatter={(label) => formatDate(String(label))}
             />
-            <Legend wrapperStyle={{ fontFamily: MONO, fontSize: 11 }} />
+            <Legend wrapperStyle={{ fontFamily: MONO, fontSize: 11 }} itemSorter={() => 0} />
             {(['northbound', 'southbound', 'waiting', 'incomplete'] as const).map((key) => (
-              <Bar key={key} dataKey={key} name={key} stackId="d" fill={COLORS[key]} stroke={key === 'incomplete' ? COLORS.waiting : undefined} strokeDasharray={key === 'incomplete' ? '3 2' : undefined} cursor="pointer">
+              <Bar key={key} dataKey={key} name={key} stackId="d" maxBarSize={48} fill={COLORS[key]} stroke={key === 'incomplete' ? COLORS.waiting : undefined} strokeDasharray={key === 'incomplete' ? '3 2' : undefined} cursor="pointer">
                 {days.map((d) => (
                   <Cell key={d.day} opacity={selectedDay && selectedDay !== d.day ? 0.45 : 1} />
                 ))}
@@ -87,7 +87,7 @@ export function CrossingsChart({ days, selectedDay, onSelectDay, incompleteRatio
               data-testid={`crossing-bar-${d.day}`}
               aria-pressed={selectedDay === d.day}
               onClick={() => onSelectDay(d.day)}
-              className={`text-[10px] font-mono px-2 py-1 border ${selectedDay === d.day ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-gray-700 text-gray-400 hover:bg-amber-500/5'}`}
+              className={`text-[10px] font-mono px-2 py-1 border focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-500 ${selectedDay === d.day ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-gray-700 text-gray-400 hover:bg-amber-500/5'}`}
             >
               {formatDate(d.day)} · {d.northbound + d.southbound}
             </button>

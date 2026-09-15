@@ -170,6 +170,9 @@ echo "Positions inserted: ${INSERTED:-0}  (of ${UNIQUE:-0} unique)"
 if [ "$SOURCE" = "middle-east-fallback" ] || [ "$SOURCE" = "free-fallback" ]; then
   echo "Source: Middle East fallback | color=orange"
   echo "Live identity records: ${FALLBACK_META:-0} (name + vessel class) | color=gray"
+elif [ "$SOURCE" = "mixed" ]; then
+  echo "Source: AISStream + Middle East fallback (per chokepoint) | color=gray"
+  echo "Live identity records: ${FALLBACK_META:-0} (name + vessel class) | color=gray"
 elif [ "$SOURCE" = "aisstream" ]; then
   echo "Source: AISStream | color=gray"
 else

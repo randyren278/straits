@@ -9,7 +9,7 @@ const basis = { bucketsLast6h: 35, nonEmptyLast6h: 6, latestFix: '2026-09-15T02:
 describe('QualityChip', () => {
   it.each([
     ['recent', 'Recent', 'text-green-400'],
-    ['intermittent', 'Intermittent', 'text-yellow-300'],
+    ['intermittent', 'Intermittent', 'text-yellow-400'],
     ['insufficient', 'Insufficient', 'text-gray-500'],
   ] as const)('%s renders a single-line short label and its tone', (quality, label, tone) => {
     render(<QualityChip id="hormuz" quality={quality} basis={basis} />);

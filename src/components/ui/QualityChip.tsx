@@ -10,9 +10,17 @@ import type { CoverageBasis } from '@/lib/hooks/useCoverageQuality';
 
 const TONE: Record<ObservationQuality, { text: string; dot: string; border: string }> = {
   recent: { text: 'text-green-400', dot: 'bg-green-400', border: 'border-green-400/40' },
-  intermittent: { text: 'text-yellow-300', dot: 'bg-yellow-300', border: 'border-yellow-300/40' },
+  intermittent: { text: 'text-yellow-400', dot: 'bg-yellow-400', border: 'border-yellow-400/40' },
   insufficient: { text: 'text-gray-500', dot: 'bg-gray-600', border: 'border-gray-700' },
 };
+
+/** Short form for narrow places (the rail): "fix 14m · 6/6 h · 35 windows". */
+export function describeBasisShort(basis: CoverageBasis): string {
+  const fix = basis.latestFixAgeMinutes === null
+    ? 'no fix 24h'
+    : basis.latestFixAgeMinutes < 60 ? `fix ${basis.latestFixAgeMinutes}m` : `fix ${Math.round(basis.latestFixAgeMinutes / 60)}h`;
+  return `${fix} · ${basis.nonEmptyLast6h}/6 h · ${basis.bucketsLast6h} windows`;
+}
 
 export function describeBasis(basis: CoverageBasis): string {
   const fix = basis.latestFixAgeMinutes === null
@@ -41,10 +49,9 @@ export function QualityChip({ id, quality, basis, variant = 'compact' }: Quality
       data-testid={`quality-chip-${id}`}
       data-quality={quality}
       title={detail}
-      aria-label={detail}
       className={`inline-flex items-center gap-1 whitespace-nowrap text-[10px] font-mono uppercase tracking-wider ${tone.text} ${variant === 'full' ? `border ${tone.border} px-1.5 py-0.5` : ''}`}
     >
-      <span className={`w-1.5 h-1.5 flex-shrink-0 ${tone.dot}`} aria-hidden="true" />
+      <span className={`w-2 h-2 flex-shrink-0 ${tone.dot}`} aria-hidden="true" />
       <span>{variant === 'full' ? QUALITY_LABEL[quality] : SHORT_LABEL[quality]}</span>
       {variant === 'full' && <span className="normal-case tracking-normal text-gray-500">· {describeBasis(basis)}</span>}
     </span>

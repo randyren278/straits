@@ -770,8 +770,8 @@ async function main(): Promise<void> {
     let fallbackMetadata = new Map<string, { name: string; shipType: number | null }>();
     status.positionSource = positions.size > 0 ? 'aisstream' : null;
     const attemptedSources = ['aisstream'];
+    let wholeFeedFallbackError: string | null = null;
     if (positions.size === 0) {
-      attemptedSources.push('middle-east-fallback');
       try {
         const fallback = await collectMiddleEastFallback();
         positions = fallback.positions;
@@ -779,8 +779,12 @@ async function main(): Promise<void> {
         statics = new Map(); // The public fallback is position-only.
         status.positionSource = 'middle-east-fallback';
         warn(`AISStream delivered no positions; using Middle East fallback (${positions.size} current positions)`);
+        // Only a fallback that actually answered counts as attempted: a 5xx
+        // must not be recorded as "asked, heard nothing".
+        attemptedSources.push('middle-east-fallback');
       } catch (fallbackErr) {
-        warn(`Middle East AIS fallback failed: ${(fallbackErr as Error).message}`);
+        wholeFeedFallbackError = (fallbackErr as Error).message;
+        warn(`Middle East AIS fallback failed: ${wholeFeedFallbackError}`);
       }
     }
     // Primary landed something, but thinly: densify every chokepoint box from
@@ -790,8 +794,10 @@ async function main(): Promise<void> {
     if (status.positionSource === 'aisstream') {
       try {
         const regional = await collectRegionFallbackPositions();
-        for (const id of regional.attempted) attemptedByRegion[id] = ['middle-east-fallback'];
         regionErrors = regional.errors;
+        for (const id of regional.attempted) {
+          if (!regionErrors[id]) attemptedByRegion[id] = ['middle-east-fallback'];
+        }
         for (const [id, message] of Object.entries(regional.errors)) warn(`fallback for ${id} failed: ${message}`);
         if (regional.positions.size > 0) {
           positions = mergePositions(positions, regional.positions);
@@ -808,6 +814,9 @@ async function main(): Promise<void> {
     const fallbackRegions = attemptedSources.includes('middle-east-fallback')
       ? FALLBACK_REGIONS.map((r) => r.id)
       : Object.keys(attemptedByRegion);
+    if (wholeFeedFallbackError) {
+      for (const r of FALLBACK_REGIONS) regionErrors[r.id] = wholeFeedFallbackError;
+    }
     status.regionCoverage = summarizeRegionCoverage(positions.values(), fallbackRegions, regionErrors);
     status.uniqueVessels = positions.size;
     console.log(`Window closed via ${status.positionSource ?? 'no source'}: ${status.messagesReceived} msgs, ${positions.size} unique positions, ${statics.size} static records`);
@@ -858,11 +867,12 @@ async function main(): Promise<void> {
     // the expensive one (~50-120s over the pooler); prune/prices/news/sanctions
     // are all seconds, so they get modest ceilings and the detectors get room.
     const detectorsOk = await step('detectors', 150_000, runDetectors);
-    // Recompute the last 3 days of Suez crossing aggregates before the prune
-    // so a passage that straddles the retention edge is still counted once.
-    await step('suez crossings', 30_000, async () => {
-      const r = await runSuezCrossingsJob({ days: 3 });
-      console.log(`Suez crossings: ${r.complete} complete, ${r.incomplete} incomplete, ${r.waiting} waiting over ${r.days}d (${r.written} days written)`);
+    // Recompute yesterday + today from a day-aligned 4-day window (2 buffer
+    // days) before the prune, so a passage straddling the retention edge is
+    // still counted once and no day is ever written from a truncated track.
+    await step('suez crossings', 60_000, async () => {
+      const r = await runSuezCrossingsJob({ days: 2 });
+      console.log(`Suez crossings: ${r.complete} complete, ${r.incomplete} incomplete, ${r.waiting} waiting for ${r.writeDays.join(', ')} (${r.tracks} tracks since ${r.loadedSince.slice(0, 10)})`);
     });
     await step('prune + measure', 30_000, pruneAndMeasure);
     await step('prices refresh', 20_000, refreshPrices);

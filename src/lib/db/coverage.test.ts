@@ -74,5 +74,17 @@ describe('getCoverageHistory', () => {
     ]);
     expect(out.find((r) => r.id === 'hormuz')!.hours).toEqual([]);
     expect(query.mock.calls[0][1]).toEqual([['hormuz', 'babel_mandeb', 'suez', 'gulf_of_aden'], '24']);
+    const sql = String(query.mock.calls[0][0]);
+    expect(sql).toMatch(/SUM\(unique_mmsi\) AS unique_all/);
+    expect(sql).toMatch(/GROUP BY region, bucket_start/);
+  });
+});
+
+describe('getRecentBuckets merges sources per bucket', () => {
+  it('sums unique and message counts in SQL grouped by bucket_start', async () => {
+    await getRecentBuckets('suez', 24);
+    const sql = String(query.mock.calls[0][0]);
+    expect(sql).toMatch(/SUM\(unique_mmsi\)::int AS unique_mmsi/);
+    expect(sql).toMatch(/GROUP BY bucket_start/);
   });
 });

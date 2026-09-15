@@ -1,5 +1,7 @@
 'use client';
 
+import { useLayoutEffect, useRef, useState } from 'react';
+
 /**
  * One line under an analytics chart saying how well the region behind it is
  * observed. A chart of distinct contacts per day means nothing without this:
@@ -7,7 +9,7 @@
  * tells them apart.
  */
 import { QualityChip } from '@/components/ui/QualityChip';
-import { ObservationStrip } from '@/components/ui/ObservationHeatmap';
+import { ObservationWeeks } from '@/components/ui/ObservationHeatmap';
 import type { ChokepointCoverage } from '@/lib/hooks/useCoverageQuality';
 import type { RegionHistory } from '@/lib/hooks/useCoverageHistory';
 
@@ -19,6 +21,15 @@ interface ChartQualityRowProps {
 }
 
 export function ChartQualityRow({ chokepointId, coverage, history = null }: ChartQualityRowProps) {
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setWidth(Math.floor(entry.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   return (
     <div
       data-testid={`chart-quality-${chokepointId}`}
@@ -33,8 +44,8 @@ export function ChartQualityRow({ chokepointId, coverage, history = null }: Char
         )}
       </div>
       {history && (
-        <div className="mt-2 overflow-x-auto" title="Hour-by-hour collection record, last 7 days">
-          <ObservationStrip rows={[{ id: history.id, label: '7d', hours: history.hours }]} windowHours={168} cell={5} gap={1} showLabels={false} testId={`chart-heat-${chokepointId}`} />
+        <div ref={gridRef} className="mt-2" data-testid={`chart-heat-${chokepointId}`} title="Hour-by-hour collection record, last 7 days (UTC)">
+          {width > 0 && <ObservationWeeks row={{ id: `chart-${history.id}`, label: history.name, hours: history.hours }} width={width} cellHeight={10} gap={2} />}
         </div>
       )}
     </div>

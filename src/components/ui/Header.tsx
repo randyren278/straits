@@ -150,11 +150,11 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
           data-testid="header-chokepoints"
           className="phone:hidden flex items-center gap-4 px-4 py-2 border-t border-amber-500/10"
         >
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center gap-4">
             <ChokepointWidgets onSelect={onChokepointSelect} />
-          </div>
-          <div className="hidden desk:flex items-center gap-6 shrink-0">
             <HeaderObservationStrip />
+          </div>
+          <div className="hidden desk:block shrink-0">
             <DataFreshness />
           </div>
         </div>

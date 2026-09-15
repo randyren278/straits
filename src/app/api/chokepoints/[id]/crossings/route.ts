@@ -42,12 +42,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     let voyages: VoyageRow[] | null = null;
     let reason: string | null = null;
     if (day) {
-      const ageDays = (Date.now() - Date.parse(`${day}T00:00:00Z`)) / 86_400_000;
-      if (ageDays > RETENTION_DAYS) {
+      const dayStart = Date.parse(`${day}T00:00:00Z`);
+      // Same window discipline as the harvester's job: two whole buffer days
+      // before the day, and only voyages that land on the day are returned.
+      const since = new Date(dayStart - 2 * 86_400_000);
+      const until = new Date(Math.min(Date.now(), dayStart + 3 * 86_400_000));
+      if (since.getTime() < Date.now() - RETENTION_DAYS * 86_400_000) {
         reason = 'raw positions pruned';
       } else {
-        // Load enough history for a passage that started the day before.
-        const tracks = await loadSuezTracks(Math.min(RETENTION_DAYS, Math.ceil(ageDays) + 2));
+        const tracks = await loadSuezTracks(since, until);
         voyages = computeCrossings(tracks)
           .filter((c) => crossingDay(c) === day)
           .map((c) => ({

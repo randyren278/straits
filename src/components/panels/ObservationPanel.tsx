@@ -11,7 +11,7 @@ import { Activity, ChevronDown } from 'lucide-react';
 import { useCoverageHistory } from '@/lib/hooks/useCoverageHistory';
 import { useCoverageQuality } from '@/lib/hooks/useCoverageQuality';
 import { ObservationWeeks, HeatLegend } from '@/components/ui/ObservationHeatmap';
-import { QualityChip, describeBasis } from '@/components/ui/QualityChip';
+import { QualityChip, describeBasisShort, describeBasis } from '@/components/ui/QualityChip';
 
 export function ObservationPanel() {
   const history = useCoverageHistory(168);
@@ -44,7 +44,7 @@ export function ObservationPanel() {
                 role="tab"
                 aria-selected={active === r.id}
                 onClick={() => setActive(r.id)}
-                className={`flex-1 text-[9px] font-mono uppercase tracking-wider px-1 py-1 border ${active === r.id ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-gray-800 text-gray-500 hover:bg-amber-500/5'}`}
+                className={`flex-1 text-[9px] font-mono uppercase tracking-wider px-1 py-1 border focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-500 ${active === r.id ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-gray-800 text-gray-500 hover:bg-amber-500/5'}`}
               >
                 {r.name.replace('Strait of ', '').replace(' Canal', '').replace('Bab el-Mandeb', 'Bab el-M.').replace('Gulf of ', '')}
               </button>
@@ -53,13 +53,11 @@ export function ObservationPanel() {
           {region && quality?.[region.id] && (
             <div className="mb-2 flex flex-col gap-0.5">
               <QualityChip id={`panel-${region.id}`} quality={quality[region.id].quality} basis={quality[region.id].basis} />
-              <span className="text-[10px] font-mono text-gray-500 leading-snug">{describeBasis(quality[region.id].basis)}</span>
+              <span className="text-[10px] font-mono text-gray-500 leading-snug whitespace-nowrap" title={describeBasis(quality[region.id].basis)}>{describeBasisShort(quality[region.id].basis)}</span>
             </div>
           )}
           {region ? (
-            <div className="overflow-x-auto">
-              <ObservationWeeks row={{ id: region.id, label: region.name, hours: region.hours }} cell={9} gap={2} />
-            </div>
+            <ObservationWeeks row={{ id: region.id, label: region.name, hours: region.hours }} cell={8} gap={2} />
           ) : (
             <p className="text-[11px] font-mono text-gray-600">loading collection record…</p>
           )}

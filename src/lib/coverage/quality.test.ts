@@ -85,6 +85,17 @@ describe('classifyQuality', () => {
       buckets.push({ bucketStart: minutesAgo(m), messageCount: 0, uniqueMmsi: 0, latestFix: null });          // aisstream
       buckets.push({ bucketStart: minutesAgo(m), messageCount: 4, uniqueMmsi: 4, latestFix: minutesAgo(m) }); // fallback
     }
-    expect(classifyQuality(buckets, now).quality).toBe('recent');
+    const r = classifyQuality(buckets, now);
+    expect(r.quality).toBe('recent');
+    expect(r.basis.bucketsLast6h).toBe(35); // one attempt per bucket, not one per source
+    expect(r.basis.unique24h).toBe(4);
+  });
+
+  it('a two-source bucket adds its unique counts (sources are disjoint per harvest)', () => {
+    const buckets: QualityBucket[] = [
+      { bucketStart: minutesAgo(10), messageCount: 3, uniqueMmsi: 2, latestFix: minutesAgo(10) },
+      { bucketStart: minutesAgo(10), messageCount: 9, uniqueMmsi: 5, latestFix: minutesAgo(10) },
+    ];
+    expect(classifyQuality(buckets, now).basis.unique24h).toBe(7);
   });
 });

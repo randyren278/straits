@@ -62,7 +62,7 @@ interface StripProps {
 }
 
 export function ObservationStrip({ rows, windowHours, now = new Date(), cell = 9, gap = 2, showLabels = true, testId = 'observation-strip' }: StripProps) {
-  const labelW = showLabels ? 46 : 0;
+  const labelW = showLabels ? 50 : 0;
   const width = labelW + windowHours * (cell + gap);
   const height = rows.length * (cell + gap);
   const end = new Date(now); end.setUTCMinutes(0, 0, 0);
@@ -83,7 +83,7 @@ export function ObservationStrip({ rows, windowHours, now = new Date(), cell = 9
         return (
           <g key={row.id} data-testid={`heat-row-${row.id}`}>
             {showLabels && (
-              <text x={0} y={y + cell - 1} fontSize={8} fill="#6b7280" fontFamily="var(--font-jetbrains), ui-monospace, monospace" letterSpacing=".06em">
+              <text x={0} y={y + cell} fontSize={9} fill="#6b7280" fontFamily="var(--font-jetbrains), ui-monospace, monospace" letterSpacing=".06em">
                 {row.label.toUpperCase()}
               </text>
             )}
@@ -116,21 +116,33 @@ interface WeeksProps {
   row: HeatRow;
   days?: number;
   now?: Date;
+  /** Square cell size; ignored for width when `width` is given. */
   cell?: number;
+  /** Cell height when the grid is fluid (`width` given). */
+  cellHeight?: number;
   gap?: number;
+  /** Total drawing width; cells stretch horizontally to fill it (a timeline). */
+  width?: number;
 }
 
-/** One region, days as rows (newest at the bottom) × 24 hourly columns — fits a 320px rail. */
-export function ObservationWeeks({ row, days = 7, now = new Date(), cell = 9, gap = 2 }: WeeksProps) {
+/**
+ * One region, days as rows (newest at the bottom) × 24 hourly columns. Square
+ * cells fit a 320px rail; given `width`, the cells stretch into a timeline
+ * with the same rows, which is how the chart cards use it.
+ */
+export function ObservationWeeks({ row, days = 7, now = new Date(), cell = 8, cellHeight, gap = 2, width }: WeeksProps) {
   const windowHours = days * 24;
   const filled = fillHours(row.hours, windowHours, now);
   const peak = Math.max(0, ...row.hours.map((h) => h.unique));
   const end = new Date(now); end.setUTCMinutes(0, 0, 0);
-  const labelW = 34;
-  const top = 12;
-  const step = cell + gap;
-  const width = labelW + 24 * step;
-  const height = top + days * step;
+  const labelW = 36;
+  const top = 13;
+  const cellW = width ? Math.max(2, (width - labelW - 23 * gap) / 24) : cell;
+  const cellH = width ? (cellHeight ?? 10) : cell;
+  const stepX = cellW + gap;
+  const stepY = cellH + gap;
+  const totalW = labelW + 24 * stepX - gap;
+  const height = top + days * stepY - gap;
   const mono = 'var(--font-jetbrains), ui-monospace, monospace';
   // Row r holds the UTC day that is (days-1-r) days before the current hour's day.
   const dayStart = (r: number) => {
@@ -138,12 +150,12 @@ export function ObservationWeeks({ row, days = 7, now = new Date(), cell = 9, ga
     return new Date(d.getTime() - (days - 1 - r) * 86_400_000);
   };
   return (
-    <svg data-testid={`observation-weeks-${row.id}`} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${row.label} observation record, last ${days} days by hour`} className="block">
+    <svg data-testid={`observation-weeks-${row.id}`} width={totalW} height={height} viewBox={`0 0 ${totalW} ${height}`} role="img" aria-label={`${row.label} observation record, last ${days} days by hour`} className="block">
       {[0, 6, 12, 18].map((h) => (
-        <text key={h} x={labelW + h * step} y={top - 4} fontSize={8} fill="#6b7280" fontFamily={mono}>{String(h).padStart(2, '0')}Z</text>
+        <text key={h} x={labelW + h * stepX} y={top - 4} fontSize={9} fill="#6b7280" fontFamily={mono}>{String(h).padStart(2, '0')}Z</text>
       ))}
       {Array.from({ length: days }, (_, r) => (
-        <text key={r} x={0} y={top + r * step + cell - 1} fontSize={8} fill="#6b7280" fontFamily={mono}>
+        <text key={r} x={0} y={top + r * stepY + cellH - 1} fontSize={9} fill="#6b7280" fontFamily={mono}>
           {dayStart(r).toISOString().slice(5, 10).replace('-', '/')}
         </text>
       ))}
@@ -156,7 +168,7 @@ export function ObservationWeeks({ row, days = 7, now = new Date(), cell = 9, ga
         if (r < 0) return null;
         const notAttempted = !c || c.attempted === 0;
         return (
-          <rect key={hourIso} x={labelW + hour * step} y={top + r * step} width={cell} height={cell} fill={cellColor(c, peak)} stroke={notAttempted ? '#1f2937' : undefined} strokeWidth={notAttempted ? 0.5 : undefined} data-day={r} data-unique={c?.unique ?? -1}>
+          <rect key={hourIso} x={labelW + hour * stepX} y={top + r * stepY} width={cellW} height={cellH} fill={cellColor(c, peak)} stroke={notAttempted ? '#1f2937' : undefined} strokeWidth={notAttempted ? 0.5 : undefined} data-day={r} data-unique={c?.unique ?? -1}>
             <title>{cellTitle(row.label, c, hourIso)}</title>
           </rect>
         );
@@ -167,13 +179,15 @@ export function ObservationWeeks({ row, days = 7, now = new Date(), cell = 9, ga
 
 export function HeatLegend() {
   return (
-    <div className="flex items-center gap-2 text-[9px] font-mono text-gray-500 uppercase tracking-wider">
-      <span>less</span>
-      {[NOT_ATTEMPTED, ATTEMPTED_EMPTY, ...AMBER].map((c) => (
-        <span key={c} className="inline-block w-2 h-2" style={{ backgroundColor: c, outline: c === NOT_ATTEMPTED ? '1px solid #1f2937' : undefined }} />
-      ))}
-      <span>more</span>
-      <span className="ml-2 normal-case tracking-normal text-gray-600">black = not attempted · grey = heard nothing</span>
+    <div className="flex flex-col gap-1 text-[9px] font-mono text-gray-500 uppercase tracking-wider">
+      <div className="flex items-center gap-2">
+        <span>less</span>
+        {[NOT_ATTEMPTED, ATTEMPTED_EMPTY, ...AMBER].map((c) => (
+          <span key={c} className="inline-block w-2 h-2" style={{ backgroundColor: c, outline: c === NOT_ATTEMPTED ? '1px solid #1f2937' : undefined }} />
+        ))}
+        <span>more</span>
+      </div>
+      <span className="normal-case tracking-normal text-gray-600">black = not attempted · grey = heard nothing</span>
     </div>
   );
 }

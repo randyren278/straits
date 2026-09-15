@@ -70,6 +70,12 @@ async function run() {
   await page.waitForSelector('[data-testid="header-observation"] rect', { timeout: 30_000 });
   const headerCells = await page.$$eval('[data-testid="header-observation"] rect', (els) => els.length);
   check('dashboard: header shows 4 regions × 24 h observation cells', headerCells === 96, `${headerCells} cells`);
+  const rowOverlap = await page.evaluate(() => {
+    const boxes = [...document.querySelectorAll('[data-testid="header-chokepoints"] > div')].map((e) => e.getBoundingClientRect());
+    for (let i = 1; i < boxes.length; i++) if (boxes[i].left < boxes[i - 1].right) return `overlap at ${Math.round(boxes[i].left)}`;
+    return null;
+  });
+  check('dashboard: header second row has no overlapping blocks', rowOverlap === null, rowOverlap ?? 'clean');
 
   // Analytics chart rows.
   await page.goto(`${BASE}/analytics`, { waitUntil: 'networkidle' });

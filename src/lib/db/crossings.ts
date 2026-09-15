@@ -26,16 +26,22 @@ export async function ensureChokepointDailySchema(): Promise<void> {
   await pool.query(CHOKEPOINT_DAILY_SCHEMA_SQL);
 }
 
-/** Positions inside the Suez chokepoint box, ordered per MMSI, for the last `days`. */
-export async function loadSuezTracks(days: number): Promise<Map<string, TrackPoint[]>> {
+/**
+ * Positions inside the Suez chokepoint box, ordered per MMSI, for
+ * [since, until). Callers align `since` to a UTC day boundary with a buffer
+ * of whole days before the first day they intend to write: a window that
+ * starts mid-track truncates the gate-in fix and turns real transits into
+ * nothing, so partial windows must never be written back.
+ */
+export async function loadSuezTracks(since: Date, until: Date = new Date()): Promise<Map<string, TrackPoint[]>> {
   const b = CHOKEPOINTS.suez.bounds;
   const result = await pool.query<{ mmsi: string; time: Date; latitude: number; longitude: number }>(
     `SELECT mmsi, time, latitude, longitude
      FROM vessel_positions
-     WHERE time > NOW() - ($1 || ' days')::interval
-       AND latitude BETWEEN $2 AND $3 AND longitude BETWEEN $4 AND $5
+     WHERE time >= $1 AND time < $2
+       AND latitude BETWEEN $3 AND $4 AND longitude BETWEEN $5 AND $6
      ORDER BY mmsi, time`,
-    [String(days), b.minLat, b.maxLat, b.minLon, b.maxLon],
+    [since, until, b.minLat, b.maxLat, b.minLon, b.maxLon],
   );
   const tracks = new Map<string, TrackPoint[]>();
   for (const r of result.rows) {
