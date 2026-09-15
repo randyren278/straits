@@ -11,13 +11,18 @@
 'use client';
 
 import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { QualityChip } from '@/components/ui/QualityChip';
+import type { ChokepointCoverage } from '@/lib/hooks/useCoverageQuality';
 import { useSheetDetent, type Detent } from '@/lib/hooks/useSheetDetent';
 import type { WatchItem } from '@/lib/watch/compose';
 
 export interface Chokepoint {
+  id?: string;
   name: string;
   tankers: number;
   total: number;
+  /** From /api/coverage; absent until the first poll lands. */
+  quality?: ChokepointCoverage | null;
 }
 
 export interface MobileSheetProps {
@@ -174,9 +179,14 @@ export function MobileSheet({ chokepoints, collapsed, panels, watch = null, onOp
                     key={c.name}
                     className="flex items-center justify-between min-h-[44px] px-4 border-b border-amber-500/10"
                   >
-                    <span className="text-xs font-mono uppercase tracking-wider text-amber-500">{c.name}</span>
-                    <span className="text-xs font-mono text-gray-500">
-                      <span className="text-sm text-gray-200">{c.tankers}</span> / {c.total}
+                    <span className="flex flex-col gap-0.5">
+                      <span className="text-xs font-mono uppercase tracking-wider text-amber-500">{c.name}</span>
+                      {c.quality && c.id && <QualityChip id={`sheet-${c.id}`} quality={c.quality.quality} basis={c.quality.basis} />}
+                    </span>
+                    <span className="text-xs font-mono text-gray-500" data-testid={c.id ? `chokepoint-count-sheet-${c.id}` : undefined}>
+                      {c.quality?.quality === 'insufficient' && c.total === 0
+                        ? '— unobserved'
+                        : <><span className="text-sm text-gray-200">{c.tankers}</span> / {c.total}</>}
                     </span>
                   </div>
                 ))}

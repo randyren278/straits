@@ -9,6 +9,8 @@
 import { useEffect, useState } from 'react';
 import { Anchor, ChevronDown } from 'lucide-react';
 import { useVesselStore } from '@/stores/vessel';
+import { useCoverageQuality } from '@/lib/hooks/useCoverageQuality';
+import { QualityChip } from './QualityChip';
 
 interface ChokepointData {
   id: string;
@@ -54,6 +56,7 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { setSelectedVessel, setMapCenter } = useVesselStore();
+  const coverage = useCoverageQuality();
 
   const handleVesselClick = (vessel: ChokepointVessel) => {
     setSelectedVessel({
@@ -127,7 +130,12 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
     // overflow-x:auto forces overflow-y from visible to auto — clipped the
     // expanded vessel list to the 50px-tall strip, so tapping appeared to do nothing.
     <div className="flex gap-2 phone:flex-col">
-      {chokepoints.map((cp) => (
+      {chokepoints.map((cp) => {
+        const quality = coverage?.[cp.id] ?? null;
+        // An unobserved region must not read as an empty one: with no
+        // observations and nothing seen, the count is "—", not "0".
+        const unobserved = quality?.quality === 'insufficient' && cp.totalVessels === 0;
+        return (
         <div
           key={cp.id}
           className="relative bg-black border border-amber-500/20 min-w-[150px] max-w-[200px] phone:min-w-0 phone:max-w-none flex-shrink-0"
@@ -138,7 +146,9 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
               onSelect?.(cp.bounds, cp.name);
             }}
             aria-expanded={expandedId === cp.id}
-            aria-label={`${cp.name}: ${cp.tankerCount} tankers, ${cp.totalVessels} total vessels`}
+            aria-label={unobserved
+              ? `${cp.name}: insufficient observations, no contacts seen`
+              : `${cp.name}: ${cp.tankerCount} tankers, ${cp.totalVessels} total vessels`}
             className="w-full flex items-center gap-2 px-3 py-1.5 phone:min-h-[44px] tablet:min-h-[44px] hover:bg-gray-900 transition-colors"
           >
             <Anchor className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
@@ -146,9 +156,10 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
               <p className="text-xs text-gray-300 font-medium whitespace-nowrap">
                 {cp.name.replace('Strait of ', '').replace(' Canal', '')}
               </p>
-              <p className="text-xs text-gray-500">
-                {cp.tankerCount} tankers / {cp.totalVessels} total
+              <p className="text-xs text-gray-500" data-testid={`chokepoint-count-${cp.id}`}>
+                {unobserved ? '— unobserved' : `${cp.tankerCount} tankers / ${cp.totalVessels} total`}
               </p>
+              {quality && <QualityChip id={cp.id} quality={quality.quality} basis={quality.basis} />}
             </div>
             <ChevronDown
               className={`w-3 h-3 text-gray-600 flex-shrink-0 transition-transform ${
@@ -187,7 +198,8 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

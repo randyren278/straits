@@ -35,6 +35,10 @@
 -- explicit read-only policy for that one table rather than disabling RLS.
 -- =============================================================================
 
+-- Tables whose runtime-safe schema in src/lib/db enables RLS on itself (so a
+-- harvester-created table on prod is covered before this script re-runs):
+--   pipeline_runs, collection_buckets, chokepoint_daily
+--
 -- Enable RLS on every base/partitioned table in `public` that doesn't have it.
 -- Driven off the catalog rather than a hardcoded list so tables added later are
 -- covered the next time this runs.

@@ -26,6 +26,9 @@ export interface ChokepointStats {
  * Count vessels within a chokepoint bounding box.
  * Only counts positions from the last hour for freshness.
  * Separates tanker count (ship types 80-89) from total.
+ * Fallback-relayed contacts have no IMO and never enter `vessels`, so the
+ * join must be LEFT and the type must fall back to vessel_fallback_metadata —
+ * otherwise a region observed only by the fallback counts as empty.
  *
  * @param bounds - Chokepoint bounding box
  * @returns Object with total and tanker counts
@@ -33,9 +36,12 @@ export interface ChokepointStats {
 export async function countVesselsInChokepoint(bounds: ChokepointBounds): Promise<{ total: number; tankers: number }> {
   const result = await pool.query<{ total: number; tankers: number }>(`
     WITH latest_positions AS (
-      SELECT DISTINCT ON (vp.mmsi) vp.mmsi, vp.latitude, vp.longitude, v.ship_type
+      SELECT DISTINCT ON (vp.mmsi)
+        vp.mmsi, vp.latitude, vp.longitude,
+        COALESCE(v.ship_type, fallback.ship_type) AS ship_type
       FROM vessel_positions vp
-      JOIN vessels v ON vp.mmsi = v.mmsi
+      LEFT JOIN vessels v ON vp.mmsi = v.mmsi
+      LEFT JOIN vessel_fallback_metadata fallback ON fallback.mmsi = vp.mmsi
       WHERE vp.time > NOW() - INTERVAL '${CHOKEPOINT_STALENESS_INTERVAL}'
       ORDER BY vp.mmsi, vp.time DESC
     )
@@ -105,15 +111,16 @@ export async function getVesselsInChokepoint(chokepointId: string): Promise<Chok
     SELECT DISTINCT ON (vp.mmsi)
       vp.mmsi,
       v.imo,
-      v.name,
+      COALESCE(v.name, fallback.name) AS name,
       v.flag,
-      v.ship_type AS "shipType",
+      COALESCE(v.ship_type, fallback.ship_type) AS "shipType",
       vp.latitude,
       vp.longitude,
       CASE WHEN a.imo IS NOT NULL THEN true ELSE false END AS "hasActiveAnomaly",
       a.anomaly_type AS "anomalyType"
     FROM vessel_positions vp
     LEFT JOIN vessels v ON v.mmsi = vp.mmsi
+    LEFT JOIN vessel_fallback_metadata fallback ON fallback.mmsi = vp.mmsi
     LEFT JOIN vessel_anomalies a ON v.imo = a.imo AND a.resolved_at IS NULL
     WHERE vp.time > NOW() - INTERVAL '${CHOKEPOINT_STALENESS_INTERVAL}'
       AND vp.latitude BETWEEN $1 AND $2

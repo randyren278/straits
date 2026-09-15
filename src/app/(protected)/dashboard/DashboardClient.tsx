@@ -20,6 +20,7 @@ import { MapLegend } from '@/components/map/MapLegend';
 import { useCurrentWatch, openWatchItem } from '@/components/panels/CurrentWatchPanel';
 import { parseInvestigation, serializeInvestigation } from '@/lib/dashboard/investigation-link';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
+import { useCoverageQuality } from '@/lib/hooks/useCoverageQuality';
 
 interface SearchResult {
   imo: string | null;
@@ -84,6 +85,7 @@ export function DashboardClient({ initialCenter }: { initialCenter?: MapCenter }
   }, [selectedVessel?.imo, targetVesselImo, mapCenter, viewport, tankersOnly, anomalyFilter]);
 
   const [chokepoints, setChokepoints] = useState<Chokepoint[]>([]);
+  const coverageQuality = useCoverageQuality();
   // Shares the rail panel's poller (usePolledJson is keyed by URL).
   const watchItems = useCurrentWatch();
 
@@ -98,7 +100,8 @@ export function DashboardClient({ initialCenter }: { initialCenter?: MapCenter }
         // ChokepointData interface in ChokepointWidget.tsx: the response is
         // { chokepoints: [{ id, name, totalVessels, tankerCount }] }.
         setChokepoints(
-          (data.chokepoints ?? []).map((c: { name: string; tankerCount: number; totalVessels: number }) => ({
+          (data.chokepoints ?? []).map((c: { id: string; name: string; tankerCount: number; totalVessels: number }) => ({
+            id: c.id,
             name: c.name,
             tankers: c.tankerCount,
             total: c.totalVessels,
@@ -218,7 +221,7 @@ export function DashboardClient({ initialCenter }: { initialCenter?: MapCenter }
       </main>
 
       <MobileSheet
-        chokepoints={chokepoints}
+        chokepoints={chokepoints.map((c) => ({ ...c, quality: c.id ? coverageQuality?.[c.id] ?? null : null }))}
         collapsed={!!selectedVessel}
         panels={{ prices: <OilPricePanel />, intel: <NewsPanel /> }}
         watch={watchItems?.[0] ?? null}

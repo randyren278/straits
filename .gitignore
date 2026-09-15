@@ -62,7 +62,7 @@ __pycache__/
 venv/
 target/
 vendor/
-coverage/
+/coverage/
 .cache/
 tmp/
 .vercel
@@ -85,3 +85,6 @@ PLAN.md
 scripts/checkpoint_runner.py
 .ui-baseline/
 .superpowers/
+
+# Coverage diagnostics output (local only)
+.diagnostics/

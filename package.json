@@ -17,6 +17,8 @@
     "verify:fleet": "node scripts/verify-fleet-layout.mjs",
     "verify:dashboard": "node scripts/verify-dashboard-layout.mjs",
     "verify:vessel-loading": "node scripts/verify-vessel-loading.mjs",
+    "verify:coverage": "node scripts/verify-coverage-quality.mjs",
+    "verify:crossings": "node scripts/verify-crossings.mjs",
     "verify": "npm run verify:fleet && npm run verify:dashboard",
     "check": "npm run lint && npm run typecheck && npm run test:ci",
     "ci": "npm run check && npm run build",

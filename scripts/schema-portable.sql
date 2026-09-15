@@ -53,8 +53,12 @@ CREATE TABLE IF NOT EXISTS vessel_positions (
   heading REAL,
   nav_status INTEGER,
   low_confidence BOOLEAN DEFAULT FALSE,
-  raw_message JSONB
+  raw_message JSONB,
+  -- Which feed relayed the fix ('aisstream' | 'middle-east-fallback'); NULL on legacy rows.
+  source TEXT
 );
+-- Databases provisioned before the column existed (mirrors scripts/migrations/20260915_position_source.sql).
+ALTER TABLE vessel_positions ADD COLUMN IF NOT EXISTS source TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_positions_mmsi_time ON vessel_positions(mmsi, time DESC);
 CREATE INDEX IF NOT EXISTS idx_positions_imo_time ON vessel_positions(imo, time DESC);
@@ -225,6 +229,45 @@ CREATE INDEX IF NOT EXISTS idx_pipeline_runs_job_started
   ON pipeline_runs(job_name, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status_started
   ON pipeline_runs(status, started_at DESC);
+
+-- =============================================================================
+-- Collection provenance (observation quality)
+-- =============================================================================
+-- Mirrors scripts/migrations/20260915_collection_buckets.sql. One row per
+-- (region, 10-minute bucket, source) written by every harvest — including
+-- zero-count rows, which are what let the UI say "unobserved" instead of "0".
+
+CREATE TABLE IF NOT EXISTS collection_buckets (
+  region TEXT NOT NULL,
+  bucket_start TIMESTAMPTZ NOT NULL,
+  source TEXT NOT NULL,
+  message_count INTEGER NOT NULL DEFAULT 0,
+  unique_mmsi INTEGER NOT NULL DEFAULT 0,
+  latest_fix TIMESTAMPTZ,
+  run_id TEXT,
+  PRIMARY KEY (region, bucket_start, source)
+);
+
+CREATE INDEX IF NOT EXISTS idx_collection_buckets_region_start
+  ON collection_buckets(region, bucket_start DESC);
+
+-- =============================================================================
+-- Durable daily crossing aggregates (Chokepoint Pulse)
+-- =============================================================================
+-- Mirrors scripts/migrations/20260915_chokepoint_daily.sql. Survives the raw
+-- vessel_positions prune, so charts beyond the retention window stay honest.
+
+CREATE TABLE IF NOT EXISTS chokepoint_daily (
+  chokepoint TEXT NOT NULL,
+  day DATE NOT NULL,
+  northbound INTEGER NOT NULL DEFAULT 0,
+  southbound INTEGER NOT NULL DEFAULT 0,
+  waiting INTEGER NOT NULL DEFAULT 0,
+  incomplete INTEGER NOT NULL DEFAULT 0,
+  distinct_mmsi INTEGER NOT NULL DEFAULT 0,
+  computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (chokepoint, day)
+);
 
 -- =============================================================================
 -- Row-Level Security

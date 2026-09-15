@@ -15,6 +15,9 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
 import { describeEmptyTraffic } from '@/components/charts/TrafficChart';
+import { ChartQualityRow } from '@/components/analytics/ChartQualityRow';
+import { ChokepointPulse } from '@/components/analytics/ChokepointPulse';
+import { useCoverageQuality, QUALITY_RANK } from '@/lib/hooks/useCoverageQuality';
 import type { TrafficWithPrices, RouteTrafficPoint, RouteRegion, TrafficCoverage } from '@/types/analytics';
 
 interface CorrelationData {
@@ -55,6 +58,8 @@ export default function AnalyticsPage() {
   const [chartData, setChartData] = useState<Record<string, TrafficWithPrices[]>>({});
   // Per-chokepoint coverage so an empty chart can say where the data is.
   const [coverage, setCoverage] = useState<Record<string, TrafficCoverage | null>>({});
+  // Live observation quality per chokepoint — orders the charts best-observed first.
+  const quality = useCoverageQuality();
   // Route view: traffic data keyed by route region.
   const [routeData, setRouteData] = useState<Record<string, TrafficWithPrices[]>>({});
   const [error, setError] = useState<string | null>(null);
@@ -235,7 +240,9 @@ export default function AnalyticsPage() {
         {!isLoading && !error && viewMode === 'chokepoint' && (
           <ErrorBoundary>
             <div className="space-y-4 roomy:space-y-6">
-              {selectedChokepoints.map((cpId) => {
+              {[...selectedChokepoints]
+                .sort((a, b) => (QUALITY_RANK[quality?.[a]?.quality ?? 'insufficient'] - QUALITY_RANK[quality?.[b]?.quality ?? 'insufficient']))
+                .map((cpId) => {
                 const chokepoint = CHOKEPOINTS[cpId];
                 const data = chartData[cpId] || [];
                 const cpCoverage = coverage[cpId] ?? null;
@@ -253,17 +260,24 @@ export default function AnalyticsPage() {
                 }
 
                 return (
-                  <TrafficChart
-                    key={cpId}
-                    data={data}
-                    title={`${chokepoint.name} - Traffic vs ${priceSymbol} Price`}
-                    showPrice={true}
-                    priceLabel={priceSymbol}
-                    height={350}
-                    coverage={cpCoverage}
-                    range={timeRange}
-                    action={action}
-                  />
+                  <div key={cpId}>
+                    <TrafficChart
+                      data={data}
+                      title={`${chokepoint.name} - distinct contacts observed vs ${priceSymbol} Price`}
+                      showPrice={true}
+                      priceLabel={priceSymbol}
+                      height={350}
+                      coverage={cpCoverage}
+                      range={timeRange}
+                      action={action}
+                    />
+                    <ChartQualityRow chokepointId={cpId} coverage={quality?.[cpId]} />
+                    {cpId === 'suez' && (
+                      <div className="mt-2">
+                        <ChokepointPulse key={timeRange} range={timeRange} />
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

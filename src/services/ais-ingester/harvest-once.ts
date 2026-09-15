@@ -46,7 +46,11 @@ import { join } from 'path';
 import { pool } from '../../lib/db';
 import { withDbRetry } from './db-retry';
 import { computeSustainedAlert } from './outage-alert';
-import { fetchMiddleEastAisFallback } from './middle-east-fallback';
+import { fetchMiddleEastAisFallback, type MiddleEastFallbackPosition } from './middle-east-fallback';
+import {
+  collectRegionFallback, mergePositions, summarizeRegionCoverage, FALLBACK_REGIONS,
+  type PositionSource, type RegionCoverageEntry,
+} from './region-fallback';
 
 // Anomaly detectors (run once, not on cron) — same set as detection-jobs.ts
 import { detectGoingDark } from '../../lib/detection/going-dark';
@@ -70,6 +74,9 @@ import { AIS_COVERAGE } from '../../lib/geo/coverage-constants';
 import { insertNewsItem } from '../../lib/db/news';
 import { fetchSanctionsList } from '../../lib/external/opensanctions';
 import { batchUpsertSanctions, migrateSanctionsSchema } from '../../lib/db/sanctions';
+import { binPositionsByRegion } from '../../lib/coverage/buckets';
+import { ensureCollectionBucketsSchema, upsertCollectionBuckets } from '../../lib/db/coverage';
+import { runSuezCrossingsJob } from './crossings-job';
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const WINDOW_MS = Number(process.env.HARVEST_WINDOW_MS ?? 90_000);
@@ -106,6 +113,7 @@ interface Pos {
   latitude: number; longitude: number;
   speed: number | null; course: number | null; heading: number | null;
   navStatus: number | null; lowConfidence: boolean;
+  source: PositionSource;
 }
 interface Meta { imo: string; mmsi: string; name: string; shipType: number | null; destination: string | null; }
 
@@ -137,7 +145,9 @@ type Status = {
   sanctionsRefreshed: boolean; pruned: number;
   positionsTotal: number | null; dbSizeMB: number | null; positionsSizeMB: number | null;
   /** The source whose positions made this run successful. */
-  positionSource: 'aisstream' | 'middle-east-fallback' | null;
+  positionSource: 'aisstream' | 'middle-east-fallback' | 'mixed' | null;
+  /** Per-chokepoint counts by source this window; null = that source was not tried there. */
+  regionCoverage: Record<string, RegionCoverageEntry>;
   /** Number of named/type-classified records refreshed by the Middle East fallback. */
   fallbackMetadataUpdated: number;
   /** Non-fatal step failures/skips this run — surfaced in the menu bar as amber. */
@@ -170,6 +180,7 @@ const status: Status = {
   sanctionsRefreshed: false, pruned: 0,
   positionsTotal: null, dbSizeMB: null, positionsSizeMB: null,
   positionSource: null,
+  regionCoverage: {},
   fallbackMetadataUpdated: 0,
   warnings: [], consecutiveFailures: 0, lastOkRun: null,
   consecutiveEmptyAisWindows: 0, aisOutageAlertSent: false, aisOutageLastNotifyAt: null,
@@ -300,6 +311,7 @@ function collectWindow(): Promise<{ positions: Map<string, Pos>; statics: Map<st
           speed, course: m.Cog ?? null, heading: m.TrueHeading ?? null,
           navStatus: m.NavigationalStatus ?? null,
           lowConfidence: isInJammingZone(m.Latitude, m.Longitude),
+          source: 'aisstream',
         });
       } else if (msg.MessageType === 'ShipStaticData') {
         const m = msg.Message?.ShipStaticData;
@@ -340,10 +352,45 @@ async function collectMiddleEastFallback(): Promise<{ positions: Map<string, Pos
       ...item,
       imo: null,
       lowConfidence: isInJammingZone(item.latitude, item.longitude),
+      source: 'middle-east-fallback',
     });
     metadata.set(item.mmsi, { name: item.name, shipType: item.shipType });
   }
   return { positions, metadata };
+}
+
+/**
+ * The primary feed has no receivers in the Gulf and only a trickle in Suez
+ * (docs/COVERAGE-DIAGNOSIS.md). Fetch every chokepoint box from the public
+ * fallback each harvest and tag every fix with the feed it came from; the
+ * caller merges with primary-wins so AISStream's richer fixes are kept.
+ */
+async function collectRegionFallbackPositions(): Promise<{
+  positions: Map<string, Pos>;
+  metadata: Map<string, { name: string; shipType: number | null }>;
+  attempted: string[];
+  errors: Record<string, string>;
+}> {
+  const result = await collectRegionFallback(FALLBACK_REGIONS, async (box) => {
+    try {
+      return await fetchMiddleEastAisFallback([box]);
+    } catch (err) {
+      // An empty box is a result, not a failure — only real transport errors propagate.
+      if (/returned no current/.test((err as Error).message)) return [] as MiddleEastFallbackPosition[];
+      throw err;
+    }
+  });
+  const positions = new Map<string, Pos>();
+  const metadata = new Map<string, { name: string; shipType: number | null }>();
+  for (const item of result.positions.values()) {
+    positions.set(item.mmsi, {
+      ...item, imo: null,
+      lowConfidence: isInJammingZone(item.latitude, item.longitude),
+      source: 'middle-east-fallback',
+    });
+    metadata.set(item.mmsi, { name: item.name, shipType: item.shipType });
+  }
+  return { positions, metadata, attempted: result.attempted, errors: result.errors };
 }
 
 /**
@@ -447,24 +494,31 @@ async function upsertVessels(statics: Map<string, Meta>): Promise<void> {
 }
 
 // ── Bulk insert positions ─────────────────────────────────────────────────────
+/** Runtime-safe twin of scripts/migrations/20260915_position_source.sql. */
+async function ensurePositionSourceColumn(): Promise<void> {
+  await withDbRetry('position source column', () =>
+    pool.query('ALTER TABLE vessel_positions ADD COLUMN IF NOT EXISTS source TEXT'));
+}
+
 async function insertPositions(positions: Map<string, Pos>): Promise<void> {
   const rows = [...positions.values()];
   if (rows.length === 0) return;
-  const CHUNK = 500, cols = 10;
+  await ensurePositionSourceColumn();
+  const CHUNK = 500, cols = 11;
   for (let i = 0; i < rows.length; i += CHUNK) {
     const chunk = rows.slice(i, i + CHUNK);
     const values = chunk.map((_, j) => {
       const b = j * cols;
-      return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8},$${b + 9},$${b + 10})`;
+      return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8},$${b + 9},$${b + 10},$${b + 11})`;
     }).join(', ');
     const params = chunk.flatMap((p) => [
       p.time, p.mmsi, p.imo, p.latitude, p.longitude,
-      p.speed, p.course, p.heading, p.navStatus, p.lowConfidence,
+      p.speed, p.course, p.heading, p.navStatus, p.lowConfidence, p.source,
     ]);
     await withDbRetry(`positions insert chunk ${i / CHUNK + 1}`, () =>
       pool.query(
         `INSERT INTO vessel_positions
-         (time, mmsi, imo, latitude, longitude, speed, course, heading, nav_status, low_confidence)
+         (time, mmsi, imo, latitude, longitude, speed, course, heading, nav_status, low_confidence, source)
          VALUES ${values}`, params
       )
     );
@@ -642,6 +696,33 @@ async function pruneAndMeasure(): Promise<void> {
   status.positionsSizeMB = Math.round(parseInt(sizeRows[0].tbl, 10) / 1e5) / 10;
 }
 
+// ── Collection provenance ─────────────────────────────────────────────────────
+/**
+ * Record what this window received per region and per source — including
+ * zero rows for regions where a source was tried and nothing came back. This
+ * runs even on an empty window: an empty window is exactly the case the
+ * record exists to explain. Never fails the run.
+ */
+async function writeCollectionBuckets(
+  positions: Map<string, Pos>,
+  attemptedSources: string[],
+  attemptedByRegion: Record<string, string[]>,
+  now: Date,
+): Promise<void> {
+  try {
+    const rows = binPositionsByRegion(
+      [...positions.values()].map((p) => ({ mmsi: p.mmsi, latitude: p.latitude, longitude: p.longitude, time: p.time, source: p.source })),
+      { now, attemptedSources, attemptedByRegion, runId: status.lastRun },
+    );
+    await withDbRetry('collection buckets schema', ensureCollectionBucketsSchema);
+    await withDbRetry('collection buckets upsert', () => upsertCollectionBuckets(rows));
+    const hormuz = rows.filter((r) => r.region === 'hormuz').map((r) => `${r.source}=${r.uniqueMmsi}`).join(' ');
+    console.log(`Collection buckets: ${rows.length} rows (hormuz ${hormuz})`);
+  } catch (err) {
+    warn(`collection buckets not written — ${(err as Error).message}`);
+  }
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
   const startedAt = Date.now();
@@ -688,7 +769,9 @@ async function main(): Promise<void> {
     let { positions, statics } = await collectWindow();
     let fallbackMetadata = new Map<string, { name: string; shipType: number | null }>();
     status.positionSource = positions.size > 0 ? 'aisstream' : null;
+    const attemptedSources = ['aisstream'];
     if (positions.size === 0) {
+      attemptedSources.push('middle-east-fallback');
       try {
         const fallback = await collectMiddleEastFallback();
         positions = fallback.positions;
@@ -700,8 +783,35 @@ async function main(): Promise<void> {
         warn(`Middle East AIS fallback failed: ${(fallbackErr as Error).message}`);
       }
     }
+    // Primary landed something, but thinly: densify every chokepoint box from
+    // the fallback snapshot, primary wins on a shared MMSI.
+    const attemptedByRegion: Record<string, string[]> = {};
+    let regionErrors: Record<string, string> = {};
+    if (status.positionSource === 'aisstream') {
+      try {
+        const regional = await collectRegionFallbackPositions();
+        for (const id of regional.attempted) attemptedByRegion[id] = ['middle-east-fallback'];
+        regionErrors = regional.errors;
+        for (const [id, message] of Object.entries(regional.errors)) warn(`fallback for ${id} failed: ${message}`);
+        if (regional.positions.size > 0) {
+          positions = mergePositions(positions, regional.positions);
+          fallbackMetadata = regional.metadata;
+          status.positionSource = 'mixed';
+          console.log(`Region fallback: +${regional.positions.size} positions for ${regional.attempted.join(', ')}`);
+        }
+      } catch (regionErr) {
+        warn(`region fallback failed: ${(regionErr as Error).message}`);
+      }
+    }
+    // Whole-feed fallback (primary silent) tried every region; the per-box
+    // fallback tried only the ones it was asked for.
+    const fallbackRegions = attemptedSources.includes('middle-east-fallback')
+      ? FALLBACK_REGIONS.map((r) => r.id)
+      : Object.keys(attemptedByRegion);
+    status.regionCoverage = summarizeRegionCoverage(positions.values(), fallbackRegions, regionErrors);
     status.uniqueVessels = positions.size;
     console.log(`Window closed via ${status.positionSource ?? 'no source'}: ${status.messagesReceived} msgs, ${positions.size} unique positions, ${statics.size} static records`);
+    await writeCollectionBuckets(positions, attemptedSources, attemptedByRegion, new Date());
 
     // An empty window is a real condition (no network, AISStream down, a
     // darkwake half-sleep, a quiet patch of ocean), not a crash — but it must
@@ -748,6 +858,12 @@ async function main(): Promise<void> {
     // the expensive one (~50-120s over the pooler); prune/prices/news/sanctions
     // are all seconds, so they get modest ceilings and the detectors get room.
     const detectorsOk = await step('detectors', 150_000, runDetectors);
+    // Recompute the last 3 days of Suez crossing aggregates before the prune
+    // so a passage that straddles the retention edge is still counted once.
+    await step('suez crossings', 30_000, async () => {
+      const r = await runSuezCrossingsJob({ days: 3 });
+      console.log(`Suez crossings: ${r.complete} complete, ${r.incomplete} incomplete, ${r.waiting} waiting over ${r.days}d (${r.written} days written)`);
+    });
     await step('prune + measure', 30_000, pruneAndMeasure);
     await step('prices refresh', 20_000, refreshPrices);
     await step('news refresh', 30_000, refreshNews);
