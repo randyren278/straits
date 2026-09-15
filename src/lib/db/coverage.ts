@@ -99,3 +99,54 @@ export async function getChokepointQuality(now = new Date()): Promise<Chokepoint
     }),
   );
 }
+
+export interface HourlyBucket {
+  /** ISO start of the hour (UTC). */
+  hour: string;
+  messages: number;
+  /** Peak per-bucket unique MMSI within the hour (buckets are 10 min; a sum would double count). */
+  unique: number;
+  aisstream: number;
+  fallback: number;
+  /** Number of 10-minute collection rows in the hour — 0 means the harvester never ran. */
+  attempted: number;
+}
+
+export interface RegionHistory {
+  id: string;
+  name: string;
+  hours: HourlyBucket[];
+}
+
+/**
+ * Hour-by-hour collection record per chokepoint for the heatmaps. One query
+ * for every region; missing hours are filled client-side as "not attempted".
+ */
+export async function getCoverageHistory(hours: number): Promise<RegionHistory[]> {
+  const result = await pool.query<{
+    region: string; hour: Date; messages: number; unique: number; aisstream: number; fallback: number; attempted: number;
+  }>(
+    `SELECT region,
+            date_trunc('hour', bucket_start) AS hour,
+            SUM(message_count)::int AS messages,
+            MAX(unique_mmsi)::int AS unique,
+            MAX(unique_mmsi) FILTER (WHERE source = 'aisstream')::int AS aisstream,
+            MAX(unique_mmsi) FILTER (WHERE source <> 'aisstream')::int AS fallback,
+            COUNT(DISTINCT bucket_start)::int AS attempted
+     FROM collection_buckets
+     WHERE region = ANY($1) AND bucket_start > NOW() - ($2 || ' hours')::interval
+     GROUP BY region, hour
+     ORDER BY region, hour`,
+    [Object.keys(CHOKEPOINTS), String(hours)],
+  );
+  const byRegion = new Map<string, HourlyBucket[]>();
+  for (const r of result.rows) {
+    let list = byRegion.get(r.region);
+    if (!list) { list = []; byRegion.set(r.region, list); }
+    list.push({
+      hour: r.hour.toISOString(), messages: r.messages, unique: r.unique,
+      aisstream: r.aisstream ?? 0, fallback: r.fallback ?? 0, attempted: r.attempted,
+    });
+  }
+  return Object.values(CHOKEPOINTS).map((cp) => ({ id: cp.id, name: cp.name, hours: byRegion.get(cp.id) ?? [] }));
+}

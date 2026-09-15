@@ -52,8 +52,11 @@ async function run() {
   await page.waitForSelector('[data-testid^="quality-chip-"]', { timeout: 30_000 });
   for (const cp of chokepoints) {
     const chip = page.locator(`[data-testid="quality-chip-${cp.id}"]`).first();
-    const text = (await chip.count()) ? (await chip.textContent())?.trim() ?? '' : '';
-    check(`dashboard: ${cp.id} chip matches API`, text.includes(LABEL[cp.quality]), `dom="${text}" api=${cp.quality}`);
+    const domQuality = (await chip.count()) ? await chip.getAttribute('data-quality') : null;
+    const title = (await chip.count()) ? await chip.getAttribute('title') ?? '' : '';
+    check(`dashboard: ${cp.id} chip matches API`, domQuality === cp.quality && title.includes(LABEL[cp.quality]), `dom=${domQuality} title="${title.slice(0, 40)}" api=${cp.quality}`);
+    const box = (await chip.count()) ? await chip.boundingBox() : null;
+    check(`dashboard: ${cp.id} chip is one line`, !!box && box.height < 20, `height=${box ? Math.round(box.height) : 'n/a'}px`);
 
     const count = page.locator(`[data-testid="chokepoint-count-${cp.id}"]`).first();
     const countText = (await count.count()) ? (await count.textContent())?.trim() ?? '' : '';
@@ -63,6 +66,10 @@ async function run() {
       check(`dashboard: ${cp.id} count rendered`, /\d/.test(countText), `dom="${countText}"`);
     }
   }
+
+  await page.waitForSelector('[data-testid="header-observation"] rect', { timeout: 30_000 });
+  const headerCells = await page.$$eval('[data-testid="header-observation"] rect', (els) => els.length);
+  check('dashboard: header shows 4 regions × 24 h observation cells', headerCells === 96, `${headerCells} cells`);
 
   // Analytics chart rows.
   await page.goto(`${BASE}/analytics`, { waitUntil: 'networkidle' });
@@ -75,6 +82,8 @@ async function run() {
     if (!cp) { check(`analytics: ${row.id} known to API`, false, 'not in /api/coverage'); continue; }
     check(`analytics: ${row.id} row matches API`, row.text.includes(LABEL[cp.quality]), `dom="${row.text.trim().slice(0, 80)}" api=${cp.quality}`);
   }
+  const heat = await page.$$('[data-testid^="chart-heat-"]');
+  check('analytics: 7-day observation strip under every chart', heat.length === rows.length, `${heat.length} strips for ${rows.length} charts`);
   const order = rows.map((r) => r.id);
   const rank = { recent: 0, intermittent: 1, insufficient: 2 };
   const sorted = [...order].sort((a, b) => rank[chokepoints.find((c) => c.id === a)?.quality] - rank[chokepoints.find((c) => c.id === b)?.quality]);

@@ -31,19 +31,22 @@ interface QualityChipProps {
   variant?: 'compact' | 'full';
 }
 
+const SHORT_LABEL: Record<ObservationQuality, string> = { recent: 'Recent', intermittent: 'Intermittent', insufficient: 'Insufficient' };
+
 export function QualityChip({ id, quality, basis, variant = 'compact' }: QualityChipProps) {
   const tone = TONE[quality];
-  const detail = describeBasis(basis);
+  const detail = `${QUALITY_LABEL[quality]} · ${describeBasis(basis)}`;
   return (
     <span
       data-testid={`quality-chip-${id}`}
       data-quality={quality}
       title={detail}
-      className={`inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider ${tone.text} ${variant === 'full' ? `border ${tone.border} px-1.5 py-0.5` : ''}`}
+      aria-label={detail}
+      className={`inline-flex items-center gap-1 whitespace-nowrap text-[10px] font-mono uppercase tracking-wider ${tone.text} ${variant === 'full' ? `border ${tone.border} px-1.5 py-0.5` : ''}`}
     >
       <span className={`w-1.5 h-1.5 flex-shrink-0 ${tone.dot}`} aria-hidden="true" />
-      <span>{QUALITY_LABEL[quality]}</span>
-      {variant === 'full' && <span className="normal-case tracking-normal text-gray-500">· {detail}</span>}
+      <span>{variant === 'full' ? QUALITY_LABEL[quality] : SHORT_LABEL[quality]}</span>
+      {variant === 'full' && <span className="normal-case tracking-normal text-gray-500">· {describeBasis(basis)}</span>}
     </span>
   );
 }

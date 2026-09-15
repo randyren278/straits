@@ -138,7 +138,7 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
         return (
         <div
           key={cp.id}
-          className="relative bg-black border border-amber-500/20 min-w-[150px] max-w-[200px] phone:min-w-0 phone:max-w-none flex-shrink-0"
+          className="relative bg-black border border-amber-500/20 min-w-[150px] max-w-[230px] phone:min-w-0 phone:max-w-none flex-shrink-0"
         >
           <button
             onClick={() => {
@@ -152,14 +152,16 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
             className="w-full flex items-center gap-2 px-3 py-1.5 phone:min-h-[44px] tablet:min-h-[44px] hover:bg-gray-900 transition-colors"
           >
             <Anchor className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-            <div className="text-left flex-1">
-              <p className="text-xs text-gray-300 font-medium whitespace-nowrap">
-                {cp.name.replace('Strait of ', '').replace(' Canal', '')}
+            <div className="text-left flex-1 min-w-0">
+              <p className="flex items-center justify-between gap-2">
+                <span className="text-xs text-gray-300 font-medium whitespace-nowrap">
+                  {cp.name.replace('Strait of ', '').replace(' Canal', '')}
+                </span>
+                {quality && <QualityChip id={cp.id} quality={quality.quality} basis={quality.basis} />}
               </p>
-              <p className="text-xs text-gray-500" data-testid={`chokepoint-count-${cp.id}`}>
+              <p className="text-xs text-gray-500 whitespace-nowrap" data-testid={`chokepoint-count-${cp.id}`}>
                 {unobserved ? '— unobserved' : `${cp.tankerCount} tankers / ${cp.totalVessels} total`}
               </p>
-              {quality && <QualityChip id={cp.id} quality={quality.quality} basis={quality.basis} />}
             </div>
             <ChevronDown
               className={`w-3 h-3 text-gray-600 flex-shrink-0 transition-transform ${

@@ -18,6 +18,7 @@ import { describeEmptyTraffic } from '@/components/charts/TrafficChart';
 import { ChartQualityRow } from '@/components/analytics/ChartQualityRow';
 import { ChokepointPulse } from '@/components/analytics/ChokepointPulse';
 import { useCoverageQuality, QUALITY_RANK } from '@/lib/hooks/useCoverageQuality';
+import { useCoverageHistory } from '@/lib/hooks/useCoverageHistory';
 import type { TrafficWithPrices, RouteTrafficPoint, RouteRegion, TrafficCoverage } from '@/types/analytics';
 
 interface CorrelationData {
@@ -60,6 +61,7 @@ export default function AnalyticsPage() {
   const [coverage, setCoverage] = useState<Record<string, TrafficCoverage | null>>({});
   // Live observation quality per chokepoint — orders the charts best-observed first.
   const quality = useCoverageQuality();
+  const history = useCoverageHistory(168);
   // Route view: traffic data keyed by route region.
   const [routeData, setRouteData] = useState<Record<string, TrafficWithPrices[]>>({});
   const [error, setError] = useState<string | null>(null);
@@ -271,7 +273,7 @@ export default function AnalyticsPage() {
                       range={timeRange}
                       action={action}
                     />
-                    <ChartQualityRow chokepointId={cpId} coverage={quality?.[cpId]} />
+                    <ChartQualityRow chokepointId={cpId} coverage={quality?.[cpId]} history={history?.find((h) => h.id === cpId) ?? null} />
                     {cpId === 'suez' && (
                       <div className="mt-2">
                         <ChokepointPulse key={timeRange} range={timeRange} />
