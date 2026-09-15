@@ -61,25 +61,6 @@ describe('getChokepointQuality', () => {
   });
 });
 
-describe('getCoverageHistory', () => {
-  it('groups hourly rows per chokepoint and fills regions with no rows', async () => {
-    const { getCoverageHistory } = await import('./coverage');
-    query.mockResolvedValueOnce({ rows: [
-      { region: 'suez', hour: new Date('2026-09-15T03:00:00Z'), messages: 40, unique: 226, aisstream: 15, fallback: 226, attempted: 6 },
-    ] } as never);
-    const out = await getCoverageHistory(24);
-    expect(out.map((r) => r.id)).toEqual(['hormuz', 'babel_mandeb', 'suez', 'gulf_of_aden']);
-    expect(out.find((r) => r.id === 'suez')!.hours).toEqual([
-      { hour: '2026-09-15T03:00:00.000Z', messages: 40, unique: 226, aisstream: 15, fallback: 226, attempted: 6 },
-    ]);
-    expect(out.find((r) => r.id === 'hormuz')!.hours).toEqual([]);
-    expect(query.mock.calls[0][1]).toEqual([['hormuz', 'babel_mandeb', 'suez', 'gulf_of_aden'], '24']);
-    const sql = String(query.mock.calls[0][0]);
-    expect(sql).toMatch(/SUM\(unique_mmsi\) AS unique_all/);
-    expect(sql).toMatch(/GROUP BY region, bucket_start/);
-  });
-});
-
 describe('getRecentBuckets merges sources per bucket', () => {
   it('sums unique and message counts in SQL grouped by bucket_start', async () => {
     await getRecentBuckets('suez', 24);

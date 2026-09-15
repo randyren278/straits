@@ -19,7 +19,6 @@ import { StatusChip } from './StatusChip';
 import { StraitsMark } from './StraitsMark';
 import { AisOutageBanner } from './AisOutageBanner';
 import { CommandPalette } from './CommandPalette';
-import { HeaderObservationStrip } from './HeaderObservationStrip';
 
 interface SearchResult {
   imo: string | null;
@@ -150,9 +149,8 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
           data-testid="header-chokepoints"
           className="phone:hidden flex items-center gap-4 px-4 py-2 border-t border-amber-500/10"
         >
-          <div className="flex-1 min-w-0 flex items-center gap-4">
+          <div className="flex-1 min-w-0">
             <ChokepointWidgets onSelect={onChokepointSelect} />
-            <HeaderObservationStrip />
           </div>
           <div className="hidden desk:block shrink-0">
             <DataFreshness />

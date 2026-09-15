@@ -67,9 +67,6 @@ async function run() {
     }
   }
 
-  await page.waitForSelector('[data-testid="header-observation"] rect', { timeout: 30_000 });
-  const headerCells = await page.$$eval('[data-testid="header-observation"] rect', (els) => els.length);
-  check('dashboard: header shows 4 regions × 24 h observation cells', headerCells === 96, `${headerCells} cells`);
   const rowOverlap = await page.evaluate(() => {
     const boxes = [...document.querySelectorAll('[data-testid="header-chokepoints"] > div')].map((e) => e.getBoundingClientRect());
     for (let i = 1; i < boxes.length; i++) if (boxes[i].left < boxes[i - 1].right) return `overlap at ${Math.round(boxes[i].left)}`;
@@ -88,8 +85,6 @@ async function run() {
     if (!cp) { check(`analytics: ${row.id} known to API`, false, 'not in /api/coverage'); continue; }
     check(`analytics: ${row.id} row matches API`, row.text.includes(LABEL[cp.quality]), `dom="${row.text.trim().slice(0, 80)}" api=${cp.quality}`);
   }
-  const heat = await page.$$('[data-testid^="chart-heat-"]');
-  check('analytics: 7-day observation strip under every chart', heat.length === rows.length, `${heat.length} strips for ${rows.length} charts`);
   const order = rows.map((r) => r.id);
   const rank = { recent: 0, intermittent: 1, insufficient: 2 };
   const sorted = [...order].sort((a, b) => rank[chokepoints.find((c) => c.id === a)?.quality] - rank[chokepoints.find((c) => c.id === b)?.quality]);

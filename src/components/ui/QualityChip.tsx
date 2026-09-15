@@ -14,14 +14,6 @@ const TONE: Record<ObservationQuality, { text: string; dot: string; border: stri
   insufficient: { text: 'text-gray-500', dot: 'bg-gray-600', border: 'border-gray-700' },
 };
 
-/** Short form for narrow places (the rail): "fix 14m · 6/6 h · 35 windows". */
-export function describeBasisShort(basis: CoverageBasis): string {
-  const fix = basis.latestFixAgeMinutes === null
-    ? 'no fix 24h'
-    : basis.latestFixAgeMinutes < 60 ? `fix ${basis.latestFixAgeMinutes}m` : `fix ${Math.round(basis.latestFixAgeMinutes / 60)}h`;
-  return `${fix} · ${basis.nonEmptyLast6h}/6 h · ${basis.bucketsLast6h} windows`;
-}
-
 export function describeBasis(basis: CoverageBasis): string {
   const fix = basis.latestFixAgeMinutes === null
     ? 'no fix in 24h'

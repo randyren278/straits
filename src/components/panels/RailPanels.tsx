@@ -15,7 +15,6 @@ import { CurrentWatchPanel } from './CurrentWatchPanel';
 import { ClusterPanel } from './ClusterPanel';
 import { VesselPanel } from './VesselPanel';
 import { WatchlistPanel } from './WatchlistPanel';
-import { ObservationPanel } from './ObservationPanel';
 import { OilPricePanel } from './OilPricePanel';
 import { NewsPanel } from './NewsPanel';
 import { useVesselStore } from '@/stores/vessel';
@@ -30,7 +29,6 @@ export function RailPanels() {
       {selectedVessel && <VesselPanel />}
       <CurrentWatchPanel />
       <ClusterPanel />
-      <ObservationPanel />
       <WatchlistPanel />
       <OilPricePanel />
       <NewsPanel collapseOnSelection />
