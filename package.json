@@ -72,7 +72,7 @@
     "@types/papaparse": "^5.5.2",
     "@types/pg": "^8.23.1",
     "@types/uuid": "^10.0.0",
-    "@vitejs/plugin-react": "^5.1.4",
+    "@vitejs/plugin-react": "^6.1.0",
     "happy-dom": "^20.11.2",
     "playwright": "^1.62.1",
     "vitest": "^4.1.10"
