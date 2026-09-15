@@ -12,6 +12,7 @@ import { isInAnchorage } from '../geo/anchorages';
 import { isDeclaredStationary } from '../ais/nav-status';
 import { upsertAnomaliesBatch, resolveAnomaliesBatch } from '../db/anomalies';
 import { calculateBearing } from '../geo/haversine';
+import { resolveDestination } from '../geo/ports';
 import type { DeviationDetails, UpsertAnomalyInput } from '../../types/anomaly';
 
 /**
@@ -23,12 +24,6 @@ const MIN_NORMAL_SPEED_KNOTS = 3;
  * Heading divergence threshold in degrees beyond which a vessel is flagged as deviating.
  */
 const DEVIATION_THRESHOLD_DEGREES = 45;
-
-/**
- * In-memory cache for Nominatim geocoding results.
- * Caches both successful lookups and negative results (null) to avoid redundant API calls.
- */
-const geocodeCache = new Map<string, { lat: number; lon: number } | null>();
 
 /**
  * Check if a tanker's speed indicates an anomaly.
@@ -115,48 +110,13 @@ export async function detectSpeedAnomaly(): Promise<number> {
 }
 
 /**
- * Geocode a destination string using Nominatim (OpenStreetMap).
- * Results are cached in-memory to avoid redundant API calls.
- *
- * @param destination - Free-text destination (e.g. "FUJAIRAH", "SINGAPORE")
- * @returns Lat/lon coordinates or null if geocoding fails
+ * Resolve a destination string to coordinates via the offline port gazetteer.
+ * Null for instructions ("FOR ORDERS"), open water, or places we don't know.
+ * (Nominatim was used here until Sept 2026; the one-shot harvester re-geocoded
+ * every destination every run, and the service rate-limited it to nothing.)
  */
-export async function geocodeDestination(
-  destination: string
-): Promise<{ lat: number; lon: number } | null> {
-  const normalized = destination.toUpperCase().trim();
-
-  if (!normalized) {
-    return null;
-  }
-
-  // Return cached result (including cached nulls) if present
-  if (geocodeCache.has(normalized)) {
-    return geocodeCache.get(normalized) ?? null;
-  }
-
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(normalized)}&format=json&limit=1`;
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'TankerTracker/1.0' },
-    });
-
-    const data = (await response.json()) as Array<{ lat: string; lon: string }>;
-
-    if (Array.isArray(data) && data.length > 0) {
-      const coords = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-      geocodeCache.set(normalized, coords);
-      return coords;
-    }
-
-    // No results — cache null to avoid repeated calls
-    geocodeCache.set(normalized, null);
-    return null;
-  } catch {
-    // Fetch error — cache null to avoid hammering the API
-    geocodeCache.set(normalized, null);
-    return null;
-  }
+export function geocodeDestination(destination: string): { lat: number; lon: number } | null {
+  return resolveDestination(destination);
 }
 
 /**
@@ -219,7 +179,7 @@ export async function detectDeviation(): Promise<number> {
   const toResolve: Array<{ imo: string; anomalyType: string }> = [];
 
   for (const vessel of result.rows) {
-    const destCoords = await geocodeDestination(vessel.destination);
+    const destCoords = geocodeDestination(vessel.destination);
 
     // Skip vessel if destination cannot be geocoded
     if (!destCoords) {

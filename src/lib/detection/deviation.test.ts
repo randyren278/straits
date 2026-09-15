@@ -195,19 +195,18 @@ describe('isDeviating', () => {
 });
 
 describe('geocodeDestination', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Clear geocode cache between tests by mocking fetch
+  it('returns null for empty or whitespace-only strings', () => {
+    expect(geocodeDestination('')).toBeNull();
+    expect(geocodeDestination('   ')).toBeNull();
   });
 
-  it('returns null for empty string', async () => {
-    const result = await geocodeDestination('');
-    expect(result).toBeNull();
-  });
-
-  it('returns null for whitespace-only string', async () => {
-    const result = await geocodeDestination('   ');
-    expect(result).toBeNull();
+  it('resolves offline from the port gazetteer — no network', () => {
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn() as unknown as typeof fetch;
+    expect(geocodeDestination('EGPSD')).toEqual({ lat: 31.26, lon: 32.3 });
+    expect(geocodeDestination('FOR ORDERS')).toBeNull();
+    expect(global.fetch).not.toHaveBeenCalled();
+    global.fetch = originalFetch;
   });
 });
 
@@ -229,7 +228,7 @@ describe('detectDeviation', () => {
       rows: [
         {
           imo: '1234567',
-          destination: 'FUJAIRAH_CACHE_HIT_TEST_CORRECTED',
+          destination: 'SEISMIC GUARD VESSEL',
           positions: [
             { heading: 80, latitude: 25.0, longitude: 57.0, time: '2026-03-18T00:00:00Z' },
             { heading: 85, latitude: 25.1, longitude: 57.1, time: '2026-03-18T01:00:00Z' },
@@ -238,28 +237,19 @@ describe('detectDeviation', () => {
       ],
     });
 
-    // Simulate geocodeDestination returning cached null for unknown dest
-    // The function caches per session — destination won't be in cache for this unique string
-    // Since fetch is not mocked here, it will throw and return null → vessel skipped
+    // An unresolvable destination skips the vessel entirely.
     const count = await detectDeviation();
-    // Without a geocoded result the vessel is skipped (count stays 0)
     expect(count).toBe(0);
   });
 
   it('batches upserts and resolves instead of calling per-vessel', async () => {
-    // Mock fetch so geocodeDestination resolves instead of skipping the vessel.
-    const originalFetch = global.fetch;
-    global.fetch = vi.fn().mockResolvedValue({
-      json: async () => [{ lat: '25.12', lon: '56.34' }],
-    }) as unknown as typeof fetch;
-
     // calculateBearing mocked to always return 90 (east); heading 200 is
     // >45deg off — this vessel should be flagged as deviating.
     mockQuery.mockResolvedValueOnce({
       rows: [
         {
           imo: '2234567',
-          destination: 'BATCH_TEST_DESTINATION_DEVIATING',
+          destination: 'FUJAIRAH',
           positions: [
             { heading: 200, latitude: 25.0, longitude: 57.0, time: '2026-03-18T00:00:00Z' },
             { heading: 205, latitude: 25.1, longitude: 57.1, time: '2026-03-18T01:00:00Z' },
@@ -277,22 +267,16 @@ describe('detectDeviation', () => {
     ]);
     expect(mockResolveAnomaliesBatch).toHaveBeenCalledTimes(1);
     expect(mockResolveAnomaliesBatch).toHaveBeenCalledWith([]);
-
-    global.fetch = originalFetch;
   });
 
   it('collects corrected vessels into one resolveAnomaliesBatch call, not one resolveAnomaly per vessel', async () => {
-    const originalFetch = global.fetch;
-    global.fetch = vi.fn().mockResolvedValue({
-      json: async () => [{ lat: '25.12', lon: '56.34' }],
-    }) as unknown as typeof fetch;
 
     // heading 80/85 stay within 45deg of the mocked 90deg bearing — corrected.
     mockQuery.mockResolvedValueOnce({
       rows: [
         {
           imo: '3234567',
-          destination: 'BATCH_TEST_DESTINATION_CORRECTED_A',
+          destination: 'FUJAIRAH',
           positions: [
             { heading: 80, latitude: 25.0, longitude: 57.0, time: '2026-03-18T00:00:00Z' },
             { heading: 85, latitude: 25.1, longitude: 57.1, time: '2026-03-18T01:00:00Z' },
@@ -300,7 +284,7 @@ describe('detectDeviation', () => {
         },
         {
           imo: '4234567',
-          destination: 'BATCH_TEST_DESTINATION_CORRECTED_B',
+          destination: 'JEBEL ALI',
           positions: [
             { heading: 88, latitude: 26.0, longitude: 58.0, time: '2026-03-18T00:00:00Z' },
             { heading: 92, latitude: 26.1, longitude: 58.1, time: '2026-03-18T01:00:00Z' },
@@ -317,7 +301,5 @@ describe('detectDeviation', () => {
       { imo: '3234567', anomalyType: 'deviation' },
       { imo: '4234567', anomalyType: 'deviation' },
     ]);
-
-    global.fetch = originalFetch;
   });
 });
