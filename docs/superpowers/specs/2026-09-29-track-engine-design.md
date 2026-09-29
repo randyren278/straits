@@ -43,8 +43,11 @@ The engine runs on the Mac harvester after each harvest. That machine already ha
    - **Learned lanes** feed the router's cost surface, not a separate estimator. The INTERTANKO Gulf transit corridors can seed the density as a prior.
    - **Destination route**: `searoute-ts` (MIT, Eurostat 2025 marnet) to a destination resolved by `src/lib/geo/ports.ts`. Only for fresh, resolvable destinations. Today those are almost all AISStream ships outside our region.
    - **The backtest decides which estimator is live.** A method is enabled only while it beats the incumbent.
-5. **Score evidence** (0–100): fix volume in 24 h (30), recency (25), regularity over the last 3 h (15), consistency, i.e. few rejected fixes (15), identity completeness (15). Tiers: well tracked ≥72, tracked 45–71, sparse <45, stale = no fix in 24 h.
-6. **Backtest** (every run): hide the most recent hour, estimate from its start, and score against each real position change in that hour at its midpoint report time. Never score against repeated stale snapshots, because that rewards a frozen dot. Record the results and publish the live method's error on the site.
+5. **Carry every estimable ship to the current time.** A ship is estimable when its smoothed speed is 1–28 kn and it made a real move (over 0.3 nm) in the 90 minutes before its last fix. It doesn't need to be well tracked. Its estimate runs from its last real fix to now, for at most 6 hours, with uncertainty growing all the while.
+   - **New data restarts the estimate.** Each arrival of new data is an *epoch*: re-clean and re-smooth with everything known at that moment, then estimate again from the new last state. To avoid a jump, the drawn position eases from the old estimate onto the new one over 8 map-minutes.
+   - In the mockup: 79 ships are carried forward to "now" on estimate, 36 of them with no data for over an hour. The following hour of real data produced 396 re-estimates. Across 103 real updates from 36 estimable ships, the median error was 1.6 nm, against 4.0 nm for holding the last fix.
+6. **Score evidence** (0–100): fix volume in 24 h (30), recency (25), regularity over the last 3 h (15), consistency, i.e. few rejected fixes (15), identity completeness (15). Tiers: well tracked ≥72, tracked 45–71, sparse <45, stale = no fix in 24 h.
+7. **Backtest** (every run): hide the most recent hour, estimate from its start, and score against each real position change in that hour at its midpoint report time. Never score against repeated stale snapshots, because that rewards a frozen dot. Record the results and publish the live method's error on the site.
 
 ## Mockup evidence (one run, small sample)
 
@@ -75,7 +78,11 @@ A council of four research agents (reference products, motion design, dark carto
 - **Baked basemap**, redrawn only when the camera changes: a shallow-water hint and a sea-side coast halo drawn as stacked wide, low-alpha strokes (clipped to water, fading out at close zoom), faint noise texture, land with an inner shadow, and a hierarchy of labels (italic spaced seas, then countries, then ports with a land-coloured halo). No `shadowBlur` anywhere.
 - **Comet tails** using the TripsLayer model: alpha falls with data-time age, `0.8·(1−age)^1.8` in 8 buckets, width tapers from 1.9 to 0.5 px, and trails split at coverage gaps. Only moving ships get tails.
 - **Observed vs estimated grammar**: solid for observed history, dashed for the estimate with an 8 px/s dash creep, a widening uncertainty cone that fades toward the horizon, and a hollow chevron while estimated.
-- **Level of detail**: at wide zoom, ships at rest melt into additive amber anchorage glows (pre-rendered sprites, `lighter` compositing) with collision-checked "N AT REST" counts. They cross-fade to individual dots via smoothstep as you zoom in. Underway ships stay individual at every zoom.
+- **Density at wide zoom** (ships at rest only; underway and flagged ships are never aggregated). The additive glow was rejected because it blows out to yellow and hides the ships. The replacement uses normal compositing and a muted ramp, keeping amber for tracks, and cross-fades to individual dots as you zoom in. The mockup has all three options behind a switch:
+  - **Count circles** (Mapbox/supercluster style; the default): radius `clamp(6 + 2.2·√n, 8, 24)` px, slate fill, and a stroke that warms from grey to ochre at 10 and 60 ships. The count is printed from 5 ships up.
+  - **Grid** (Global Fishing Watch style): world-anchored cells sized to 18–36 px, a five-step slate→ochre ramp (1/3/10/25/60 ships), counts printed from 10 ships up.
+  - **Dots plus anchorage outlines**: 2 px dots with a dashed hull and a label such as "OFF FUJAIRAH · 315 AT ANCHOR".
+- An estimated ship is drawn as a hollow chevron that fades in three steps with time since its last real fix. Stretches a ship covered on estimate alone get a faint ghost trail, not a wake.
 - **Arrival pings**: a ring that grows from 3 to 16 px over 800 ms when a real fix lands during playback, staggered per ship so the map breathes instead of pulsing in unison.
 - **Camera**: the van Wijk & Nuij zoom-out-and-in flight (ρ = 1.41) with Material 3 emphasized easing, 500–1,400 ms.
 - **Selection**: staged. The ring contracts at 0 ms, context dims at 250 ms, history draws on at 350 ms, the cone at 850 ms, and the panel slides in at 520 ms.
