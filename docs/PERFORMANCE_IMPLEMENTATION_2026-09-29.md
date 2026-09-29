@@ -87,5 +87,3 @@ Released September 29, 2026 (19:05 UTC): the four migrations were applied to pro
 | Capacity soak | Not run. There is no staging environment, and a 30-minute ramp against production should be a deliberate decision. CDN HITs now absorb the public read load. |
 | Mac sleep/outage drill | Not run; collection stays on the Mac by requirement. |
 | Mobile `/analytics` nav + crossing-chip tap targets | Pre-existing; unrelated to this release. |
-
-The companion [product ideas](PRODUCT_OPPORTUNITIES_2026-09-28.md) prioritize Case Files, Chokepoint Pulse, and Situation Replay built around durable evidence rather than more startup panels.
