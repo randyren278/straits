@@ -1,6 +1,7 @@
 /**
- * The estimator learns which method suits which situation, how fast ships slow down, and
- * how uncertain its estimates are — from backtests it never graded itself on.
+ * The estimator learns which method suits which situation — including how quickly ships
+ * that go quiet tend to stop — and how uncertain its estimates are, from backtests it
+ * never graded itself on.
  */
 import { JITTER_NM } from './constants';
 import type { Run } from './clean';
@@ -9,28 +10,41 @@ import type { Method, VesselState } from './estimate';
 import { cellOf, grid, inGrid } from './land';
 import { toLat, toLon, type TPt } from './proj';
 
-export const METHODS: Method[] = ['hybrid', 'sea', 'damped'];
-export const TAUS = [30, 60, 120, 240];
-export const CONTEXTS = [
-  'Slow <6 kn · open water', 'Slow <6 kn · near coast',
-  'Cruising 6–12 kn · open water', 'Cruising 6–12 kn · near coast',
-  'Fast >12 kn · open water', 'Fast >12 kn · near coast',
-];
+/** Candidate = an estimator, with the slow-down time constant folded in for 'damped'. */
+export const CANDIDATES = ['hybrid', 'sea', 'damped:30', 'damped:60', 'damped:120', 'damped:240'] as const;
+export type Candidate = (typeof CANDIDATES)[number];
+
+const SPEED = ['Slow <6 kn', 'Cruising 6–12 kn', 'Fast >12 kn'];
+const PLACE = ['open water', 'near coast'];
+const QUIET = ['recent fix', 'silent >1 h'];
+/** Context = speed band × near coast × how long the ship has been silent. */
+export const CONTEXTS = SPEED.flatMap((s) => PLACE.flatMap((p) => QUIET.map((q) => `${s} · ${p} · ${q}`)));
+
+/**
+ * Priors before evidence, measured on production backtests (Sep 30, 2026): ships with a
+ * recent fix were best estimated slowing with τ≈120 min; ships silent for hours had usually
+ * stopped, best matched by τ≈30 min. Straight lines lost to both.
+ */
+const PRIOR: Record<number, Candidate> = { 0: 'damped:120', 1: 'damped:30' };
 const CAP = 400, MIN_EVIDENCE = 8, RECENT = 60;
 
 export interface LearnState {
-  stats: Record<Method, number[]>[];
-  tauErr: Record<string, number[]>;
+  stats: Record<Candidate, number[]>[];
   rateErr: number[];
   lastRunAt: number | null;
 }
 
-export const emptyLearnState = (): LearnState => ({
-  stats: CONTEXTS.map(() => ({ hybrid: [], sea: [], damped: [] })),
-  tauErr: Object.fromEntries(TAUS.map((t) => [String(t), []])),
-  rateErr: [],
-  lastRunAt: null,
-});
+const emptyStats = () => Object.fromEntries(CANDIDATES.map((c) => [c, [] as number[]])) as Record<Candidate, number[]>;
+export const emptyLearnState = (): LearnState => ({ stats: CONTEXTS.map(emptyStats), rateErr: [], lastRunAt: null });
+
+/** Stored state from an older engine version starts over rather than being misread. */
+export function normalizeLearnState(raw: unknown): LearnState {
+  const s = raw as Partial<LearnState> | null;
+  const ok = !!s && Array.isArray(s.stats) && s.stats.length === CONTEXTS.length &&
+    s.stats.every((c) => CANDIDATES.every((k) => Array.isArray((c as Record<string, unknown>)[k])));
+  if (!ok) return { ...emptyLearnState(), lastRunAt: typeof s?.lastRunAt === 'number' ? s.lastRunAt : null };
+  return { stats: s!.stats!, rateErr: Array.isArray(s!.rateErr) ? s!.rateErr : [], lastRunAt: typeof s!.lastRunAt === 'number' ? s!.lastRunAt : null };
+}
 
 export const median = (a: number[]) => {
   if (!a.length) return NaN;
@@ -46,18 +60,18 @@ function nearCoast(st: VesselState): boolean {
   }
   return false;
 }
-export const contextOf = (st: VesselState) => (st.spd < 6 ? 0 : st.spd < 12 ? 1 : 2) * 2 + (nearCoast(st) ? 1 : 0);
+/** `quietMin` = minutes between the last real fix and the moment being estimated from. */
+export const contextOf = (st: VesselState, quietMin: number) =>
+  ((st.spd < 6 ? 0 : st.spd < 12 ? 1 : 2) * 2 + (nearCoast(st) ? 1 : 0)) * 2 + (quietMin > 60 ? 1 : 0);
 
-export function chooseMethod(ls: LearnState, ctx: number): Method {
+export function chooseCandidate(ls: LearnState, ctx: number): Candidate {
   const st = ls.stats[ctx];
-  if (METHODS.some((m) => st[m].length < MIN_EVIDENCE)) return 'hybrid';
-  return METHODS.reduce((a, m) => (median(st[m].slice(-RECENT)) < median(st[a].slice(-RECENT)) ? m : a), 'hybrid' as Method);
+  if (CANDIDATES.some((c) => st[c].length < MIN_EVIDENCE)) return PRIOR[ctx % 2];
+  return CANDIDATES.reduce((a, c) => (median(st[c].slice(-RECENT)) < median(st[a].slice(-RECENT)) ? c : a), PRIOR[ctx % 2]);
 }
-export function chooseTau(ls: LearnState): number {
-  return TAUS.reduce((a, t) => {
-    const e = ls.tauErr[String(t)], ea = ls.tauErr[String(a)];
-    return e.length && (!ea.length || median(e.slice(-200)) < median(ea.slice(-200))) ? t : a;
-  }, 120);
+export function parseCandidate(c: Candidate): { method: Method; tau: number } {
+  const [m, t] = c.split(':');
+  return { method: m as Method, tau: t ? Number(t) : 120 };
 }
 /** nm of uncertainty per minute since the last fix, calibrated from backtests. */
 export const uncertaintyRate = (ls: LearnState) => median(ls.rateErr.slice(-200)) || 0.03;
@@ -81,9 +95,8 @@ export function medianError(pts: TPt[], truth: TPt[]): number {
   return median(truth.map((q) => (pathAt(pts, q.t, o), Math.hypot(q.x - o.x, q.y - o.y))));
 }
 
-export function record(ls: LearnState, ctx: number, errs: Record<Method, number>, tauErrs: Record<string, number>, rate: number) {
+export function record(ls: LearnState, ctx: number, errs: Record<Candidate, number>, rate: number) {
   const push = (arr: number[], v: number) => { if (Number.isFinite(v)) { arr.push(v); if (arr.length > CAP) arr.splice(0, arr.length - CAP); } };
-  for (const m of METHODS) push(ls.stats[ctx][m], errs[m]);
-  for (const [t, e] of Object.entries(tauErrs)) push(ls.tauErr[t] ?? (ls.tauErr[t] = []), e);
+  for (const c of CANDIDATES) push(ls.stats[ctx][c], errs[c]);
   push(ls.rateErr, rate);
 }

@@ -12,7 +12,7 @@ const vessel = (mmsi: string, lon: number, lat: number): MapVessel => ({
 });
 const payload = (mmsi: string, underway: boolean): TrackPayload => ({
   mmsi, tier: 0, score: 90, parts: [30, 25, 15, 15, 5], state: underway ? 'underway' : 'rest', sog: underway ? 12 : 0, cog: 90, lastRealAt: 1000,
-  method: underway ? 'hybrid' : null, uncert: 0.03,
+  method: underway ? 'hybrid' : null, tau: null, uncert: 0.03,
   path: underway ? encodeSeries(Array.from({ length: 61 }, (_, k) => [1000 + k * 6, 25, 57 + k * 0.02])) : null,
   trail: null, cleaning: { kept: 1, rejected: 0, inland: 0, rerouted: 0 },
 });

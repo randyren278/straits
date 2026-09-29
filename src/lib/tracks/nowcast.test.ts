@@ -7,7 +7,7 @@ const base = (lastRealAt: number, lon0: number, knEast: number, over: Partial<Tr
   const pts: [number, number, number][] = [];
   for (let k = 0; k <= 60; k++) pts.push([lastRealAt + k * 6, 25, lon0 + (knEast * (k * 6)) / 60 / (60 * Math.cos((25 * Math.PI) / 180))]);
   return { mmsi: '1', tier: 0, score: 90, parts: [30, 25, 15, 15, 5], state: 'underway', sog: knEast, cog: 90, lastRealAt,
-    method: 'hybrid', uncert: 0.03, path: encodeSeries(pts), trail: null, cleaning: { kept: 1, rejected: 0, inland: 0, rerouted: 0 }, ...over };
+    method: 'hybrid', tau: null, uncert: 0.03, path: encodeSeries(pts), trail: null, cleaning: { kept: 1, rejected: 0, inland: 0, rerouted: 0 }, ...over };
 };
 
 describe('Nowcaster', () => {

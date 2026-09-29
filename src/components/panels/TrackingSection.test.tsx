@@ -6,7 +6,7 @@ import { useTrackStore } from '@/stores/tracks';
 beforeEach(() => {
   useTrackStore.setState({ byMmsi: new Map([['1', {
     mmsi: '1', tier: 0, score: 88, parts: [30, 25, 9, 15, 9], state: 'underway', sog: 11.6, cog: 248,
-    lastRealAt: Date.now() / 60000 - 25, method: 'damped', uncert: 0.03, path: null, trail: null,
+    lastRealAt: Date.now() / 60000 - 25, method: 'damped', tau: 60, uncert: 0.03, path: null, trail: null,
     cleaning: { kept: 9, rejected: 1, inland: 0, rerouted: 1 },
   }]]) });
 });

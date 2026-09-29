@@ -1,7 +1,7 @@
 /** Track engine persistence: engine input, per-vessel state, learning state, lane density. */
 import { pool } from './index';
 import type { EngineVessel } from '../tracks/engine';
-import { emptyLearnState, type LearnState } from '../tracks/learn';
+import { normalizeLearnState, type LearnState } from '../tracks/learn';
 import type { TrackPayload, TracksResponse } from '../tracks/types';
 
 const HALF_LIFE_DAYS = 14;
@@ -56,8 +56,8 @@ export async function saveLaneDensity(delta: Map<number, number>): Promise<void>
 }
 
 export async function loadLearnState(): Promise<LearnState> {
-  const { rows } = await pool.query<{ value: LearnState }>(`SELECT value FROM track_engine_state WHERE key = 'learn'`);
-  return rows[0]?.value ?? emptyLearnState();
+  const { rows } = await pool.query<{ value: unknown }>(`SELECT value FROM track_engine_state WHERE key = 'learn'`);
+  return normalizeLearnState(rows[0]?.value ?? null);
 }
 
 export async function saveEngineRun(

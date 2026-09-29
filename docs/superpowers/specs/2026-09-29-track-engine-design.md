@@ -85,18 +85,18 @@ Frame time stayed at 16.7 ms across the "last data" boundary before and after; t
 
 The engine gets better as it sees more traffic, and it proves it with **walk-forward evaluation**. Each hour it learns only from earlier hours, predicts the next hour, and is scored against real updates it has never trained on.
 
-- **Contexts:** speed band (<6, 6–12, >12 kn) × within about 3 nm of land, giving six situations.
-- **Candidate estimators:** straight-rerouted, sea route, and **slowing**. Slowing uses the same water-aware geometry with speed decaying as `e^(−Δt/τ)`, for ships heading into anchorages.
+- **Contexts:** speed band (<6, 6–12, >12 kn) × within about 3 nm of land × how long the ship has been silent (≤60 min or longer), giving twelve situations.
+- **Candidates:** straight-rerouted, sea route, and **slowing** at τ ∈ {30, 60, 120, 240} min, each scored separately. Slowing uses the same water-aware geometry with speed decaying as `e^(−Δt/τ)`, for ships heading into anchorages.
 - **What it learns:**
-  - For each context, the estimator with the lowest median error over its last 60 scored predictions. It needs at least 8 per candidate before it may switch away from straight.
-  - The slow-down time constant τ ∈ {30, 60, 120, 240} min.
+  - For each context, the candidate with the lowest median error over its last 60 scored predictions. It needs at least 8 per candidate before it may switch away from the prior.
+  - Priors, measured on production backtests (Sep 30, 2026): slowing with τ = 120 min for a recent fix, and τ = 30 min for a ship silent for over an hour, which has usually stopped. Straight lines lost to both. The first version, with six contexts and a straight-line default, scored 3.62 nm against 3.19 nm for frozen dots; the reworked learner scores 2.66 nm (n = 45).
   - The lane density used for routing, built only from hours already seen.
 - **Mockup result on one day of Hormuz data (19 scored hours, 7–54 ships per hour, so treat it as a signal):**
   - Learning 1.6 nm vs fixed 1.9 nm median error in the second half of the day (14% better).
   - 3.3 vs 3.7 nm in the first half.
   - Learned: ships near the coast are best estimated as *slowing* (τ = 60 min); slow and cruising ships in open water stay *straight*.
 - **Applying what it learns:** corrections still ahead of the playhead are re-estimated with the learned model. Nothing already drawn is re-shot, so no ship jumps.
-- **Production persists this across days.** A small `estimator_stats` table holds rolling per-context errors per candidate and the chosen τ. Lane density accumulates with decay (a half-life of about 14 days). The Mac harvester updates both after each run's backtest, so every day of traffic sharpens the next.
+- **Production persists this across days.** The `track_engine_state` row holds rolling per-context errors per candidate. Lane density accumulates with decay (a half-life of about 14 days). The Mac harvester updates both after each run's backtest, so every day of traffic sharpens the next.
 - **Next learners, each gated by walk-forward:**
   - Per-vessel habits: usual speed and recurring shuttle routes between the same anchorages.
   - Learned turning points (TREAD-style waypoints) where ships reliably change course.

@@ -6,6 +6,7 @@ import { useTrackStore } from '@/stores/tracks';
 const TIER = ['Well tracked', 'Tracked', 'Sparse'];
 const PARTS: [string, number][] = [['Fix volume', 30], ['Recency', 25], ['Regularity', 15], ['Consistency', 15], ['Identity', 15]];
 const METHOD = { hybrid: 'on its smoothed course, bending through open water where that course meets land', sea: 'along a sea route that favours the lanes other ships use', damped: 'slowing on its course, the way ships approaching an anchorage do' } as const;
+const slowing = (tau: number | null) => (tau ? ` (speed halves every ~${Math.round(tau * Math.LN2)} min)` : '');
 
 export function TrackingSection({ mmsi }: { mmsi: string }) {
   const p = useTrackStore((s) => s.byMmsi.get(mmsi));
@@ -18,7 +19,7 @@ export function TrackingSection({ mmsi }: { mmsi: string }) {
     ? 'At rest. Moves under 185 m are held in place instead of drawn as motion.'
     : since <= 10
       ? 'Underway on real data. Course and speed come from its smoothed track.'
-      : `Estimated for ${since} min since its last real fix, ${METHOD[p.method ?? 'hybrid']}. Position ±${(0.15 + p.uncert * since).toFixed(1)} nm. New data restarts the estimate.`;
+      : `Estimated for ${since} min since its last real fix, ${METHOD[p.method ?? 'hybrid']}${p.method === 'damped' ? slowing(p.tau) : ''}. Position ±${(0.15 + p.uncert * since).toFixed(1)} nm. New data restarts the estimate.`;
   return (
     <section data-testid="tracking-section" className="border-t border-gray-800 pt-3 space-y-3 font-mono">
       <div className="flex items-baseline gap-3">
