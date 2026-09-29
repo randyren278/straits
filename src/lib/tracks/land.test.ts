@@ -23,4 +23,11 @@ describe('land raster', () => {
     expect(nearestWater(lc, lr, 2)).toBeNull();
     expect(grid.coast.some((v) => v === 1)).toBe(true);
   });
+
+  it('keeps the Suez Canal and its lakes navigable', () => {
+    for (const [lon, lat] of [[32.3155, 30.88], [32.304, 30.56], [32.43, 30.30], [32.572, 30.06], [32.33, 31.26]]) {
+      expect(isLand(lon, lat)).toBe(false);
+    }
+    expect(isLand(32.10, 30.50)).toBe(true);   // desert west of the canal stays land
+  });
 });
