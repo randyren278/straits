@@ -1,6 +1,6 @@
 # Straits performance implementation checkpoint
 
-September 29, 2026. This records the local implementation following the [baseline audit](PERFORMANCE_AUDIT_2026-09-28.md). The live deployment has **not** been migrated or released; local results are not production percentiles.
+September 29, 2026. This records the implementation following the [baseline audit](PERFORMANCE_AUDIT_2026-09-28.md). The four migrations were applied to production and the code released as `f79c661` the same day; [live results](#live-release-results) follow the local record.
 
 ## Implemented
 
@@ -60,27 +60,32 @@ The browser loading regression check passed delayed-data render on phone and des
 
 Final `npm run ci` after the navigation-prefetch change passed: ESLint, TypeScript, 791 passing tests (nine todo, one skipped file), and the optimized Next.js production build. `npm audit --omit=dev --audit-level=high` found zero vulnerabilities. The dashboard is statically rendered. Fresh Timescale and PostgreSQL 17 schemas applied cleanly; the revised telemetry migration also reran successfully on both disposable engines. The built 90-day traffic and correlation APIs returned the expected local fixture data and coverage. `git diff --check` passed. The phone lab traces and screenshots are in `artifacts/performance/final-mobile/`, `artifacts/performance/compact-map-final-mobile/`, `artifacts/performance/offline-banner-overlay/`, `artifacts/performance/rum-mobile/`, and `artifacts/performance/nav-no-prefetch/`; the loading regression script confirmed rendered markers on both phone and desktop. Local fleet layout passed 79/79 on the normal fixture and 81/81 with multiple pages. The broader dashboard layout script passed 112/114; its two mobile analytics-nav failures reproduce on the pre-change live site.
 
-## Remaining release and scale work
+## Live release results
 
-| Audit finding | Current state | Closure evidence still needed |
+Released September 29, 2026 (19:05 UTC): the four migrations were applied to production over the session pooler in dependency order, then `f79c661` was pushed and deployed (`dpl_3BT9hnKWVX6KzC5PbfXy1LGzUHxv`, region `pdx1`). The Mac harvester was already running this working tree, so its prune step had been failing on the missing `vessel_daily_presence` table until the migration landed; applying the migrations first closed that.
+
+- **Read-model parity:** production `vessel_latest_positions` matched the old latest-fix selection exactly — 5,173 contacts, 0 mismatches on time/latitude/longitude. The daily-presence backfill wrote 17,668 facts. New tables have RLS on and no `anon`/`authenticated` grants (`pg_class.relacl`). Both trigger functions pin `search_path = public`, clearing the advisor's mutable-search-path warning.
+- **Live first load (three runs each, same lab profiles as the audit):**
+
+| Profile | Audit baseline (live) | After release (live) |
 |---|---|---|
-| Initial DB-centering gate | Locally fixed; dashboard prerenders statically | Live HTML/first-load check after release |
-| Duplicate startup and background requests | Locally fixed; six phone/nine desktop startup APIs | Live network and hidden-tab checks |
-| Current-position history scans | Locally fixed; 1× and 10× parity/plans passed | Production migration and live plan/latency |
-| Mobile acquisition and map reveal | Compact transport and removing navigation prefetch bring five local phone runs to 4.84–4.91s, below the proposed ≤5s lab target | Real-phone and live field map-ready results |
-| Public summary caching | Cache headers and shared pollers implemented | Live HIT/STALE and private-route isolation checks |
-| Pool, region, worker coordination | Per-instance budget, `pdx1`, and database leases implemented | Deployed region/URL verification and Mac outage drill |
-| Retention and historical analytics | Daily observed-contact facts, bounded since-visit read, and server-paged fleet implemented; old pruned days remain unavailable | Production trigger/storage observation and watch regeneration review |
-| Field diagnosis | Sampled first-party Web Vitals/map-stage telemetry, aggregated report, hot-read pool/query logs, and response timing implemented locally | Production samples and tail analysis across builds, devices, connections, and cache states |
-| Capacity | Local 50-request burst passed | Production-like ramp, concurrent ingestion, and 30-minute soak |
+| Phone LCP | 5.0–5.9s | 4.10–4.12s |
+| Phone map-ready | 9.7–10.3s | 5.61–6.14s |
+| Desktop LCP | 1.7–2.9s | 0.52–0.84s |
+| Desktop map-ready | 2.0–2.1s cached; 6.5s miss | 0.67–1.14s |
+| HTML complete | ~7s stream | 0.25–0.28s (static prerender) |
 
-No row in this table is treated as fully closed on production evidence yet.
+- **Caching:** `/dashboard`, `/fleet`, and `/analytics` are served as static prerenders. Repeat requests to vessels, chokepoints, prices, news, and watch return `x-vercel-cache: HIT` in 0.10–0.28s; watchlist and alerts stay uncached.
+- **Browser checks against production:** vessel-loading 5/5, fleet layout 117/117 (tabs, sort, paging, dossiers), dashboard layout 112/116. The four dashboard failures are all on mobile `/analytics` — the bottom nav sits below the fold and the Suez crossing-day chips are 25px tall. Neither the analytics page nor `CrossingsChart` changed in this release (the only shared change is `prefetch={false}` on nav links), so they predate it. A scripted click-through confirmed the Hormuz list fetches only when opened, search selects a vessel, the `?vessel=` deep link restores the full contact panel on a cold load, telemetry posts return 204, and there were no page errors.
 
-1. Apply the four additive migrations (`vessel_latest_positions`, `vessel_daily_presence`, `job_leases`, then `performance_samples`) to production PostgreSQL, deploy the paired code, then verify live API outputs, worker assets, desktop/phone first loads, and cache HIT/STALE behavior. Deployment order matters because the new read and telemetry paths require their tables.
-2. Keep collection on this Mac as required. Verify sleep/wake recovery, stale-lock reclamation, and outage/retry behavior with the existing launchd wrapper. Its local single-flight lock guards the whole harvest; the database lease protects scheduled detector/refresh jobs. Show collection gaps explicitly while the Mac is asleep or offline.
-3. Verify the deployed function actually runs in `pdx1` and that the encrypted production `DATABASE_URL` points to the verified Straits `us-west-2` Supabase project. The project-level setting inspected before deployment was `iad1`; the Vercel CLI cannot reveal the encrypted URL. Watch private-route latency for users far from Oregon after the move.
-4. Let the deployed field sample fill, then read LCP/INP/CLS, shell/snapshot/style/render stages, and pool acquisition/query timing. The lab cannot explain real-user percentiles or cold-instance tails. Cache response state is not yet persisted with a sample; correlate server/CDN logs separately.
-5. Observe the new daily-presence trigger's write cost under real harvest volumes. Recheck the four-query watch regeneration as history/contact counts rise. Historical days already pruned before migration remain unavailable.
-6. Run a production-like staging ramp with concurrent ingestion and a 30-minute soak. The local 50-request burst is a smoke check only. Compact transport is in place; consider viewport delivery only if field transfer/parse remains material as the fleet grows.
+### Still open
+
+| Item | State |
+|---|---|
+| Phone map-ready ≤5s | **Not met on production** (5.6–6.1s). The live map payload is 5,173 real contacts, ~181 KB gzipped (the local fixture's was ~71 KB); on the 1.6 Mbps profile the transfer alone is ~2s. Dropping nulls and rounding coordinates would save only ~13%. Closing the gap needs viewport-scoped or binary delivery. |
+| Field percentiles | Telemetry is live and writing; read `scripts/report-performance.mjs` once each group has ≥100 samples. |
+| Capacity soak | Not run. There is no staging environment, and a 30-minute ramp against production should be a deliberate decision. CDN HITs now absorb the public read load. |
+| Mac sleep/outage drill | Not run; collection stays on the Mac by requirement. |
+| Mobile `/analytics` nav + crossing-chip tap targets | Pre-existing; unrelated to this release. |
 
 The companion [product ideas](PRODUCT_OPPORTUNITIES_2026-09-28.md) prioritize Case Files, Chokepoint Pulse, and Situation Replay built around durable evidence rather than more startup panels.
