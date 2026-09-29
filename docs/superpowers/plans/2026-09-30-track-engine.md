@@ -385,7 +385,7 @@ describe('clean', () => {
   });
 
   it('adds a stationary measurement after a dwell of 25+ minutes', () => {
-    const { meas } = clean(runsOf([fix(0), fix(10, 3), fix(20, 3), fix(40, 3)], P), P);
+    const { meas } = clean(runsOf([fix(0), fix(10, 2), fix(20, 2), fix(40, 2)], P), P);
     expect(meas.at(-1)!.t).toBe(40);
     expect(meas.at(-1)!.x).toBeCloseTo(meas.at(-2)!.x);
   });
