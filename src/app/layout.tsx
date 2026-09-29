@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { JetBrains_Mono } from 'next/font/google';
+import { WebVitals } from '@/components/telemetry/WebVitals';
 import './globals.css';
 
 const jetbrainsMono = JetBrains_Mono({
@@ -28,6 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${jetbrainsMono.variable}`}>
       <body className="bg-black text-white antialiased">
+        <WebVitals />
         {children}
       </body>
     </html>

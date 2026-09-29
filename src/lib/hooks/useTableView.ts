@@ -5,7 +5,8 @@
  * A missing risk score means "unknown", not "safe", so it must never head the
  * descending list nor the ascending one.
  *
- * Paging is client-side; /api/anomalies returns every row in one payload.
+ * Local table callers can still page in memory; the fleet route supplies a
+ * remote TableView so it never downloads the full anomaly collection.
  */
 import { useMemo, useState } from 'react';
 

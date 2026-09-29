@@ -14,8 +14,15 @@ import { getChokepointStats } from '@/lib/geo/chokepoints';
  */
 export async function GET() {
   try {
+    const dbStarted = performance.now();
     const stats = await getChokepointStats();
-    return NextResponse.json({ chokepoints: stats });
+    const dbMs = performance.now() - dbStarted;
+    const serializeStarted = performance.now();
+    const response = NextResponse.json({ chokepoints: stats, generatedAt: new Date().toISOString() }, {
+      headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+    });
+    response.headers.set('Server-Timing', `db;dur=${dbMs.toFixed(1)}, serialize;dur=${(performance.now() - serializeStarted).toFixed(1)}`);
+    return response;
   } catch (error) {
     console.error('Failed to fetch chokepoint stats:', error);
     return NextResponse.json(

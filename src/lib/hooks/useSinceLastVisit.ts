@@ -96,7 +96,7 @@ export function useSinceLastVisit(): SinceLastVisit | null {
   useEffect(() => {
     if (!visit) return;
     let cancelled = false;
-    fetch('/api/anomalies')
+    fetch(`/api/anomalies?view=since&since=${encodeURIComponent(visit.since.toISOString())}`)
       .then((r) => (r.ok ? r.json() : { anomalies: [] }))
       .then((d) => { if (!cancelled) setAnomalies(d.anomalies ?? []); })
       .catch(() => { if (!cancelled) setAnomalies([]); });

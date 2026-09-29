@@ -180,8 +180,6 @@ export async function getChokepointSpcBandSql(
   const chokepoint = CHOKEPOINTS[chokepointId];
   if (!chokepoint) return null;
 
-  const { minLat, maxLat, minLon, maxLon } = chokepoint.bounds;
-
   const result = await pool.query<{
     day: Date;
     cnt: string;
@@ -189,12 +187,11 @@ export async function getChokepointSpcBandSql(
     roll_std: string | null;
   }>(`
     WITH daily AS (
-      SELECT date_trunc('day', vp.time) AS day,
-             COUNT(DISTINCT vp.mmsi) AS cnt
-      FROM vessel_positions vp
-      WHERE vp.time > NOW() - $1::interval
-        AND vp.latitude BETWEEN $2 AND $3
-        AND vp.longitude BETWEEN $4 AND $5
+      SELECT dp.day::timestamp AT TIME ZONE 'UTC' AS day,
+             COUNT(DISTINCT dp.mmsi) AS cnt
+      FROM vessel_daily_presence dp
+      WHERE dp.day >= ((NOW() AT TIME ZONE 'UTC') - $1::interval)::date
+        AND dp.region = $2
       GROUP BY day
     )
     SELECT day, cnt,
@@ -203,7 +200,7 @@ export async function getChokepointSpcBandSql(
     FROM daily
     WINDOW w AS (ORDER BY day ROWS BETWEEN ${SPC_WINDOW_DAYS} PRECEDING AND 1 PRECEDING)
     ORDER BY day ASC
-  `, [`${days} days`, minLat, maxLat, minLon, maxLon]);
+  `, [`${days} days`, chokepointId]);
 
   if (result.rows.length < SPC_WINDOW_DAYS + 1) return null;
 

@@ -15,6 +15,7 @@ import { Map as MapLibreMap, setWorkerUrl } from 'maplibre-gl';
 import type { GeoJSONSource, MapGeoJSONFeature, MapMouseEvent } from 'maplibre-gl';
 import { useVesselStore } from '@/stores/vessel';
 import { vesselsToGeoJSON } from '@/lib/map/geojson';
+import { expandMapVessel, type MapVessel } from '@/lib/map/map-vessel';
 import { filterTankers } from '@/lib/map/filter';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
 import { AIS_COVERAGE } from '@/lib/geo/coverage-constants';
@@ -36,7 +37,7 @@ const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.j
 
 // MapLibre v6 is ESM-only. Next/Turbopack cannot emit the worker beside its
 // shared module, so predev/prebuild copy both files to this stable public URL.
-setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
+setWorkerUrl(`/maplibre/v${process.env.NEXT_PUBLIC_MAPLIBRE_VERSION}/maplibre-gl-worker.mjs`);
 
 /**
  * Minimum zoom level before proximity detection kicks in.
@@ -60,7 +61,7 @@ const VESSEL_LOAD_COPY: Record<VesselLoadState, { title: string; detail: string 
   loading: { title: 'AIS / ACQUIRING POSITIONS', detail: 'AWAITING FIRST FIX' },
   ready: { title: 'POSITIONS ACQUIRED', detail: 'RENDER CONFIRMED' },
   empty: { title: 'NO LIVE VESSEL POSITIONS', detail: 'AIS RESPONSE RETURNED NO POSITIONS' },
-  error: { title: 'VESSEL FEED UNAVAILABLE · RETRYING', detail: 'MAP ONLINE · NEXT REQUEST IN 30S' },
+  error: { title: 'VESSEL FEED UNAVAILABLE · RETRYING', detail: 'MAP ONLINE · AUTO RETRY PENDING' },
 };
 
 export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {}) {
@@ -68,11 +69,12 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
   const map = useRef<MapLibreMap | null>(null);
   const mapLoadedRef = useRef(false);
   const requestControllerRef = useRef<AbortController | null>(null);
+  const pendingRenderCleanupRef = useRef<(() => void) | null>(null);
   const requestSequenceRef = useRef(0);
   const acceptedResponseSequenceRef = useRef(0);
   const firstRequestAttemptedRef = useRef(false);
   const mapInstanceSequenceRef = useRef(0);
-  const [vessels, setVessels] = useState<VesselWithSanctions[]>([]);
+  const [vessels, setVessels] = useState<MapVessel[]>([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [vesselLoadState, setVesselLoadState] = useState<VesselLoadState>('loading');
@@ -88,22 +90,27 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
    * This covers both orderings: the map can load first, or the data can arrive
    * first and wait for the map's `load` callback.
    */
-  const submitVesselGeoJson = useCallback((nextVessels: VesselWithSanctions[], responseSequence: number) => {
+  const submitVesselGeoJson = useCallback((nextVessels: MapVessel[], responseSequence: number) => {
     const mapInstance = map.current;
     if (!mapInstance || !mapLoadedRef.current) return;
 
     const source = mapInstance.getSource('vessels') as GeoJSONSource | undefined;
     if (!source) return;
+    performance.mark('straits:vessel-source-submit');
 
     let filtered = filterTankers(nextVessels, tankersOnly);
     if (anomalyFilter) {
       filtered = filtered.filter((v) => v.anomalyType !== null && v.anomalyType !== undefined);
     }
 
-    // Register before setData: MapLibre emits idle after the source update has
-    // been rendered, which is the point at which it is safe to remove the HUD.
+    // Wait for a frame with the vessel source loaded. Waiting for map-wide
+    // `idle` also waits for unrelated basemap glyphs and tiles on slow phones.
+    pendingRenderCleanupRef.current?.();
     const mapSequence = mapInstanceSequenceRef.current;
-    mapInstance.once('idle', () => {
+    const onRender = () => {
+      if (!mapInstance.isSourceLoaded('vessels')) return;
+      mapInstance.off('render', onRender);
+      if (pendingRenderCleanupRef.current === cleanupRender) pendingRenderCleanupRef.current = null;
       if (
         map.current !== mapInstance ||
         !mapLoadedRef.current ||
@@ -112,7 +119,11 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       ) return;
 
       setVesselLoadState(nextVessels.length > 0 ? 'ready' : 'empty');
-    });
+      performance.mark('straits:vessel-render-ready');
+    };
+    const cleanupRender = () => mapInstance.off('render', onRender);
+    pendingRenderCleanupRef.current = cleanupRender;
+    mapInstance.on('render', onRender);
 
     source.setData(vesselsToGeoJSON(filtered));
   }, [anomalyFilter, tankersOnly]);
@@ -230,13 +241,14 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       mapInstance = new MapLibreMap({
         container: mapContainer.current,
         style: MAP_STYLE,
-        // Server-picked densest chokepoint when available; otherwise the
-        // Strait of Hormuz region, matching today's default.
-        center: initialCenter ? [initialCenter.lon, initialCenter.lat] : [54, 25],
-        zoom: initialCenter ? initialCenter.zoom : 5,
+        // Begin at the primary chokepoint without waiting for a DB count.
+        center: initialCenter ? [initialCenter.lon, initialCenter.lat] : [56.5, 25.25],
+        zoom: initialCenter ? initialCenter.zoom : 8,
         attributionControl: { compact: true },
       });
+      performance.mark('straits:map-created');
     } catch (err) {
+      performance.mark('straits:map-init-error');
       setMapError(err instanceof Error ? err.message : 'Map failed to load');
       return;
     }
@@ -311,7 +323,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       }
     };
 
-    mapInstance.on('load', () => {
+    mapInstance.on('style.load', () => {
+      performance.mark('straits:map-style-loaded');
       if (map.current !== mapInstance) return;
 
       // ─── Vessel source — NO clustering ─────────────────────────
@@ -544,6 +557,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
 
     // Cleanup
     return () => {
+      pendingRenderCleanupRef.current?.();
+      pendingRenderCleanupRef.current = null;
       // Detach layer/map listeners explicitly before removing the instance so
       // handlers don't accumulate across Strict Mode re-mounts.
       try {
@@ -568,8 +583,23 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
   // Fetch vessels periodically
   useEffect(() => {
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let failures = 0;
+
+    const clearTimer = () => {
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+    };
+
+    const schedule = () => {
+      if (cancelled || document.hidden) return;
+      const delay = Math.min(30_000 * 2 ** failures, 300_000);
+      timer = setTimeout(fetchVessels, delay * (0.9 + Math.random() * 0.2));
+    };
 
     async function fetchVessels() {
+      if (cancelled || document.hidden) return;
+      clearTimer();
       requestControllerRef.current?.abort();
       const controller = new AbortController();
       requestControllerRef.current = controller;
@@ -577,7 +607,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       requestSequenceRef.current = requestSequence;
 
       try {
-        const res = await fetch(`/api/vessels?tankersOnly=${tankersOnly}`, { signal: controller.signal });
+        const res = await fetch(`/api/vessels?tankersOnly=${tankersOnly}&view=map`, { signal: controller.signal });
         if (!res.ok) {
           throw new Error(`Failed to fetch vessels: ${res.status}`);
         }
@@ -585,28 +615,40 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         if (cancelled || controller.signal.aborted || requestSequence !== requestSequenceRef.current) return;
 
         const nextVessels = data.vessels || [];
+        if (!firstRequestAttemptedRef.current) performance.mark('straits:snapshot-received');
         acceptedResponseSequenceRef.current += 1;
         const isFirstRequest = !firstRequestAttemptedRef.current;
         firstRequestAttemptedRef.current = true;
         setVessels(nextVessels);
         setLastUpdate(new Date(data.timestamp));
         setLastObservation(data.latestObservation ? new Date(data.latestObservation) : null);
+        failures = 0;
         // Keep the HUD until submitVesselGeoJson has handed this response to
-        // MapLibre and the following idle event confirms it was rendered.
+        // MapLibre and a render frame confirms the vessel source is loaded.
         if (isFirstRequest) setVesselLoadState('loading');
       } catch (err) {
         if (cancelled || controller.signal.aborted || requestSequence !== requestSequenceRef.current) return;
+        if (!firstRequestAttemptedRef.current) performance.mark('straits:map-data-error');
         firstRequestAttemptedRef.current = true;
+        failures += 1;
         setVesselLoadState((current) => current === 'loading' ? 'error' : current);
         console.error('Failed to fetch vessels:', err);
+      } finally {
+        if (requestControllerRef.current === controller) schedule();
       }
     }
 
     void fetchVessels();
-    const interval = setInterval(fetchVessels, 30000);
+    const onVisibility = () => {
+      clearTimer();
+      if (document.hidden) requestControllerRef.current?.abort();
+      else void fetchVessels();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      clearTimer();
+      document.removeEventListener('visibilitychange', onVisibility);
       requestControllerRef.current?.abort();
       requestSequenceRef.current += 1;
     };
@@ -732,7 +774,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
 
     const match = vessels.find((v) => v.imo === targetVesselImo);
     if (match) {
-      setSelectedVessel(match);
+      setSelectedVessel(expandMapVessel(match));
       setTargetVesselImo(null);
     } else {
       console.warn(

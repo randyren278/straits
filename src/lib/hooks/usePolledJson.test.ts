@@ -9,6 +9,7 @@ describe('usePolledJson', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('fetches exactly once for two subscribers sharing a key', async () => {
@@ -86,5 +87,42 @@ describe('usePolledJson', () => {
 
     a.unmount();
     b.unmount();
+  });
+
+  it('aborts the current request while hidden and refreshes when visible', async () => {
+    let hidden = false;
+    vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);
+    const signals: AbortSignal[] = [];
+    const fetcher = vi.fn((signal: AbortSignal) => {
+      signals.push(signal);
+      return new Promise<{ ok: boolean }>(() => {});
+    });
+    const hook = renderHook(() => usePolledJson('visibility-key', fetcher, 1000));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    hidden = true;
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(signals[0].aborted).toBe(true);
+    await act(async () => { vi.advanceTimersByTime(5000); });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    hidden = false;
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    hook.unmount();
+  });
+
+  it('backs off after a failed refresh', async () => {
+    const fetcher = vi.fn()
+      .mockRejectedValueOnce(new Error('temporary'))
+      .mockResolvedValue({ ok: true });
+    const hook = renderHook(() => usePolledJson('backoff-key', fetcher, 1000));
+    await act(async () => { await Promise.resolve(); });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await act(async () => { vi.advanceTimersByTime(1999); });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await act(async () => { vi.advanceTimersByTime(1); await Promise.resolve(); });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    hook.unmount();
   });
 });

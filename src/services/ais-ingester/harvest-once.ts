@@ -676,6 +676,10 @@ async function refreshSanctions(): Promise<void> {
 
 // ── Prune + size metrics ──────────────────────────────────────────────────────
 async function pruneAndMeasure(): Promise<void> {
+  // Daily presence is the durable 90-day chart/SPC read model. Keep a spare
+  // month beyond the longest public range while bounding its storage.
+  await pool.query("DELETE FROM vessel_daily_presence WHERE day < (NOW() AT TIME ZONE 'UTC')::date - 120");
+  await pool.query("DELETE FROM performance_samples WHERE created_at < NOW() - INTERVAL '30 days'");
   const res = await pool.query(
     `DELETE FROM vessel_positions WHERE time < NOW() - ($1 || ' days')::interval`,
     [String(RETENTION_DAYS)]

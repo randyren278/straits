@@ -20,8 +20,11 @@ type Listener = () => void;
 interface RegistryEntry<T> {
   data: T | null;
   subscribers: number;
-  intervalId: ReturnType<typeof setInterval> | null;
+  timerId: ReturnType<typeof setTimeout> | null;
   inFlight: Promise<void> | null;
+  controller: AbortController | null;
+  failures: number;
+  stop: (() => void) | null;
   listeners: Set<Listener>;
 }
 
@@ -30,28 +33,39 @@ const registry = new Map<string, RegistryEntry<unknown>>();
 function getEntry<T>(key: string): RegistryEntry<T> {
   let entry = registry.get(key) as RegistryEntry<T> | undefined;
   if (!entry) {
-    entry = { data: null, subscribers: 0, intervalId: null, inFlight: null, listeners: new Set() };
+    entry = { data: null, subscribers: 0, timerId: null, inFlight: null, controller: null, failures: 0, stop: null, listeners: new Set() };
     registry.set(key, entry as RegistryEntry<unknown>);
   }
   return entry;
 }
 
-function poll<T>(key: string, fetcher: () => Promise<T>): Promise<void> {
+function poll<T>(key: string, fetcher: (signal: AbortSignal) => Promise<T>): Promise<void> {
   const entry = getEntry<T>(key);
-  if (entry.inFlight) return entry.inFlight;
-  const run = fetcher()
+  if (entry.inFlight && !entry.controller?.signal.aborted) return entry.inFlight;
+  const controller = new AbortController();
+  entry.controller = controller;
+  const run = fetcher(controller.signal)
     .then((data) => {
+      if (controller.signal.aborted) return;
       entry.data = data;
+      entry.failures = 0;
       entry.listeners.forEach((listener) => listener());
     })
     .catch(() => {
-      // Leave the last known value in place rather than flashing unknown on a transient failure.
+      if (!controller.signal.aborted) entry.failures += 1;
+      // Retain the last value on a transient failure; retry with backoff.
     })
     .finally(() => {
-      entry.inFlight = null;
+      if (entry.inFlight === run) entry.inFlight = null;
+      if (entry.controller === controller) entry.controller = null;
     });
   entry.inFlight = run;
   return run;
+}
+
+function clearTimer(entry: RegistryEntry<unknown>): void {
+  if (entry.timerId !== null) clearTimeout(entry.timerId);
+  entry.timerId = null;
 }
 
 /**
@@ -62,7 +76,7 @@ function poll<T>(key: string, fetcher: () => Promise<T>): Promise<void> {
  */
 export function usePolledJson<T>(
   key: string | null,
-  fetcher: () => Promise<T>,
+  fetcher: (signal: AbortSignal) => Promise<T>,
   intervalMs: number
 ): T | null {
   // Refs must not be written during render, so the "latest fetcher" is
@@ -81,17 +95,38 @@ export function usePolledJson<T>(
       entry.subscribers += 1;
 
       if (entry.subscribers === 1) {
-        const run = () => poll(key, fetcherRef.current);
+        let active = true;
+        const schedule = () => {
+          if (!active || document.hidden) return;
+          const backoff = Math.min(2 ** entry.failures, 5);
+          const jitter = intervalMs < 10_000 ? 1 : 0.9 + Math.random() * 0.2;
+          entry.timerId = setTimeout(run, Math.min(intervalMs * backoff * jitter, 300_000));
+        };
+        const run = () => {
+          if (!active || document.hidden) return;
+          void poll(key, fetcherRef.current).finally(schedule);
+        };
+        const onVisibility = () => {
+          clearTimer(entry);
+          if (document.hidden) entry.controller?.abort();
+          else run();
+        };
+        entry.stop = () => {
+          active = false;
+          clearTimer(entry);
+          entry.controller?.abort();
+          document.removeEventListener('visibilitychange', onVisibility);
+        };
+        document.addEventListener('visibilitychange', onVisibility);
         run();
-        entry.intervalId = setInterval(run, intervalMs);
       }
 
       return () => {
         entry.listeners.delete(onStoreChange);
         entry.subscribers -= 1;
-        if (entry.subscribers === 0 && entry.intervalId !== null) {
-          clearInterval(entry.intervalId);
-          entry.intervalId = null;
+        if (entry.subscribers === 0) {
+          entry.stop?.();
+          entry.stop = null;
         }
       };
     },

@@ -11,19 +11,9 @@ import { Anchor, ChevronDown } from 'lucide-react';
 import { useVesselStore } from '@/stores/vessel';
 import { useCoverageQuality } from '@/lib/hooks/useCoverageQuality';
 import { QualityChip } from './QualityChip';
+import { useChokepointStats, type ChokepointStat } from '@/lib/hooks/useChokepointStats';
 
-interface ChokepointData {
-  id: string;
-  name: string;
-  totalVessels: number;
-  tankerCount: number;
-  bounds: {
-    minLat: number;
-    maxLat: number;
-    minLon: number;
-    maxLon: number;
-  };
-}
+type ChokepointData = ChokepointStat;
 
 interface ChokepointVessel {
   mmsi: string;
@@ -50,9 +40,9 @@ function shipTypeLabel(shipType: number | null): string {
 }
 
 export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
-  const [chokepoints, setChokepoints] = useState<ChokepointData[]>([]);
+  const chokepoints = useChokepointStats();
   const [vesselMap, setVesselMap] = useState<Record<string, ChokepointVessel[]>>({});
-  const [loading, setLoading] = useState(true);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { setSelectedVessel, setMapCenter } = useVesselStore();
@@ -84,45 +74,27 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
   };
 
   useEffect(() => {
-    let cancelled = false;
-
-    const fetchAllVessels = async (ids: string[]) => {
-      const entries = await Promise.all(
-        ids.map(async (id) => {
-          const res = await fetch(`/api/chokepoints/${id}/vessels`);
-          const data = await res.json();
-          return [id, data.vessels ?? []] as [string, ChokepointVessel[]];
-        })
-      );
-      if (cancelled) return;
-      setVesselMap(Object.fromEntries(entries));
-    };
-
-    const fetchStats = async () => {
+    if (!expandedId) return;
+    const controller = new AbortController();
+    const fetchVessels = async () => {
       try {
-        const res = await fetch('/api/chokepoints');
-        const data = await res.json();
-        if (cancelled) return;
-        const cps: ChokepointData[] = data.chokepoints || [];
-        setChokepoints(cps);
-        await fetchAllVessels(cps.map((cp) => cp.id));
+        setLoadingId(expandedId);
+        const response = await fetch(`/api/chokepoints/${expandedId}/vessels`, { signal: controller.signal });
+        if (!response.ok) throw new Error(`chokepoint vessels ${response.status}`);
+        const data = await response.json();
+        if (!controller.signal.aborted) setVesselMap((previous) => ({ ...previous, [expandedId]: data.vessels ?? [] }));
       } catch (error) {
-        console.error('Failed to fetch chokepoints:', error);
+        if (!controller.signal.aborted) console.error('Failed to fetch chokepoint vessels:', error);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoadingId(null);
       }
     };
+    void fetchVessels();
+    const interval = setInterval(() => { if (!document.hidden) void fetchVessels(); }, 60_000);
+    return () => { clearInterval(interval); controller.abort(); };
+  }, [expandedId]);
 
-    fetchStats();
-    // Refresh every 30 seconds to match map vessel position polling
-    const interval = setInterval(fetchStats, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
-
-  if (loading) return null;
+  if (!chokepoints) return null;
 
   return (
     // Mobile stacks these full-width. They used to sit in a horizontal scroll
@@ -173,7 +145,9 @@ export function ChokepointWidgets({ onSelect }: ChokepointWidgetsProps) {
             /* Desktop: popover over the map. Mobile: static, so the list opens
                inline as an accordion inside the card instead of overlaying it. */
             <div className="absolute left-0 top-full z-50 min-w-[200px] bg-black border border-amber-500/20 border-t-0 shadow-lg phone:static phone:min-w-0 phone:border-x-0 phone:border-b-0 phone:border-t">
-              {(vesselMap[cp.id] ?? []).length === 0 ? (
+              {loadingId === cp.id && !vesselMap[cp.id] ? (
+                <p className="px-2 py-1 text-xs text-gray-500 font-mono">ACQUIRING VESSELS...</p>
+              ) : (vesselMap[cp.id] ?? []).length === 0 ? (
                 <p className="px-2 py-1 text-xs text-gray-600 font-mono">NO VESSELS</p>
               ) : (
                 <div className="max-h-48 overflow-y-auto">

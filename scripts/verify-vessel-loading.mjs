@@ -14,6 +14,10 @@ import { chromium } from 'playwright';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const maplibreVersion = require('maplibre-gl/package.json').version;
 
 const BASE_URL = process.env.BASE_URL;
 if (!BASE_URL) {
@@ -92,7 +96,7 @@ const assert = (condition, message) => {
 };
 
 for (const asset of ['maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs']) {
-  const response = await fetch(new URL(`/maplibre/${asset}`, BASE_URL));
+  const response = await fetch(new URL(`/maplibre/v${maplibreVersion}/${asset}`, BASE_URL));
   const body = await response.arrayBuffer();
   assert(response.ok, `${asset}: expected HTTP 200, got ${response.status}`);
   assert(
@@ -103,7 +107,7 @@ for (const asset of ['maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs']) {
 }
 console.log('PASS MapLibre worker and shared module are available');
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL ?? 'chrome' });
 const viewports = [
   ['phone', { width: 390, height: 844 }],
   ['desktop', { width: 1440, height: 900 }],

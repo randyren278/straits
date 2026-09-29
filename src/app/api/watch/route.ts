@@ -11,10 +11,15 @@ import { getCurrentWatch } from '@/lib/watch/current-watch';
 
 export async function GET() {
   try {
+    const composeStarted = performance.now();
     const watch = await getCurrentWatch();
-    return NextResponse.json(watch, {
+    const composeMs = performance.now() - composeStarted;
+    const serializeStarted = performance.now();
+    const response = NextResponse.json(watch, {
       headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
     });
+    response.headers.set('Server-Timing', `compose;dur=${composeMs.toFixed(1)}, serialize;dur=${(performance.now() - serializeStarted).toFixed(1)}`);
+    return response;
   } catch (error) {
     console.error('[API] Failed to compose current watch:', error);
     return NextResponse.json({ error: 'Failed to compose current watch', items: [] }, { status: 500 });

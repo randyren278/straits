@@ -242,6 +242,9 @@ stays open, server still pings) means the provider is down, not your key.
 - `raw_message` is never stored (it roughly triples row size).
 - `RETENTION_DAYS=7` prunes `vessel_positions` older than a week each run. Plain
   Postgres `DELETE` marks tuples dead; autovacuum reclaims the space.
+- `vessel_daily_presence` keeps one observed-contact fact per MMSI, UTC day,
+  and region for 30/90-day traffic and SPC charts; facts older than 120 days
+  are pruned. Apply its migration before deploying the paired harvester code.
 - Current usage prints in `status.json` (`dbSizeMB`, `positionsSizeMB`) and in the
   SwiftBar dropdown, so you can watch it stays well under 500 MB.
 - Periodic writes also keep the Supabase project from pausing after 7 days idle.

@@ -56,20 +56,19 @@ export async function getPositionHistory(
 }
 
 /**
- * Get the most recent position for each vessel.
- * Uses DISTINCT ON to efficiently get latest position per vessel.
+ * Get the materialized most recent position for each observed MMSI.
  * Only considers positions within the display staleness window.
  *
  * @returns Array of latest positions, one per vessel
  */
 export async function getLatestPositions(): Promise<VesselPosition[]> {
   const result = await pool.query<VesselPosition>(
-    `SELECT DISTINCT ON (mmsi)
+    `SELECT
        time, mmsi, imo, latitude, longitude, speed, course, heading,
        nav_status as "navStatus", low_confidence as "lowConfidence"
-     FROM vessel_positions
+     FROM vessel_latest_positions
      WHERE time > NOW() - INTERVAL '${VESSEL_STALENESS_INTERVAL}'
-     ORDER BY mmsi, time DESC`
+     ORDER BY time DESC`
   );
   return result.rows;
 }

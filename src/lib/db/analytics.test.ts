@@ -27,7 +27,7 @@ describe('getTrafficByChokepoint', () => {
     await getTrafficByChokepoint('hormuz', '7d');
 
     expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining('date_trunc'),
+      expect.stringContaining('vessel_daily_presence'),
       expect.arrayContaining(['7 days'])
     );
   });
@@ -38,7 +38,7 @@ describe('getTrafficByChokepoint', () => {
     await getTrafficByChokepoint('hormuz', '30d');
 
     expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining('date_trunc'),
+      expect.stringContaining('vessel_daily_presence'),
       expect.arrayContaining(['30 days'])
     );
   });
@@ -59,15 +59,14 @@ describe('getTrafficByChokepoint', () => {
     ]);
   });
 
-  it('uses chokepoint bounds in query', async () => {
+  it('uses the durable regional presence index', async () => {
     (pool.query as ReturnType<typeof vi.fn>).mockResolvedValue({ rows: [] });
 
     await getTrafficByChokepoint('hormuz', '7d');
 
-    // Hormuz bounds: minLat: 23.5, maxLat: 27.0, minLon: 55.5, maxLon: 57.5
     expect(pool.query).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining([23.5, 27.0, 55.5, 57.5])
+      expect.stringContaining('FROM vessel_daily_presence dp'),
+      ['7 days', 'hormuz']
     );
   });
 });
@@ -83,7 +82,7 @@ describe('getTrafficByRoute', () => {
     await getTrafficByRoute('30d');
 
     expect(pool.query).toHaveBeenCalledWith(
-      expect.stringContaining('date_trunc'),
+      expect.stringContaining('vessel_daily_presence'),
       expect.arrayContaining(['30 days'])
     );
   });
@@ -234,7 +233,7 @@ describe('getChokepointCoverage', () => {
       observedDays: 7,
       lookbackDays: COVERAGE_LOOKBACK_DAYS,
     });
-    expect(vi.mocked(pool.query).mock.calls[0][1]).toEqual(['90 days', 23.5, 27.0, 55.5, 57.5]);
+    expect(vi.mocked(pool.query).mock.calls[0][1]).toEqual(['90 days', 'hormuz']);
   });
 
   it('reports zero coverage when nothing was ever observed', async () => {

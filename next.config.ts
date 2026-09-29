@@ -1,4 +1,8 @@
 import type { NextConfig } from 'next'
+import { createRequire } from 'node:module'
+
+const require = createRequire(import.meta.url)
+const maplibreVersion = (require('maplibre-gl/package.json') as { version: string }).version
 
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -9,6 +13,8 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  distDir: process.env.STRAITS_DIST_DIR || '.next',
+  env: { NEXT_PUBLIC_MAPLIBRE_VERSION: maplibreVersion },
   reactStrictMode: true,
   poweredByHeader: false,
 
@@ -25,6 +31,10 @@ const nextConfig: NextConfig = {
       {
         source: '/:path*',
         headers: securityHeaders,
+      },
+      {
+        source: '/maplibre/v:version/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
     ]
   },

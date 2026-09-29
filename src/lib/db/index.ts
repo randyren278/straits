@@ -6,7 +6,9 @@ import { Pool, QueryResultRow } from 'pg';
 
 /**
  * Connection pool configured for production use.
- * - max: 20 connections (sufficient for typical workload)
+ * - max: 5 per Vercel instance, 20 for the standalone/local worker. The
+ *   serverless limit multiplies across instances; the worker needs its own
+ *   concurrency budget for the detector and enrichment jobs.
  * - idleTimeoutMillis: 30s (release idle connections)
  * - connectionTimeoutMillis: 8s (fail fast on connection issues, but with
  *   real margin — a Supabase pooler connect was measured at 1455ms; the old
@@ -35,7 +37,7 @@ import { Pool, QueryResultRow } from 'pg';
  */
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: 20,
+  max: process.env.VERCEL === '1' ? 5 : 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 8000,
 });

@@ -12,12 +12,13 @@ import { FleetVesselDetail } from '@/components/fleet/FleetVesselDetail';
 import { TablePager } from '@/components/fleet/TablePager';
 import { SortableHeader, MobileSortBar } from '@/components/fleet/SortControls';
 import { handleRowKeyDown } from '@/components/fleet/rowActivation';
-import { useTableView, type SortColumn } from '@/lib/hooks/useTableView';
+import { useTableView, type SortColumn, type TableView } from '@/lib/hooks/useTableView';
 import type { Anomaly, AnomalyType } from '@/types/anomaly';
 
 interface AnomalyTableProps {
   anomalyType: AnomalyType;
   anomalies: Anomaly[];
+  remoteView?: TableView<Anomaly>;
 }
 
 function toTime(value: Date | string): number | null {
@@ -44,9 +45,10 @@ function formatTimestamp(date: Date | string): string {
   });
 }
 
-export function AnomalyTable({ anomalyType, anomalies }: AnomalyTableProps) {
+export function AnomalyTable({ anomalyType, anomalies, remoteView }: AnomalyTableProps) {
   const [expandedImo, setExpandedImo] = useState<string | null>(null);
-  const view = useTableView(anomalies, ANOMALY_SORT_COLUMNS, { defaultSortKey: 'riskScore' });
+  const localView = useTableView(anomalies, ANOMALY_SORT_COLUMNS, { defaultSortKey: 'riskScore' });
+  const view = remoteView ?? localView;
 
   const [nameColumn, riskColumn, detectedColumn] = ANOMALY_SORT_COLUMNS;
 

@@ -6,7 +6,7 @@
  */
 import { pool } from '../db';
 import { CHOKEPOINTS } from '../geo/chokepoints-constants';
-import { getChokepointSpcBand } from '../detection/spc-index';
+import { computeSpcBand, type DailyCount } from '../detection/spc-index';
 import { VESSEL_STALENESS_INTERVAL } from '../constants/staleness';
 import { composeWatch, type EventFact, type ZoneTrafficFact, type ZoneCoverageFact, type WatchItem } from './compose';
 
@@ -38,14 +38,8 @@ async function loadEvents(): Promise<EventFact[]> {
     LEFT JOIN vessels v ON v.imo = va.imo
     LEFT JOIN vessel_sanctions vs ON vs.imo = va.imo
     LEFT JOIN vessel_risk_scores rs ON rs.imo = va.imo
-    JOIN LATERAL (
-      SELECT latitude, longitude
-      FROM vessel_positions vp
-      WHERE vp.mmsi = v.mmsi
-        AND vp.time > NOW() - INTERVAL '${VESSEL_STALENESS_INTERVAL}'
-      ORDER BY vp.time DESC
-      LIMIT 1
-    ) lp ON true
+    JOIN vessel_latest_positions lp ON lp.mmsi = v.mmsi
+      AND lp.time > NOW() - INTERVAL '${VESSEL_STALENESS_INTERVAL}'
     WHERE va.resolved_at IS NULL
       AND va.detected_at > NOW() - INTERVAL '48 hours'
     ORDER BY va.detected_at DESC
@@ -71,56 +65,72 @@ function center(id: string) {
   return { lat: (b.minLat + b.maxLat) / 2, lon: (b.minLon + b.maxLon) / 2 };
 }
 
+const ZONES = Object.values(CHOKEPOINTS);
+const BOUND_PARAMS = ZONES.flatMap((cp) => {
+  const { minLat, maxLat, minLon, maxLon } = cp.bounds;
+  return [minLat, maxLat, minLon, maxLon];
+});
+function inZone(index: number): string {
+  const first = index * 4 + 1;
+  return `latitude BETWEEN $${first} AND $${first + 1}
+    AND longitude BETWEEN $${first + 2} AND $${first + 3}`;
+}
+
 async function loadTraffic(): Promise<ZoneTrafficFact[]> {
-  return Promise.all(Object.values(CHOKEPOINTS).map(async (cp) => {
-    const { minLat, maxLat, minLon, maxLon } = cp.bounds;
-    const [counts, spc] = await Promise.all([
-      pool.query<{ recent: string; previous: string }>(`
-        SELECT
-          COUNT(DISTINCT mmsi) FILTER (WHERE time > NOW() - INTERVAL '24 hours')::text AS recent,
-          COUNT(DISTINCT mmsi) FILTER (WHERE time <= NOW() - INTERVAL '24 hours')::text AS previous
-        FROM vessel_positions
-        WHERE time > NOW() - INTERVAL '48 hours'
-          AND latitude BETWEEN $1 AND $2
-          AND longitude BETWEEN $3 AND $4
-      `, [minLat, maxLat, minLon, maxLon]),
-      getChokepointSpcBand(cp.id).catch(() => null),
-    ]);
-    const row = counts.rows[0];
-    return {
-      chokepoint: cp.id,
-      name: cp.name,
-      center: center(cp.id),
-      recent: row ? parseInt(row.recent, 10) || 0 : 0,
-      previous: row ? parseInt(row.previous, 10) || 0 : 0,
-      z: spc ? spc.z : null,
-    };
+  const fields = ZONES.flatMap((_, index) => [
+    `COUNT(DISTINCT mmsi) FILTER (WHERE time > NOW() - INTERVAL '24 hours' AND ${inZone(index)})::text AS recent_${index}`,
+    `COUNT(DISTINCT mmsi) FILTER (WHERE time <= NOW() - INTERVAL '24 hours' AND ${inZone(index)})::text AS previous_${index}`,
+  ]);
+  // Start the small daily read concurrently. A failed SPC calculation should
+  // omit z-scores, not hide the observed traffic counts from Current Watch.
+  const daily = pool.query<{ region: string; day: string; contacts: number }>(`
+    SELECT region, day::text AS day, COUNT(*)::int AS contacts
+    FROM vessel_daily_presence
+    WHERE region = ANY($1::text[])
+      AND day >= ((NOW() AT TIME ZONE 'UTC') - INTERVAL '30 days')::date
+    GROUP BY region, day
+    ORDER BY region, day
+  `, [ZONES.map((cp) => cp.id)]).catch(() => null);
+  const counts = await pool.query<Record<string, string>>(`
+    SELECT ${fields.join(',\n           ')}
+    FROM vessel_positions
+    WHERE time > NOW() - INTERVAL '48 hours'
+  `, BOUND_PARAMS);
+  const byRegion = new Map<string, DailyCount[]>();
+  for (const row of (await daily)?.rows ?? []) {
+    const series = byRegion.get(row.region) ?? [];
+    series.push({ date: row.day, count: row.contacts });
+    byRegion.set(row.region, series);
+  }
+  const row = counts.rows[0];
+  return ZONES.map((cp, index) => ({
+    chokepoint: cp.id,
+    name: cp.name,
+    center: center(cp.id),
+    recent: Number(row?.[`recent_${index}`]) || 0,
+    previous: Number(row?.[`previous_${index}`]) || 0,
+    z: computeSpcBand(byRegion.get(cp.id) ?? [])?.z ?? null,
   }));
 }
 
 async function loadCoverage(): Promise<{ zones: ZoneCoverageFact[]; feedLastFix: Date | null }> {
-  const [zoneRows, feed] = await Promise.all([
-    Promise.all(Object.values(CHOKEPOINTS).map(async (cp) => {
-      const { minLat, maxLat, minLon, maxLon } = cp.bounds;
-      const r = await pool.query<{ last_fix: Date | null }>(`
-        SELECT MAX(time) AS last_fix
-        FROM vessel_positions
-        WHERE time > NOW() - INTERVAL '${VESSEL_STALENESS_INTERVAL}'
-          AND latitude BETWEEN $1 AND $2
-          AND longitude BETWEEN $3 AND $4
-      `, [minLat, maxLat, minLon, maxLon]);
-      return {
-        chokepoint: cp.id,
-        name: cp.name,
-        center: center(cp.id),
-        lastFix: r.rows[0]?.last_fix ? new Date(r.rows[0].last_fix) : null,
-      };
-    })),
-    pool.query<{ last_fix: Date | null }>('SELECT MAX(time) AS last_fix FROM vessel_positions'),
-  ]);
+  const fields = ZONES.map((_, index) =>
+    `MAX(time) FILTER (WHERE ${inZone(index)}) AS last_${index}`);
+  const result = await pool.query<Record<string, Date | null>>(`
+    SELECT (SELECT MAX(time) FROM vessel_positions) AS feed_last_fix,
+           ${fields.join(',\n           ')}
+    FROM vessel_positions
+    WHERE time > NOW() - INTERVAL '${VESSEL_STALENESS_INTERVAL}'
+  `, BOUND_PARAMS);
+  const row = result.rows[0];
   return {
-    zones: zoneRows,
-    feedLastFix: feed.rows[0]?.last_fix ? new Date(feed.rows[0].last_fix) : null,
+    zones: ZONES.map((cp, index) => ({
+      chokepoint: cp.id,
+      name: cp.name,
+      center: center(cp.id),
+      lastFix: row?.[`last_${index}`] ? new Date(row[`last_${index}`]!) : null,
+    })),
+    feedLastFix: row?.feed_last_fix ? new Date(row.feed_last_fix) : null,
   };
 }
 

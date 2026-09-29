@@ -34,14 +34,14 @@ export function AisOutageBanner() {
     <div
       data-testid="ais-outage-banner"
       role="status"
-      className="flex items-start gap-2 px-4 py-2 border-t border-red-500/30 bg-red-500/10"
+      className="flex items-start gap-2 px-4 py-2 border border-red-500/30 bg-black/95 shadow-[0_8px_24px_rgba(0,0,0,0.8)]"
     >
       <AlertTriangle className="w-3.5 h-3.5 mt-px shrink-0 text-red-500" aria-hidden="true" />
       <p className="text-xs font-mono text-red-400 leading-relaxed">
         <span className="uppercase tracking-wider text-red-500">AIS feed offline</span>
         <span className="text-gray-400">
-          {' — '}no live vessel positions are being received from the upstream AIS provider.
-          Positions, tracks and chokepoint counts are stale or empty. Oil prices and news are unaffected.
+          {' — '}no fresh vessel positions received. Map, tracks and chokepoint counts may be stale.
+          Oil prices and news remain available.
         </span>
       </p>
     </div>

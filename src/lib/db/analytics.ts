@@ -2,8 +2,8 @@
  * Analytics Database Queries (HIST-01)
  *
  * Aggregation queries for historical traffic analysis.
- * Uses date_trunc for daily grouping — portable across vanilla Postgres
- * (Supabase) and TimescaleDB.
+ * Reads one durable presence fact per MMSI/day/region, so 30/90-day charts
+ * survive the seven-day raw-position prune on both Postgres engines.
  */
 import { pool } from './index';
 import { CHOKEPOINTS } from '../geo/chokepoints';
@@ -13,7 +13,7 @@ import { timeRangeToDays } from '@/types/analytics';
 
 /**
  * Get daily vessel traffic for a chokepoint over time range.
- * Uses date_trunc for daily aggregation (portable Postgres/TimescaleDB).
+ * Counts observed contacts, not completed chokepoint crossings.
  *
  * @param chokepointId - ID from CHOKEPOINTS (hormuz, babel_mandeb, suez)
  * @param range - Time range ('7d', '30d', '90d')
@@ -28,7 +28,6 @@ export async function getTrafficByChokepoint(
   const chokepoint = CHOKEPOINTS[chokepointId];
   if (!chokepoint) return [];
 
-  const { minLat, maxLat, minLon, maxLon } = chokepoint.bounds;
   const days = timeRangeToDays(range);
 
   // Build controlled SQL clause from validated enum — never inject raw user input
@@ -47,18 +46,17 @@ export async function getTrafficByChokepoint(
     tanker_count: string;
   }>(`
     SELECT
-      date_trunc('day', vp.time) AS bucket_day,
-      COUNT(DISTINCT vp.mmsi)::text AS vessel_count,
-      COUNT(DISTINCT vp.mmsi) FILTER (WHERE v.ship_type BETWEEN 80 AND 89)::text AS tanker_count
-    FROM vessel_positions vp
-    LEFT JOIN vessels v ON vp.mmsi = v.mmsi
-    WHERE vp.time > NOW() - $1::interval
-      AND vp.latitude BETWEEN $2 AND $3
-      AND vp.longitude BETWEEN $4 AND $5
+      dp.day::timestamp AT TIME ZONE 'UTC' AS bucket_day,
+      COUNT(DISTINCT dp.mmsi)::text AS vessel_count,
+      COUNT(DISTINCT dp.mmsi) FILTER (WHERE v.ship_type BETWEEN 80 AND 89)::text AS tanker_count
+    FROM vessel_daily_presence dp
+    LEFT JOIN vessels v ON dp.mmsi = v.mmsi
+    WHERE dp.day >= ((NOW() AT TIME ZONE 'UTC') - $1::interval)::date
+      AND dp.region = $2
       ${shipTypeClause}
     GROUP BY bucket_day
     ORDER BY bucket_day ASC
-  `, [`${days} days`, minLat, maxLat, minLon, maxLon]);
+  `, [`${days} days`, chokepointId]);
 
   return result.rows.map(row => ({
     date: row.bucket_day.toISOString().split('T')[0],
@@ -77,18 +75,15 @@ export const COVERAGE_LOOKBACK_DAYS = 90;
 export async function getChokepointCoverage(chokepointId: string): Promise<TrafficCoverage | null> {
   const chokepoint = CHOKEPOINTS[chokepointId];
   if (!chokepoint) return null;
-  const { minLat, maxLat, minLon, maxLon } = chokepoint.bounds;
-
   const result = await pool.query<{ first_day: Date | null; last_day: Date | null; observed_days: string }>(`
     SELECT
-      MIN(date_trunc('day', time)) AS first_day,
-      MAX(date_trunc('day', time)) AS last_day,
-      COUNT(DISTINCT date_trunc('day', time))::text AS observed_days
-    FROM vessel_positions
-    WHERE time > NOW() - $1::interval
-      AND latitude BETWEEN $2 AND $3
-      AND longitude BETWEEN $4 AND $5
-  `, [`${COVERAGE_LOOKBACK_DAYS} days`, minLat, maxLat, minLon, maxLon]);
+      MIN(day)::timestamp AT TIME ZONE 'UTC' AS first_day,
+      MAX(day)::timestamp AT TIME ZONE 'UTC' AS last_day,
+      COUNT(DISTINCT day)::text AS observed_days
+    FROM vessel_daily_presence
+    WHERE day >= ((NOW() AT TIME ZONE 'UTC') - $1::interval)::date
+      AND region = $2
+  `, [`${COVERAGE_LOOKBACK_DAYS} days`, chokepointId]);
 
   const row = result.rows[0];
   return {
@@ -130,13 +125,14 @@ export async function getTrafficByRoute(
     tanker_count: string;
   }>(`
     SELECT
-      date_trunc('day', vp.time) AS bucket_day,
+      dp.day::timestamp AT TIME ZONE 'UTC' AS bucket_day,
       v.destination,
-      COUNT(DISTINCT vp.mmsi)::text AS vessel_count,
-      COUNT(DISTINCT vp.mmsi) FILTER (WHERE v.ship_type BETWEEN 80 AND 89)::text AS tanker_count
-    FROM vessel_positions vp
-    LEFT JOIN vessels v ON vp.mmsi = v.mmsi
-    WHERE vp.time > NOW() - $1::interval
+      COUNT(DISTINCT dp.mmsi)::text AS vessel_count,
+      COUNT(DISTINCT dp.mmsi) FILTER (WHERE v.ship_type BETWEEN 80 AND 89)::text AS tanker_count
+    FROM vessel_daily_presence dp
+    LEFT JOIN vessels v ON dp.mmsi = v.mmsi
+    WHERE dp.day >= ((NOW() AT TIME ZONE 'UTC') - $1::interval)::date
+      AND dp.region = '*'
       ${shipTypeClause}
     GROUP BY bucket_day, v.destination
     ORDER BY bucket_day ASC

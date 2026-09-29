@@ -4,7 +4,8 @@ import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const maplibreDist = path.join(path.dirname(require.resolve('maplibre-gl/package.json')), 'dist');
-const destination = path.join(process.cwd(), 'public', 'maplibre');
+const version = require('maplibre-gl/package.json').version;
+const destination = path.join(process.cwd(), 'public', 'maplibre', `v${version}`);
 
 mkdirSync(destination, { recursive: true });
 

@@ -26,8 +26,8 @@ export interface ChokepointCoverage {
 
 const POLL_MS = 60_000;
 
-async function fetchCoverage(): Promise<Record<string, ChokepointCoverage>> {
-  const res = await fetch('/api/coverage');
+async function fetchCoverage(signal: AbortSignal): Promise<Record<string, ChokepointCoverage>> {
+  const res = await fetch('/api/coverage', { signal });
   if (!res.ok) throw new Error(`coverage ${res.status}`);
   const json = (await res.json()) as { chokepoints?: ChokepointCoverage[] };
   return Object.fromEntries((json.chokepoints ?? []).map((c) => [c.id, c]));

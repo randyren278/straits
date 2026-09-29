@@ -4,7 +4,7 @@
  * Dashboard page with interactive vessel map.
  * Requirements: MAP-01, MAP-02, MAP-03, MAP-04, MAP-05, MAP-06, MAP-07, MAP-08, INTL-02, INTL-03, ANOM-01, HIST-02
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { VesselMap } from '@/components/map/VesselMap';
 import { VesselPanel } from '@/components/panels/VesselPanel';
 import { OilPricePanel } from '@/components/panels/OilPricePanel';
@@ -12,7 +12,7 @@ import { NewsPanel } from '@/components/panels/NewsPanel';
 import { RailPanels } from '@/components/panels/RailPanels';
 import { Header } from '@/components/ui/Header';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import { useVesselStore, type MapCenter } from '@/stores/vessel';
+import { useVesselStore } from '@/stores/vessel';
 import { MobileSheet, type Chokepoint } from '@/components/dashboard/MobileSheet';
 import { IntelDrawer } from '@/components/dashboard/IntelDrawer';
 import { MapFilterChips } from '@/components/map/MapFilterChips';
@@ -21,6 +21,8 @@ import { useCurrentWatch, openWatchItem } from '@/components/panels/CurrentWatch
 import { parseInvestigation, serializeInvestigation } from '@/lib/dashboard/investigation-link';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
 import { useCoverageQuality } from '@/lib/hooks/useCoverageQuality';
+import { useViewportMatch } from '@/lib/hooks/useViewportMatch';
+import { useChokepointStats } from '@/lib/hooks/useChokepointStats';
 
 interface SearchResult {
   imo: string | null;
@@ -32,7 +34,9 @@ interface SearchResult {
   longitude: number | null;
 }
 
-export function DashboardClient({ initialCenter }: { initialCenter?: MapCenter }) {
+export function DashboardClient() {
+  useEffect(() => { performance.mark('straits:shell-ready'); }, []);
+  const desktop = useViewportMatch('(min-width: 1280px) and (min-height: 600px)');
   const setMapCenter = useVesselStore((state) => state.setMapCenter);
   const setTargetVesselImo = useVesselStore((state) => state.setTargetVesselImo);
   const setSelectedVessel = useVesselStore((state) => state.setSelectedVessel);
@@ -84,37 +88,13 @@ export function DashboardClient({ initialCenter }: { initialCenter?: MapCenter }
     }
   }, [selectedVessel?.imo, targetVesselImo, mapCenter, viewport, tankersOnly, anomalyFilter]);
 
-  const [chokepoints, setChokepoints] = useState<Chokepoint[]>([]);
+  const chokepointStats = useChokepointStats();
+  const chokepoints: Chokepoint[] = (chokepointStats ?? []).map((c) => ({
+    id: c.id, name: c.name, tankers: c.tankerCount, total: c.totalVessels,
+  }));
   const coverageQuality = useCoverageQuality();
   // Shares the rail panel's poller (usePolledJson is keyed by URL).
   const watchItems = useCurrentWatch();
-
-  // One fetch for both the desktop widgets and the mobile sheet strip.
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch('/api/chokepoints');
-        if (!res.ok) return;
-        const data = await res.json();
-        // Verified against src/app/api/chokepoints/route.ts and the
-        // ChokepointData interface in ChokepointWidget.tsx: the response is
-        // { chokepoints: [{ id, name, totalVessels, tankerCount }] }.
-        setChokepoints(
-          (data.chokepoints ?? []).map((c: { id: string; name: string; tankerCount: number; totalVessels: number }) => ({
-            id: c.id,
-            name: c.name,
-            tankers: c.tankerCount,
-            total: c.totalVessels,
-          })),
-        );
-      } catch {
-        // Leave the strip empty rather than failing the page.
-      }
-    }
-    load();
-    const interval = setInterval(load, 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Handle vessel selection from search.
   //
@@ -201,12 +181,12 @@ export function DashboardClient({ initialCenter }: { initialCenter?: MapCenter }
               Tablet: the map is full-bleed and IntelDrawer overlays it, which is
               why the drawer lives inside this relative box rather than beside it. */}
           <div className="relative overflow-hidden flex-1 min-h-0">
-            <VesselMap initialCenter={initialCenter} />
+            <VesselMap />
             <MapFilterChips />
             <MapLegend />
-            <IntelDrawer>
-              <RailPanels />
-            </IntelDrawer>
+          <IntelDrawer>
+            <RailPanels />
+          </IntelDrawer>
           </div>
         </ErrorBoundary>
 
@@ -215,7 +195,7 @@ export function DashboardClient({ initialCenter }: { initialCenter?: MapCenter }
             data-testid="panel-rail"
             className="hidden desk:flex flex-col overflow-y-auto bg-black border-l border-amber-500/20 divide-y divide-amber-500/10"
           >
-            <RailPanels />
+            {desktop && <RailPanels />}
           </div>
         </ErrorBoundary>
       </main>

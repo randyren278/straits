@@ -5,8 +5,8 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Sparkline } from '../charts/Sparkline';
+import { usePolledJson } from '@/lib/hooks/usePolledJson';
 
 interface PriceData {
   symbol: string;
@@ -25,28 +25,14 @@ interface PriceData {
  * - Auto-refresh every 60 seconds
  */
 export function OilPricePanel() {
-  const [prices, setPrices] = useState<PriceData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const prices = usePolledJson<PriceData[]>('/api/prices', async (signal) => {
+    const response = await fetch('/api/prices', { signal });
+    if (!response.ok) throw new Error(`prices ${response.status}`);
+    const data = await response.json();
+    return data.prices ?? [];
+  }, 60_000);
 
-  useEffect(() => {
-    const fetchPrices = async () => {
-      try {
-        const res = await fetch('/api/prices');
-        const data = await res.json();
-        setPrices(data.prices || []);
-      } catch (error) {
-        console.error('Failed to fetch prices:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPrices();
-    const interval = setInterval(fetchPrices, 60000); // Refresh every minute
-    return () => clearInterval(interval);
-  }, []);
-
-  if (loading) return null;
+  if (prices === null) return null;
   if (!prices.length) return null;
 
   return (

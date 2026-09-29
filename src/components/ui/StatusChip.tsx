@@ -71,8 +71,8 @@ const SOURCES: Array<{ key: keyof StatusState; label: string }> = [
 
 const DEFAULT_STATUS: StatusState = { ais: null, prices: null, news: null };
 
-async function fetchStatus(): Promise<StatusState> {
-  const res = await fetch('/api/status');
+async function fetchStatus(signal: AbortSignal): Promise<StatusState> {
+  const res = await fetch('/api/status', { signal });
   if (!res.ok) throw new Error(`/api/status responded ${res.status}`);
   return res.json();
 }

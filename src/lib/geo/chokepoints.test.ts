@@ -2,11 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { isInChokepoint, CHOKEPOINTS } from './chokepoints';
 
 // Mock the database module
-vi.mock('../db', () => ({
-  pool: {
-    query: vi.fn(),
-  },
-}));
+vi.mock('../db', () => {
+  const query = vi.fn();
+  return { pool: { query, connect: vi.fn(async () => ({ query, release: vi.fn() })), totalCount: 1, idleCount: 0, waitingCount: 0 } };
+});
 
 describe('Chokepoints', () => {
   describe('isInChokepoint', () => {

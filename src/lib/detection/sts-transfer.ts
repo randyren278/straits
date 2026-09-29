@@ -59,33 +59,41 @@ interface StsRow {
  * @returns Total number of anomalies upserted (2 per pair)
  */
 export async function detectStsTransfers(): Promise<number> {
-  // Find vessel pairs within 0.5nm using haversine formula
-  // b.imo > a.imo ensures lexicographic deduplication — each pair appears once
+  // Bin current fixes before applying haversine. In the monitored latitudes a
+  // 0.926km separation spans less than 0.025 degrees in either axis, so only
+  // the vessel's own cell and eight neighboring cells can contain a match.
+  // This avoids a fleet-wide pairwise trigonometric join as contacts grow.
   const result = await pool.query<StsRow>(`
-    SELECT DISTINCT ON (LEAST(a.imo, b.imo), GREATEST(a.imo, b.imo))
-      a.imo as imo_a, a.name as name_a, a_pos.latitude as lat_a, a_pos.longitude as lon_a,
-      b.imo as imo_b, b.name as name_b, b_pos.latitude as lat_b, b_pos.longitude as lon_b,
+    WITH current AS MATERIALIZED (
+      SELECT v.imo, v.mmsi, v.name, p.latitude, p.longitude,
+        floor(p.latitude / 0.025)::int AS lat_cell,
+        floor(p.longitude / 0.025)::int AS lon_cell
+      FROM vessels v
+      JOIN vessel_latest_positions p ON p.mmsi = v.mmsi
+      WHERE p.time > NOW() - INTERVAL '${POSITION_FRESHNESS_MINUTES} minutes'
+    ), nearby AS MATERIALIZED (
+      SELECT a.imo, a.mmsi, a.name, a.latitude, a.longitude,
+        a.lat_cell + lat_step.delta AS lat_cell,
+        a.lon_cell + lon_step.delta AS lon_cell
+      FROM current a
+      CROSS JOIN (VALUES (-1), (0), (1)) AS lat_step(delta)
+      CROSS JOIN (VALUES (-1), (0), (1)) AS lon_step(delta)
+    )
+    SELECT
+      a.imo as imo_a, a.name as name_a, a.latitude as lat_a, a.longitude as lon_a,
+      b.imo as imo_b, b.name as name_b, b.latitude as lat_b, b.longitude as lon_b,
       2 * 6371 * asin(sqrt(
-        sin(radians((b_pos.latitude - a_pos.latitude) / 2))^2 +
-        cos(radians(a_pos.latitude)) * cos(radians(b_pos.latitude)) *
-        sin(radians((b_pos.longitude - a_pos.longitude) / 2))^2
+        sin(radians((b.latitude - a.latitude) / 2))^2 +
+        cos(radians(a.latitude)) * cos(radians(b.latitude)) *
+        sin(radians((b.longitude - a.longitude) / 2))^2
       )) as distance_km
-    FROM vessels a
-    JOIN LATERAL (
-      SELECT latitude, longitude FROM vessel_positions
-      WHERE mmsi = a.mmsi AND time > NOW() - INTERVAL '${POSITION_FRESHNESS_MINUTES} minutes'
-      ORDER BY time DESC LIMIT 1
-    ) a_pos ON true
-    JOIN vessels b ON b.imo > a.imo
-    JOIN LATERAL (
-      SELECT latitude, longitude FROM vessel_positions
-      WHERE mmsi = b.mmsi AND time > NOW() - INTERVAL '${POSITION_FRESHNESS_MINUTES} minutes'
-      ORDER BY time DESC LIMIT 1
-    ) b_pos ON true
+    FROM nearby a
+    JOIN current b ON b.lat_cell = a.lat_cell AND b.lon_cell = a.lon_cell
+      AND b.imo > a.imo AND b.mmsi <> a.mmsi
     WHERE 2 * 6371 * asin(sqrt(
-        sin(radians((b_pos.latitude - a_pos.latitude) / 2))^2 +
-        cos(radians(a_pos.latitude)) * cos(radians(b_pos.latitude)) *
-        sin(radians((b_pos.longitude - a_pos.longitude) / 2))^2
+        sin(radians((b.latitude - a.latitude) / 2))^2 +
+        cos(radians(a.latitude)) * cos(radians(b.latitude)) *
+        sin(radians((b.longitude - a.longitude) / 2))^2
       )) < ${STS_DISTANCE_KM}
   `);
 
@@ -93,8 +101,8 @@ export async function detectStsTransfers(): Promise<number> {
   // into multi-row upserts (mirrors upsertVessels/insertPositions in
   // harvest-once.ts) instead of one round-trip per pair.
   // Track the minimum observed separation across the encounter in distance_km.
-  // The query's DISTINCT ON (LEAST/GREATEST) already guarantees each pair
-  // appears once, so no dedup is needed before the multi-row upsert.
+  // Each contact occupies one cell, and b.imo > a.imo picks one direction,
+  // so no dedup is needed before the multi-row upsert.
   for (let i = 0; i < result.rows.length; i += UPSERT_CHUNK_SIZE) {
     const chunk = result.rows.slice(i, i + UPSERT_CHUNK_SIZE);
     if (chunk.length === 0) continue;
@@ -132,14 +140,8 @@ export async function detectStsTransfers(): Promise<number> {
     FROM vessel_proximity_events pe
     LEFT JOIN vessels va ON va.imo = pe.imo_a
     LEFT JOIN vessels vb ON vb.imo = pe.imo_b
-    LEFT JOIN LATERAL (
-      SELECT latitude, longitude FROM vessel_positions
-      WHERE mmsi = va.mmsi ORDER BY time DESC LIMIT 1
-    ) a_pos ON true
-    LEFT JOIN LATERAL (
-      SELECT latitude, longitude FROM vessel_positions
-      WHERE mmsi = vb.mmsi ORDER BY time DESC LIMIT 1
-    ) b_pos ON true
+    LEFT JOIN vessel_latest_positions a_pos ON a_pos.mmsi = va.mmsi
+    LEFT JOIN vessel_latest_positions b_pos ON b_pos.mmsi = vb.mmsi
     LEFT JOIN vessel_sanctions sa ON sa.imo = pe.imo_a
     LEFT JOIN vessel_sanctions sb ON sb.imo = pe.imo_b
     WHERE pe.last_seen_at < NOW() - INTERVAL '${POSITION_FRESHNESS_MINUTES + 5} minutes'

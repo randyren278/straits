@@ -19,6 +19,7 @@ import { StatusChip } from './StatusChip';
 import { StraitsMark } from './StraitsMark';
 import { AisOutageBanner } from './AisOutageBanner';
 import { CommandPalette } from './CommandPalette';
+import { useViewportMatch } from '@/lib/hooks/useViewportMatch';
 
 interface SearchResult {
   imo: string | null;
@@ -50,17 +51,19 @@ const NAV_ITEMS = [
 ] as const;
 
 export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
+  const roomy = useViewportMatch('(min-width: 768px) and (min-height: 600px)');
   const pathname = usePathname();
   const activeTab = pathname === '/fleet' ? 'fleet' : pathname === '/analytics' ? 'analytics' : pathname === '/about' ? 'about' : 'dashboard';
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
-    <>
+    <div className="relative z-30 shrink-0">
     <header className="bg-black border-b border-amber-500/20">
       <div className="min-h-14 phone:min-h-11 flex items-center justify-between px-4 roomy:flex-wrap phone:h-auto phone:flex-col phone:items-stretch phone:gap-0">
         <div className="flex items-center phone:justify-between phone:min-h-11 phone:w-full">
           <Link
             href="/dashboard"
+            prefetch={false}
             className="flex items-center gap-2 shrink-0 phone:min-w-[44px] phone:min-h-[44px] tablet:min-w-[44px] tablet:min-h-[44px]"
           >
             <StraitsMark size={20} className="shrink-0" />
@@ -76,6 +79,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
               <Link
                 key={href}
                 href={href}
+                prefetch={false}
                 className={`inline-flex items-center whitespace-nowrap px-3 py-1 tablet:min-h-[44px] text-xs font-mono uppercase tracking-wider border transition-colors ${
                   activeTab === id
                     ? 'border-amber-500 text-amber-500 bg-amber-500/10'
@@ -147,10 +151,10 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
       {activeTab === 'dashboard' && (
         <div
           data-testid="header-chokepoints"
-          className="phone:hidden flex items-center gap-4 px-4 py-2 border-t border-amber-500/10"
+          className="phone:hidden flex items-center gap-4 px-4 py-2 min-h-[64px] border-t border-amber-500/10"
         >
           <div className="flex-1 min-w-0">
-            <ChokepointWidgets onSelect={onChokepointSelect} />
+            {roomy && <ChokepointWidgets onSelect={onChokepointSelect} />}
           </div>
           <div className="hidden desk:block shrink-0">
             <DataFreshness />
@@ -159,11 +163,12 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
       )}
 
     </header>
-    {/* Not gated on activeTab: a dark AIS feed empties the fleet table and
-        analytics charts too, so the explanation belongs on every route. Keep
-        it outside the header so an outage message does not turn into permanent
-        navigation chrome on a phone. */}
-    <AisOutageBanner />
-    </>
+      {/* An outage can begin after hydration. Float the explanation over the
+          page so the map and charts do not shift when status changes. Keep it
+          below the map filters on narrow viewports. */}
+      <div className="pointer-events-none absolute inset-x-3 top-[calc(100%+4rem)] desk:top-full">
+        <AisOutageBanner />
+      </div>
+    </div>
   );
 }

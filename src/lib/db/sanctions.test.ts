@@ -13,10 +13,15 @@ import {
 import type { SanctionEntry } from '../external/opensanctions';
 
 // Mock the pool from db/index
-vi.mock('./index', () => ({
-  pool: {
-    query: vi.fn(),
-  },
+vi.mock('./index', () => {
+  const query = vi.fn();
+  return { pool: { query, connect: vi.fn(async () => ({ query, release: vi.fn() })), totalCount: 1, idleCount: 0, waitingCount: 0 } };
+});
+vi.mock('./observed-query', () => ({
+  observedQuery: vi.fn(async (_operation: string, sql: string, params?: unknown[]) => {
+    const { pool } = await import('./index');
+    return pool.query(sql, params);
+  }),
 }));
 
 import { pool } from './index';

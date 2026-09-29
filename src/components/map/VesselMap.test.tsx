@@ -94,6 +94,7 @@ vi.mock('maplibre-gl', () => {
     getStyle() { return { layers: [] }; }
     getCanvas() { return this.canvas; }
     isStyleLoaded() { return true; }
+    isSourceLoaded(id: string) { return this.sources.has(id); }
     getZoom() { return 5; }
     getCenter() { return { lat: 25, lng: 55 }; }
     queryRenderedFeatures() { return []; }
@@ -189,21 +190,21 @@ async function waitForSetData(map: any) {
 }
 
 async function emitMapLoad(map: any) {
-  act(() => map.emit('load'));
+  act(() => map.emit('style.load'));
   await flush();
   // Return the active map in case a future MapLibre test double models a
   // replacement instance during style initialization.
   const latest = mapHarness.maps.at(-1);
   if (latest && latest !== map) {
-    act(() => latest.emit('load'));
+    act(() => latest.emit('style.load'));
     await flush();
     return latest;
   }
   return map;
 }
 
-async function emitMapIdle(map: any) {
-  act(() => map.emit('idle'));
+async function emitMapRender(map: any) {
+  act(() => map.emit('render'));
   await flush();
 }
 
@@ -224,6 +225,7 @@ afterEach(() => {
 
 describe('VesselMap loading state', () => {
   it('explains the WebGL2 requirement when map initialization fails', () => {
+    const mark = vi.spyOn(performance, 'mark');
     mapHarness.constructorError = new Error('WebGL2 unavailable');
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
 
@@ -232,6 +234,7 @@ describe('VesselMap loading state', () => {
     expect(screen.getByText('MAP ERROR')).toBeInTheDocument();
     expect(screen.getByText('WebGL2 unavailable')).toBeInTheDocument();
     expect(screen.getByText(/WebGL2 required for map rendering/i)).toBeInTheDocument();
+    expect(mark).toHaveBeenCalledWith('straits:map-init-error');
   });
 
   it('ignores a delayed load event from a disposed map instance', async () => {
@@ -245,11 +248,11 @@ describe('VesselMap loading state', () => {
     await waitFor(() => expect(mapHarness.maps).toHaveLength(2));
     const activeMap = mapHarness.maps[1];
 
-    act(() => staleMap.emit('load'));
+    act(() => staleMap.emit('style.load'));
     expect(staleMap.getSource('vessels')).toBeUndefined();
     expect(activeMap.getSource('vessels')).toBeUndefined();
 
-    act(() => activeMap.emit('load'));
+    act(() => activeMap.emit('style.load'));
     expect(activeMap.getSource('vessels')).toBeDefined();
   });
 
@@ -272,7 +275,7 @@ describe('VesselMap loading state', () => {
     expect(document.querySelectorAll('.straits-acquisition-bar-static')).toHaveLength(0);
   });
 
-  it('keeps loading until map idle when the map loads before data', async () => {
+  it('keeps loading until vessel-source render when the map loads before data', async () => {
     const gate = deferred<any>();
     vi.stubGlobal('fetch', vi.fn(() => gate.promise));
     const { map } = await renderMap();
@@ -285,7 +288,7 @@ describe('VesselMap loading state', () => {
     await waitForSetData(activeMap);
     expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'loading');
 
-    await emitMapIdle(activeMap);
+    await emitMapRender(activeMap);
     await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'ready'));
     expect(screen.getByTestId('vessel-loading-hud')).toBeInTheDocument();
     expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('data-reveal-state', 'ready');
@@ -295,7 +298,7 @@ describe('VesselMap loading state', () => {
     expect(screen.getByTestId('vessel-map')).not.toHaveAttribute('aria-busy');
   });
 
-  it('keeps loading until map idle when data arrives before the map', async () => {
+  it('keeps loading until vessel-source render when data arrives before the map', async () => {
     const gate = deferred<any>();
     vi.stubGlobal('fetch', vi.fn(() => gate.promise));
     const { map } = await renderMap();
@@ -310,11 +313,11 @@ describe('VesselMap loading state', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/map online/i);
     await waitForSetData(activeMap);
     expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'loading');
-    await emitMapIdle(activeMap);
+    await emitMapRender(activeMap);
     await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'ready'));
   });
 
-  it('reports a successful empty response as empty after map idle', async () => {
+  it('reports a successful empty response as empty after vessel-source render', async () => {
     const gate = deferred<any>();
     vi.stubGlobal('fetch', vi.fn(() => gate.promise));
     const { map } = await renderMap();
@@ -323,7 +326,7 @@ describe('VesselMap loading state', () => {
     gate.resolve(response([]));
     await flush();
     await waitForSetData(activeMap);
-    await emitMapIdle(activeMap);
+    await emitMapRender(activeMap);
 
     await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'empty'));
     expect(screen.getByTestId('vessel-map-surface')).toHaveAttribute('data-reveal-state', 'covered');
@@ -334,6 +337,7 @@ describe('VesselMap loading state', () => {
   });
 
   it('shows error for HTTP/network failure and recovers on the next request', async () => {
+    const mark = vi.spyOn(performance, 'mark');
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const retry = deferred<any>();
     const fetchMock = vi.fn()
@@ -346,6 +350,7 @@ describe('VesselMap loading state', () => {
     await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'error'));
     expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('data-reveal-state', 'covered');
     expect(errorSpy).toHaveBeenCalledWith('Failed to fetch vessels:', expect.any(Error));
+    expect(mark).toHaveBeenCalledWith('straits:map-data-error');
     expect(screen.getByRole('status')).toHaveTextContent(/feed unavailable/i);
     expect(document.querySelectorAll('.straits-acquisition-bar-static')).toHaveLength(4);
 
@@ -357,7 +362,7 @@ describe('VesselMap loading state', () => {
     retry.resolve(response([vessel(1)]));
     await flush();
     await waitForSetData(activeMap);
-    await emitMapIdle(activeMap);
+    await emitMapRender(activeMap);
 
     await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'ready'));
     expect(screen.getByTestId('vessel-loading-overlay')).toHaveAttribute('data-reveal-state', 'ready');
@@ -389,9 +394,37 @@ describe('VesselMap loading state', () => {
     second.resolve(response([vessel(1), vessel(2)]));
     await flush();
     await waitForSetData(activeMap);
-    await emitMapIdle(activeMap);
+    await emitMapRender(activeMap);
     await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'ready'));
     expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-count', '2');
+  });
+
+  it('pauses the vessel feed in a hidden tab and refreshes on return', async () => {
+    let hidden = false;
+    vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);
+    const pending = deferred<any>();
+    let firstSignal: AbortSignal | undefined;
+    const fetchMock = vi.fn()
+      .mockImplementationOnce((_url: string, init: RequestInit) => {
+        firstSignal = init.signal as AbortSignal;
+        return pending.promise;
+      })
+      .mockResolvedValueOnce(response([vessel(1)]));
+    vi.stubGlobal('fetch', fetchMock);
+    const { map } = await renderMap();
+    const activeMap = await emitMapLoad(map);
+
+    hidden = true;
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(firstSignal?.aborted).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    hidden = false;
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitForSetData(activeMap);
+    await emitMapRender(activeMap);
+    await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'ready'));
   });
 
   it('preserves ready data when a later refresh request fails', async () => {
@@ -407,7 +440,7 @@ describe('VesselMap loading state', () => {
     first.resolve(response([vessel(1)]));
     await flush();
     await waitForSetData(activeMap);
-    await emitMapIdle(activeMap);
+    await emitMapRender(activeMap);
     await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'ready'));
 
     vesselHarness.state.tankersOnly = true;

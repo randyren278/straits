@@ -5,6 +5,7 @@
  * Uses database queries - DO NOT import in client components.
  */
 import { pool } from '../db';
+import { observedQuery } from '../db/observed-query';
 import { CHOKEPOINTS, type ChokepointBounds, type Chokepoint } from './chokepoints-constants';
 import { CHOKEPOINT_STALENESS_INTERVAL } from '../constants/staleness';
 
@@ -24,7 +25,7 @@ export interface ChokepointStats {
 
 /**
  * Count vessels within a chokepoint bounding box.
- * Only counts positions from the last hour for freshness.
+ * Only counts positions from the configured display freshness window.
  * Separates tanker count (ship types 80-89) from total.
  * Fallback-relayed contacts have no IMO and never enter `vessels`, so the
  * join must be LEFT and the type must fall back to vessel_fallback_metadata —
@@ -34,48 +35,58 @@ export interface ChokepointStats {
  * @returns Object with total and tanker counts
  */
 export async function countVesselsInChokepoint(bounds: ChokepointBounds): Promise<{ total: number; tankers: number }> {
-  const result = await pool.query<{ total: number; tankers: number }>(`
-    WITH latest_positions AS (
-      SELECT DISTINCT ON (vp.mmsi)
-        vp.mmsi, vp.latitude, vp.longitude,
-        COALESCE(v.ship_type, fallback.ship_type) AS ship_type
-      FROM vessel_positions vp
-      LEFT JOIN vessels v ON vp.mmsi = v.mmsi
-      LEFT JOIN vessel_fallback_metadata fallback ON fallback.mmsi = vp.mmsi
-      WHERE vp.time > NOW() - INTERVAL '${CHOKEPOINT_STALENESS_INTERVAL}'
-      ORDER BY vp.mmsi, vp.time DESC
-    )
+  const result = await observedQuery<{ total: number; tankers: number }>('chokepoint-count', `
     SELECT
       COUNT(*)::int as total,
-      COUNT(*) FILTER (WHERE ship_type BETWEEN 80 AND 89)::int as tankers
-    FROM latest_positions
-    WHERE latitude BETWEEN $1 AND $2
-      AND longitude BETWEEN $3 AND $4
+      COUNT(*) FILTER (WHERE COALESCE(v.ship_type, fallback.ship_type) BETWEEN 80 AND 89)::int as tankers
+    FROM vessel_latest_positions p
+    LEFT JOIN LATERAL (
+      SELECT ship_type FROM vessels WHERE mmsi = p.mmsi
+      ORDER BY (imo = p.imo) DESC NULLS LAST, last_seen DESC, imo LIMIT 1
+    ) v ON true
+    LEFT JOIN vessel_fallback_metadata fallback ON fallback.mmsi = p.mmsi
+    WHERE p.time > NOW() - INTERVAL '${CHOKEPOINT_STALENESS_INTERVAL}'
+      AND p.latitude BETWEEN $1 AND $2
+      AND p.longitude BETWEEN $3 AND $4
   `, [bounds.minLat, bounds.maxLat, bounds.minLon, bounds.maxLon]);
 
   return result.rows[0] || { total: 0, tankers: 0 };
 }
 
 /**
- * Get vessel counts for all three chokepoints.
+ * Get all chokepoint counts with one bounded latest-position read.
  *
  * @returns Array of chokepoint statistics
  */
 export async function getChokepointStats(): Promise<ChokepointStats[]> {
-  const stats = await Promise.all(
-    Object.values(CHOKEPOINTS).map(async (cp) => {
-      const counts = await countVesselsInChokepoint(cp.bounds);
-      return {
-        id: cp.id,
-        name: cp.name,
-        totalVessels: counts.total,
-        tankerCount: counts.tankers,
-        bounds: cp.bounds,
-      };
-    })
-  );
-
-  return stats;
+  const chokepoints = Object.values(CHOKEPOINTS);
+  const values = chokepoints.map((_, i) => {
+    const n = i * 5;
+    return `($${n + 1}::text, $${n + 2}::double precision, $${n + 3}::double precision, $${n + 4}::double precision, $${n + 5}::double precision)`;
+  }).join(', ');
+  const params = chokepoints.flatMap((cp) => [cp.id, cp.bounds.minLat, cp.bounds.maxLat, cp.bounds.minLon, cp.bounds.maxLon]);
+  const result = await observedQuery<{ id: string; total: number; tankers: number }>('chokepoint-stats', `
+    WITH cp(id, min_lat, max_lat, min_lon, max_lon) AS (VALUES ${values})
+    SELECT cp.id,
+      COUNT(p.mmsi)::int AS total,
+      COUNT(p.mmsi) FILTER (WHERE COALESCE(v.ship_type, fallback.ship_type) BETWEEN 80 AND 89)::int AS tankers
+    FROM cp
+    LEFT JOIN vessel_latest_positions p ON p.time > NOW() - INTERVAL '${CHOKEPOINT_STALENESS_INTERVAL}'
+      AND p.latitude BETWEEN cp.min_lat AND cp.max_lat
+      AND p.longitude BETWEEN cp.min_lon AND cp.max_lon
+    LEFT JOIN LATERAL (
+      SELECT ship_type FROM vessels WHERE mmsi = p.mmsi
+      ORDER BY (imo = p.imo) DESC NULLS LAST, last_seen DESC, imo LIMIT 1
+    ) v ON true
+    LEFT JOIN vessel_fallback_metadata fallback ON fallback.mmsi = p.mmsi
+    GROUP BY cp.id
+  `, params);
+  const byId = new Map(result.rows.map((row) => [row.id, row]));
+  return chokepoints.map((cp) => ({
+    id: cp.id, name: cp.name, bounds: cp.bounds,
+    totalVessels: byId.get(cp.id)?.total ?? 0,
+    tankerCount: byId.get(cp.id)?.tankers ?? 0,
+  }));
 }
 
 /**
@@ -91,11 +102,12 @@ export interface ChokepointVessel {
   longitude: number;
   hasActiveAnomaly: boolean;
   anomalyType: string | null;
+  navStatus: number | null;
 }
 
 /**
  * Get all vessels currently inside a chokepoint's bounding box.
- * Only considers positions from the last hour for freshness.
+ * Only considers positions from the configured display freshness window.
  * Enriches each vessel with active anomaly status.
  *
  * @param chokepointId - Chokepoint identifier (e.g. 'hormuz', 'suez', 'babel_mandeb')
@@ -108,7 +120,7 @@ export async function getVesselsInChokepoint(chokepointId: string): Promise<Chok
   const { bounds } = cp;
 
   const result = await pool.query<ChokepointVessel>(`
-    SELECT DISTINCT ON (vp.mmsi)
+    SELECT
       vp.mmsi,
       v.imo,
       COALESCE(v.name, fallback.name) AS name,
@@ -116,16 +128,24 @@ export async function getVesselsInChokepoint(chokepointId: string): Promise<Chok
       COALESCE(v.ship_type, fallback.ship_type) AS "shipType",
       vp.latitude,
       vp.longitude,
+      vp.nav_status AS "navStatus",
       CASE WHEN a.imo IS NOT NULL THEN true ELSE false END AS "hasActiveAnomaly",
       a.anomaly_type AS "anomalyType"
-    FROM vessel_positions vp
-    LEFT JOIN vessels v ON v.mmsi = vp.mmsi
+    FROM vessel_latest_positions vp
+    LEFT JOIN LATERAL (
+      SELECT * FROM vessels WHERE mmsi = vp.mmsi
+      ORDER BY (imo = vp.imo) DESC NULLS LAST, last_seen DESC, imo LIMIT 1
+    ) v ON true
     LEFT JOIN vessel_fallback_metadata fallback ON fallback.mmsi = vp.mmsi
-    LEFT JOIN vessel_anomalies a ON v.imo = a.imo AND a.resolved_at IS NULL
+    LEFT JOIN LATERAL (
+      SELECT anomaly_type, imo FROM vessel_anomalies
+      WHERE imo = v.imo AND resolved_at IS NULL
+      ORDER BY detected_at DESC LIMIT 1
+    ) a ON true
     WHERE vp.time > NOW() - INTERVAL '${CHOKEPOINT_STALENESS_INTERVAL}'
       AND vp.latitude BETWEEN $1 AND $2
       AND vp.longitude BETWEEN $3 AND $4
-    ORDER BY vp.mmsi, vp.time DESC
+    ORDER BY vp.time DESC
   `, [bounds.minLat, bounds.maxLat, bounds.minLon, bounds.maxLon]);
 
   return result.rows;

@@ -43,7 +43,19 @@ const payload = {
 beforeEach(() => {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => ({ ok: true, json: async () => payload })),
+    vi.fn(async (input: string) => {
+      const params = new URL(input, 'http://localhost').searchParams;
+      const data = params.get('view') === 'fleet-summary'
+        ? { counts: [
+            { anomalyType: 'sanctioned', count: 2 },
+            { anomalyType: 'loitering', count: 5 },
+            { anomalyType: 'speed', count: 3 },
+          ], initialTab: 'sanctioned', initialAnomalies: payload.anomalies.filter((row) => row.isSanctioned) }
+        : { anomalies: params.get('tab') === 'sanctioned'
+            ? payload.anomalies.filter((row) => row.isSanctioned)
+            : payload.anomalies.filter((row) => row.anomalyType === params.get('tab')) };
+      return { ok: true, json: async () => data };
+    }),
   );
 });
 
@@ -97,5 +109,20 @@ describe('FleetPage', () => {
     await waitFor(() => expect(screen.getByRole('tablist')).toBeInTheDocument());
 
     expect(screen.queryByTestId('mobile-anomaly-summary')).not.toBeInTheDocument();
+  });
+
+  it('requests only the selected tab and changes the server query on sort', async () => {
+    const user = userEvent.setup();
+    render(<FleetPage />);
+    await waitFor(() => expect(screen.getByTestId('sanctioned-vessels')).toBeInTheDocument());
+    const urls = () => vi.mocked(fetch).mock.calls.map(([url]) => String(url));
+    expect(urls()).toContain('/api/anomalies?view=fleet-summary');
+    expect(urls().filter((url) => url.includes('view=fleet-page'))).toHaveLength(0);
+    await user.click(screen.getByRole('tab', { name: /Loitering/ }));
+    await waitFor(() => expect(urls().some((url) => url.includes('tab=loitering'))).toBe(true));
+    await screen.findByRole('button', { name: /Risk Score/ });
+    await user.click(screen.getByRole('button', { name: /Risk Score/ }));
+    await waitFor(() => expect(urls().some((url) => url.includes('tab=loitering') && url.includes('dir=asc'))).toBe(true));
+    expect(urls()).not.toContain('/api/anomalies');
   });
 });

@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./index', () => ({
   pool: {
-    connect: vi.fn(),
     query: vi.fn(),
   },
 }));
@@ -14,40 +13,35 @@ import {
   runExclusiveJob,
 } from './pipeline-runs';
 
-const mockClient = {
-  query: vi.fn(),
-  release: vi.fn(),
-};
+const mockQuery = pool.query as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
   _resetPipelineSchemaForTesting();
-  vi.mocked(pool.connect).mockResolvedValue(mockClient as never);
 });
 
 describe('runExclusiveJob', () => {
-  it('records a successful run and releases the advisory lock', async () => {
-    mockClient.query
+  it('records a successful run and releases its lease', async () => {
+    mockQuery
       .mockResolvedValueOnce({ rows: [] }) // schema
-      .mockResolvedValueOnce({ rows: [{ locked: true }] })
+      .mockImplementationOnce((_sql: string, params: string[]) => Promise.resolve({ rows: [{ owner: params[1] }] }))
       .mockResolvedValueOnce({ rows: [{ id: '42' }] })
       .mockResolvedValueOnce({ rows: [] }) // success update
-      .mockResolvedValueOnce({ rows: [{ pg_advisory_unlock: true }] });
+      .mockResolvedValueOnce({ rows: [] }); // lease release
 
     const task = vi.fn().mockResolvedValue('done');
     const result = await runExclusiveJob('refresh:prices', task, { source: 'cron' });
 
     expect(result).toEqual({ executed: true, value: 'done' });
     expect(task).toHaveBeenCalledTimes(1);
-    expect(mockClient.query.mock.calls.some(([sql]) => String(sql).includes("status = 'success'"))).toBe(true);
-    expect(mockClient.query.mock.calls.some(([sql]) => String(sql).includes('pg_advisory_unlock'))).toBe(true);
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes("status = 'success'"))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM job_leases'))).toBe(true);
   });
 
-  it('skips execution when another worker owns the lock', async () => {
-    mockClient.query
+  it('skips execution when another worker owns the lease', async () => {
+    mockQuery
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ locked: false }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
     const task = vi.fn();
@@ -55,18 +49,17 @@ describe('runExclusiveJob', () => {
 
     expect(result).toEqual({ executed: false });
     expect(task).not.toHaveBeenCalled();
-    expect(mockClient.query.mock.calls.some(([sql]) => String(sql).includes("'skipped'"))).toBe(true);
-    expect(mockClient.query.mock.calls.some(([sql]) => String(sql).includes('pg_advisory_unlock'))).toBe(false);
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes("'skipped'"))).toBe(true);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM job_leases'))).toBe(false);
   });
 
-  it('records failures, unlocks, releases, and rethrows', async () => {
-    mockClient.query
+  it('records failures, releases the lease, and rethrows', async () => {
+    mockQuery
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ locked: true }] })
+      .mockImplementationOnce((_sql: string, params: string[]) => Promise.resolve({ rows: [{ owner: params[1] }] }))
       .mockResolvedValueOnce({ rows: [{ id: '99' }] })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ pg_advisory_unlock: true }] });
+      .mockResolvedValueOnce({ rows: [] });
 
     await expect(
       runExclusiveJob('refresh:news', async () => {
@@ -74,11 +67,11 @@ describe('runExclusiveJob', () => {
       })
     ).rejects.toThrow('upstream unavailable');
 
-    const failureCall = mockClient.query.mock.calls.find(([sql]) =>
+    const failureCall = mockQuery.mock.calls.find(([sql]) =>
       String(sql).includes("status = 'failed'")
     );
     expect(failureCall?.[1]).toContain('Error: upstream unavailable');
-    expect(mockClient.release).toHaveBeenCalledTimes(1);
+    expect(mockQuery.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM job_leases'))).toBe(true);
   });
 });
 

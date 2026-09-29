@@ -35,8 +35,11 @@ describe('IntelDrawer', () => {
     expect(drawer).toHaveAttribute('data-open', 'false');
   });
 
-  it('renders its children', () => {
+  it('mounts its children only after opening', async () => {
+    const user = userEvent.setup();
     render(<IntelDrawer><p>panel body</p></IntelDrawer>);
+    expect(screen.queryByText('panel body')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Open intel panel' }));
     expect(screen.getByText('panel body')).toBeInTheDocument();
   });
 

@@ -5,10 +5,11 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { useVesselStore } from '@/stores/vessel';
+import { usePolledJson } from '@/lib/hooks/usePolledJson';
 
 interface NewsItem {
   title: string;
@@ -31,43 +32,29 @@ export const VISIBLE_HEADLINES = 8;
  * - Auto-refresh every 5 minutes
  */
 export function NewsPanel({ collapseOnSelection = false }: { collapseOnSelection?: boolean } = {}) {
-  const [headlines, setHeadlines] = useState<NewsItem[]>([]);
-  const [collapsed, setCollapsed] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const headlines = usePolledJson<NewsItem[]>('/api/news', async (signal) => {
+    const response = await fetch('/api/news', { signal });
+    if (!response.ok) throw new Error(`news ${response.status}`);
+    const data = await response.json();
+    return data.headlines ?? [];
+  }, 300_000);
+  const [collapseChoice, setCollapseChoice] = useState<{ key: string | null; collapsed: boolean } | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const hasSelection = useVesselStore((s) => s.selectedVessel !== null);
+  const selectionKey = useVesselStore((s) => s.selectedVessel?.imo ?? s.selectedVessel?.mmsi ?? null);
 
   // While someone is investigating a contact the dossier needs the room;
   // general news folds away and can be reopened with one tap.
-  useEffect(() => {
-    if (collapseOnSelection && hasSelection) setCollapsed(true);
-  }, [collapseOnSelection, hasSelection]);
+  const collapsed = collapseChoice?.key === selectionKey
+    ? collapseChoice.collapsed
+    : collapseOnSelection && selectionKey !== null;
 
-  useEffect(() => {
-    const fetchNews = async () => {
-      try {
-        const res = await fetch('/api/news');
-        const data = await res.json();
-        setHeadlines(data.headlines || []);
-      } catch (error) {
-        console.error('Failed to fetch news:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNews();
-    const interval = setInterval(fetchNews, 300000); // Refresh every 5 minutes
-    return () => clearInterval(interval);
-  }, []);
-
-  if (loading) return null;
+  if (headlines === null) return null;
 
   return (
     <div className="bg-black" role="region" aria-label="Intel feed">
       {/* Terminal panel header */}
       <button
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={() => setCollapseChoice({ key: selectionKey, collapsed: !collapsed })}
         aria-expanded={!collapsed}
         aria-label={collapsed ? 'Expand intel feed' : 'Collapse intel feed'}
         className="w-full px-3 py-1.5 phone:min-h-[44px] tablet:min-h-[44px] border-b border-amber-500/20 flex items-center justify-between hover:bg-white/5 transition-colors"

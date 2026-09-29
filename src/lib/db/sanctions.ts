@@ -5,6 +5,7 @@
  * opensanctions_url, vessel_type. Batch upsert with stale entry cleanup.
  */
 import { pool } from './index';
+import { observedQuery } from './observed-query';
 import { VESSEL_STALENESS_INTERVAL } from '../constants/staleness';
 import type { SanctionEntry } from '../external/opensanctions';
 
@@ -292,7 +293,7 @@ interface VesselSanctionsRow {
 export async function getVesselsWithSanctions(
   tankersOnly: boolean = false
 ): Promise<VesselWithSanctions[]> {
-  const result = await pool.query<VesselSanctionsRow>(
+  const result = await observedQuery<VesselSanctionsRow>('current-vessels',
     `
     SELECT
       p.mmsi,
@@ -311,15 +312,13 @@ export async function getVesselsWithSanctions(
       a.anomaly_type  AS "anomalyType",
       a.confidence    AS "anomalyConfidence",
       a.detected_at   AS "anomalyDetectedAt"
-    FROM (
-      SELECT DISTINCT ON (mmsi)
-        mmsi, latitude, longitude, speed, course, heading,
-        nav_status, low_confidence, time
-      FROM vessel_positions
-      WHERE time > NOW() - INTERVAL '${VESSEL_STALENESS_INTERVAL}'
-      ORDER BY mmsi, time DESC
-    ) p
-    LEFT JOIN vessels v ON v.mmsi = p.mmsi
+    FROM vessel_latest_positions p
+    LEFT JOIN LATERAL (
+      SELECT * FROM vessels
+      WHERE mmsi = p.mmsi
+      ORDER BY (imo = p.imo) DESC NULLS LAST, last_seen DESC, imo
+      LIMIT 1
+    ) v ON true
     LEFT JOIN vessel_fallback_metadata fallback ON fallback.mmsi = p.mmsi
     LEFT JOIN vessel_sanctions s ON v.imo = s.imo
     LEFT JOIN LATERAL (
@@ -329,8 +328,9 @@ export async function getVesselsWithSanctions(
       ORDER BY detected_at DESC
       LIMIT 1
     ) a ON true
+    WHERE p.time > NOW() - INTERVAL '${VESSEL_STALENESS_INTERVAL}'
     ${tankersOnly
-      ? 'WHERE (COALESCE(v.ship_type, fallback.ship_type) IS NULL OR COALESCE(v.ship_type, fallback.ship_type) BETWEEN 80 AND 89)'
+      ? 'AND (COALESCE(v.ship_type, fallback.ship_type) IS NULL OR COALESCE(v.ship_type, fallback.ship_type) BETWEEN 80 AND 89)'
       : ''}
     ORDER BY p.time DESC
     `

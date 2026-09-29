@@ -19,7 +19,7 @@ interface VesselForGeoJSON {
   // Anomaly fields
   anomalyType?: string | null;
   anomalyConfidence?: string | null;
-  anomalyDetectedAt?: Date | null;
+  anomalyDetectedAt?: Date | string | null;
   position: {
     /** Observation time of this fix. Optional for position-only fallbacks. */
     time?: Date | string | null;

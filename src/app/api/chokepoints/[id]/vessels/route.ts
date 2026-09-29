@@ -13,7 +13,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unknown chokepoint' }, { status: 404 });
     }
 
-    return NextResponse.json({ vessels });
+    return NextResponse.json({ vessels, generatedAt: new Date().toISOString() }, {
+      headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' },
+    });
   } catch {
     return NextResponse.json(
       { error: 'Failed to fetch vessels', vessels: [] },

@@ -33,6 +33,7 @@ export function MobileBottomNav() {
           <Link
             key={href}
             href={href}
+            prefetch={false}
             aria-current={active ? 'page' : undefined}
             className={`min-h-[44px] flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-mono uppercase tracking-wider transition-colors ${
               active ? 'text-amber-500' : 'text-gray-500'

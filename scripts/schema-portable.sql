@@ -15,6 +15,27 @@
 -- =============================================================================
 
 -- Vessel metadata table (IMO as primary key per DATA-03)
+-- Sampled, first-party performance observations. The Mac harvester prunes
+-- these after 30 days; the table holds no URL query, IP, or user identifier.
+CREATE TABLE IF NOT EXISTS performance_samples (
+  sample_id UUID NOT NULL,
+  metric VARCHAR(20) NOT NULL,
+  route VARCHAR(20) NOT NULL,
+  device VARCHAR(12) NOT NULL,
+  connection VARCHAR(12) NOT NULL,
+  value DOUBLE PRECISION NOT NULL,
+  build_sha VARCHAR(40) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (sample_id, metric),
+  CONSTRAINT performance_metric_allowed CHECK (metric IN ('LCP', 'INP', 'CLS', 'MAP_READY', 'MAP_INIT_ERROR', 'MAP_DATA_ERROR', 'SHELL_READY', 'SNAPSHOT_RECEIVED', 'MAP_STYLE_READY')),
+  CONSTRAINT performance_value_bounded CHECK (value >= 0 AND value <= 120000)
+);
+CREATE INDEX IF NOT EXISTS idx_performance_samples_created ON performance_samples(created_at);
+CREATE INDEX IF NOT EXISTS idx_performance_samples_report ON performance_samples(metric, route, device, created_at DESC);
+ALTER TABLE performance_samples ENABLE ROW LEVEL SECURITY;
+
+-- Vessel metadata table (IMO as primary key per DATA-03)
 CREATE TABLE IF NOT EXISTS vessels (
   imo VARCHAR(10) PRIMARY KEY,
   mmsi VARCHAR(9) NOT NULL,
@@ -66,6 +87,137 @@ CREATE INDEX IF NOT EXISTS idx_positions_imo_time ON vessel_positions(imo, time 
 CREATE INDEX IF NOT EXISTS idx_positions_time ON vessel_positions(time DESC);
 
 -- =============================================================================
+-- Bounded current-state read model; keep this block aligned with
+-- scripts/migrations/20260929_vessel_latest_positions.sql.
+CREATE TABLE IF NOT EXISTS vessel_latest_positions (
+  mmsi VARCHAR(9) PRIMARY KEY,
+  time TIMESTAMPTZ NOT NULL,
+  imo VARCHAR(10),
+  latitude DOUBLE PRECISION NOT NULL,
+  longitude DOUBLE PRECISION NOT NULL,
+  speed REAL,
+  course REAL,
+  heading REAL,
+  nav_status INTEGER,
+  low_confidence BOOLEAN NOT NULL DEFAULT FALSE,
+  source TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_latest_positions_time ON vessel_latest_positions(time DESC);
+ALTER TABLE vessel_latest_positions ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION record_vessel_latest_position() RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO vessel_latest_positions
+    (mmsi, time, imo, latitude, longitude, speed, course, heading, nav_status, low_confidence, source)
+  VALUES
+    (NEW.mmsi, NEW.time, NEW.imo, NEW.latitude, NEW.longitude, NEW.speed, NEW.course,
+     NEW.heading, NEW.nav_status, COALESCE(NEW.low_confidence, FALSE), NEW.source)
+  ON CONFLICT (mmsi) DO UPDATE SET
+    time = EXCLUDED.time, imo = EXCLUDED.imo,
+    latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
+    speed = EXCLUDED.speed, course = EXCLUDED.course, heading = EXCLUDED.heading,
+    nav_status = EXCLUDED.nav_status, low_confidence = EXCLUDED.low_confidence,
+    source = EXCLUDED.source
+  WHERE (EXCLUDED.time,
+         CASE EXCLUDED.source WHEN 'aisstream' THEN 2 WHEN 'middle-east-fallback' THEN 1 ELSE 0 END,
+         EXCLUDED.latitude, EXCLUDED.longitude,
+         COALESCE(EXCLUDED.source, ''), COALESCE(EXCLUDED.imo, ''),
+         COALESCE(EXCLUDED.speed, -1), COALESCE(EXCLUDED.course, -1),
+         COALESCE(EXCLUDED.heading, -1), COALESCE(EXCLUDED.nav_status, -1),
+         EXCLUDED.low_confidence)
+      > (vessel_latest_positions.time,
+         CASE vessel_latest_positions.source WHEN 'aisstream' THEN 2 WHEN 'middle-east-fallback' THEN 1 ELSE 0 END,
+         vessel_latest_positions.latitude, vessel_latest_positions.longitude,
+         COALESCE(vessel_latest_positions.source, ''), COALESCE(vessel_latest_positions.imo, ''),
+         COALESCE(vessel_latest_positions.speed, -1), COALESCE(vessel_latest_positions.course, -1),
+         COALESCE(vessel_latest_positions.heading, -1), COALESCE(vessel_latest_positions.nav_status, -1),
+         vessel_latest_positions.low_confidence);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SET search_path = public;
+DROP TRIGGER IF EXISTS trg_vessel_latest_position ON vessel_positions;
+CREATE TRIGGER trg_vessel_latest_position
+  AFTER INSERT ON vessel_positions
+  FOR EACH ROW EXECUTE FUNCTION record_vessel_latest_position();
+
+INSERT INTO vessel_latest_positions
+  (mmsi, time, imo, latitude, longitude, speed, course, heading, nav_status, low_confidence, source)
+SELECT DISTINCT ON (mmsi)
+  mmsi, time, imo, latitude, longitude, speed, course, heading, nav_status,
+  COALESCE(low_confidence, FALSE), source
+FROM vessel_positions
+WHERE time > NOW() - INTERVAL '7 days'
+ORDER BY mmsi, time DESC,
+  CASE source WHEN 'aisstream' THEN 2 WHEN 'middle-east-fallback' THEN 1 ELSE 0 END DESC,
+  latitude DESC, longitude DESC,
+  COALESCE(source, '') DESC, COALESCE(imo, '') DESC,
+  COALESCE(speed, -1) DESC, COALESCE(course, -1) DESC,
+  COALESCE(heading, -1) DESC, COALESCE(nav_status, -1) DESC,
+  COALESCE(low_confidence, FALSE) DESC
+ON CONFLICT (mmsi) DO UPDATE SET
+  time = EXCLUDED.time, imo = EXCLUDED.imo,
+  latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
+  speed = EXCLUDED.speed, course = EXCLUDED.course, heading = EXCLUDED.heading,
+  nav_status = EXCLUDED.nav_status, low_confidence = EXCLUDED.low_confidence,
+  source = EXCLUDED.source
+WHERE (EXCLUDED.time,
+       CASE EXCLUDED.source WHEN 'aisstream' THEN 2 WHEN 'middle-east-fallback' THEN 1 ELSE 0 END,
+       EXCLUDED.latitude, EXCLUDED.longitude,
+         COALESCE(EXCLUDED.source, ''), COALESCE(EXCLUDED.imo, ''),
+         COALESCE(EXCLUDED.speed, -1), COALESCE(EXCLUDED.course, -1),
+         COALESCE(EXCLUDED.heading, -1), COALESCE(EXCLUDED.nav_status, -1),
+         EXCLUDED.low_confidence)
+    > (vessel_latest_positions.time,
+       CASE vessel_latest_positions.source WHEN 'aisstream' THEN 2 WHEN 'middle-east-fallback' THEN 1 ELSE 0 END,
+       vessel_latest_positions.latitude, vessel_latest_positions.longitude,
+         COALESCE(vessel_latest_positions.source, ''), COALESCE(vessel_latest_positions.imo, ''),
+         COALESCE(vessel_latest_positions.speed, -1), COALESCE(vessel_latest_positions.course, -1),
+         COALESCE(vessel_latest_positions.heading, -1), COALESCE(vessel_latest_positions.nav_status, -1),
+         vessel_latest_positions.low_confidence);
+
+-- Durable daily observed contacts for traffic and SPC after raw history prune.
+CREATE TABLE IF NOT EXISTS vessel_daily_presence (
+  day DATE NOT NULL,
+  mmsi VARCHAR(9) NOT NULL,
+  region TEXT NOT NULL,
+  PRIMARY KEY (day, mmsi, region)
+);
+CREATE INDEX IF NOT EXISTS idx_daily_presence_region_day
+  ON vessel_daily_presence(region, day DESC);
+ALTER TABLE vessel_daily_presence ENABLE ROW LEVEL SECURITY;
+CREATE OR REPLACE FUNCTION record_vessel_daily_presence() RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO vessel_daily_presence(day, mmsi, region)
+  SELECT (NEW.time AT TIME ZONE 'UTC')::date, NEW.mmsi, region
+  FROM (VALUES
+    ('*', TRUE),
+    ('hormuz', NEW.latitude BETWEEN 23.5 AND 27.0 AND NEW.longitude BETWEEN 55.5 AND 57.5),
+    ('babel_mandeb', NEW.latitude BETWEEN 11.0 AND 13.5 AND NEW.longitude BETWEEN 42.5 AND 45.0),
+    ('suez', NEW.latitude BETWEEN 29.5 AND 32.5 AND NEW.longitude BETWEEN 31.5 AND 33.0),
+    ('gulf_of_aden', NEW.latitude BETWEEN 11.0 AND 14.0 AND NEW.longitude BETWEEN 43.0 AND 48.0)
+  ) AS regions(region, inside)
+  WHERE inside
+  ON CONFLICT DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SET search_path = public;
+DROP TRIGGER IF EXISTS trg_vessel_daily_presence ON vessel_positions;
+CREATE TRIGGER trg_vessel_daily_presence
+  AFTER INSERT ON vessel_positions
+  FOR EACH ROW EXECUTE FUNCTION record_vessel_daily_presence();
+INSERT INTO vessel_daily_presence(day, mmsi, region)
+SELECT DISTINCT (vp.time AT TIME ZONE 'UTC')::date, vp.mmsi, regions.region
+FROM vessel_positions vp
+CROSS JOIN LATERAL (VALUES
+  ('*', TRUE),
+  ('hormuz', vp.latitude BETWEEN 23.5 AND 27.0 AND vp.longitude BETWEEN 55.5 AND 57.5),
+  ('babel_mandeb', vp.latitude BETWEEN 11.0 AND 13.5 AND vp.longitude BETWEEN 42.5 AND 45.0),
+  ('suez', vp.latitude BETWEEN 29.5 AND 32.5 AND vp.longitude BETWEEN 31.5 AND 33.0),
+  ('gulf_of_aden', vp.latitude BETWEEN 11.0 AND 14.0 AND vp.longitude BETWEEN 43.0 AND 48.0)
+) AS regions(region, inside)
+WHERE inside AND vp.time >= NOW() - INTERVAL '120 days'
+ON CONFLICT DO NOTHING;
+
 -- Phase 2: Intelligence Layers
 -- =============================================================================
 
@@ -229,6 +381,12 @@ CREATE INDEX IF NOT EXISTS idx_pipeline_runs_job_started
   ON pipeline_runs(job_name, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status_started
   ON pipeline_runs(status, started_at DESC);
+
+CREATE TABLE IF NOT EXISTS job_leases (
+  job_name TEXT PRIMARY KEY,
+  owner TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL
+);
 
 -- =============================================================================
 -- Collection provenance (observation quality)

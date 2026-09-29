@@ -13,11 +13,12 @@ import { FleetVesselDetail } from '@/components/fleet/FleetVesselDetail';
 import { TablePager } from '@/components/fleet/TablePager';
 import { SortableHeader, MobileSortBar } from '@/components/fleet/SortControls';
 import { handleRowKeyDown } from '@/components/fleet/rowActivation';
-import { useTableView, type SortColumn } from '@/lib/hooks/useTableView';
+import { useTableView, type SortColumn, type TableView } from '@/lib/hooks/useTableView';
 import type { Anomaly } from '@/types/anomaly';
 
 interface SanctionedVesselsProps {
   vessels: Anomaly[];
+  remoteView?: TableView<Anomaly>;
 }
 
 /** This tab has no Detected column, so it sorts on name and risk only. */
@@ -46,9 +47,10 @@ function RiskCategoryBadge({ code }: { code: string | null | undefined }) {
   );
 }
 
-export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
+export function SanctionedVessels({ vessels, remoteView }: SanctionedVesselsProps) {
   const [expandedImo, setExpandedImo] = useState<string | null>(null);
-  const view = useTableView(vessels, SANCTIONED_SORT_COLUMNS, { defaultSortKey: 'riskScore' });
+  const localView = useTableView(vessels, SANCTIONED_SORT_COLUMNS, { defaultSortKey: 'riskScore' });
+  const view = remoteView ?? localView;
 
   const [nameColumn, riskColumn] = SANCTIONED_SORT_COLUMNS;
 
@@ -64,7 +66,7 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
     view.setPage(page);
   }
 
-  if (vessels.length === 0) {
+  if (view.total === 0) {
     return null;
   }
 
@@ -74,7 +76,7 @@ export function SanctionedVessels({ vessels }: SanctionedVesselsProps) {
       <div className="flex items-center gap-3 bg-gray-900/50 px-4 py-3">
         <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
         <span className="text-red-400 text-xs font-mono uppercase tracking-widest">SANCTIONED VESSELS</span>
-        <span className="text-xs font-mono text-red-400/70">[{vessels.length}]</span>
+        <span className="text-xs font-mono text-red-400/70">[{view.total}]</span>
       </div>
 
       <MobileSortBar

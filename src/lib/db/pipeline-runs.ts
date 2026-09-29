@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { hostname } from 'node:os';
 import { pool } from './index';
 
@@ -44,19 +44,15 @@ export const PIPELINE_RUNS_SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status_started
     ON pipeline_runs(status, started_at DESC);
   ALTER TABLE pipeline_runs ENABLE ROW LEVEL SECURITY;
+  CREATE TABLE IF NOT EXISTS job_leases (
+    job_name TEXT PRIMARY KEY,
+    owner TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL
+  );
+  ALTER TABLE job_leases ENABLE ROW LEVEL SECURITY;
 `;
 
 let schemaReady = false;
-
-function lockKey(jobName: string): string {
-  // pg_advisory_lock accepts a signed 64-bit integer. Hashing the namespaced job
-  // name gives stable keys across hosts without maintaining a central registry.
-  return createHash('sha256')
-    .update(`straits:pipeline:${jobName}`)
-    .digest()
-    .readBigInt64BE(0)
-    .toString();
-}
 
 function workerId(): string {
   return process.env.WORKER_ID || `${hostname()}:${process.pid}`;
@@ -69,66 +65,73 @@ function safeError(error: unknown): string {
   return String(error).slice(0, 1000);
 }
 
-async function ensureSchema(client: { query: (text: string, values?: unknown[]) => Promise<unknown> }) {
+async function ensureSchema() {
   if (schemaReady) return;
-  await client.query(PIPELINE_RUNS_SCHEMA_SQL);
+  await pool.query(PIPELINE_RUNS_SCHEMA_SQL);
   schemaReady = true;
 }
 
 /**
- * Execute a scheduled job only if this worker wins a PostgreSQL advisory lock.
+ * Execute a scheduled job only if this worker owns a short-lived database lease.
  *
- * The lock is session-scoped and held on one dedicated pool client for the
- * entire job. That means multiple ingester replicas can all register the same
- * cron schedule while exactly one performs each invocation. Every attempted
- * execution is persisted for operational diagnostics.
+ * The Supabase transaction pooler can hand consecutive queries to different
+ * backend sessions, so a session advisory lock cannot coordinate this job.
+ * An atomic upsert claims ownership; a heartbeat extends it, and expiry lets
+ * another worker recover after a crash. Every attempt is persisted.
  */
 export async function runExclusiveJob<T>(
   jobName: string,
   task: () => Promise<T>,
   metadata: Record<string, unknown> = {}
 ): Promise<ExclusiveJobResult<T>> {
-  const client = await pool.connect();
-  const key = lockKey(jobName);
+  await ensureSchema();
   const worker = workerId();
-  let locked = false;
+  const owner = randomUUID();
   let runId: string | null = null;
-  let startedAtMs = Date.now();
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
+  const lease = await pool.query<{ owner: string }>(`
+    INSERT INTO job_leases(job_name, owner, expires_at)
+    VALUES ($1, $2, NOW() + INTERVAL '15 minutes')
+    ON CONFLICT (job_name) DO UPDATE SET
+      owner = EXCLUDED.owner, expires_at = EXCLUDED.expires_at
+    WHERE job_leases.expires_at <= NOW()
+    RETURNING owner
+  `, [jobName, owner]);
+  const owned = lease.rows[0]?.owner === owner;
 
   try {
-    await ensureSchema(client);
-
-    const lockResult = await client.query<{ locked: boolean }>(
-      'SELECT pg_try_advisory_lock($1::bigint) AS locked',
-      [key]
-    );
-    locked = Boolean(lockResult.rows[0]?.locked);
-
-    if (!locked) {
-      await client.query(
+    if (!owned) {
+      await pool.query(
         `INSERT INTO pipeline_runs
           (job_name, status, worker_id, finished_at, duration_ms, metadata)
          VALUES ($1, 'skipped', $2, NOW(), 0, $3::jsonb)`,
-        [jobName, worker, JSON.stringify({ ...metadata, reason: 'lock_held' })]
+        [jobName, worker, JSON.stringify({ ...metadata, reason: 'lease_held' })]
       );
-      console.log(`[JOB] ${jobName}: skipped — another worker owns the advisory lock`);
+      console.log(`[JOB] ${jobName}: skipped — another worker owns the lease`);
       return { executed: false };
     }
 
-    startedAtMs = Date.now();
-    const insertResult = await client.query<{ id: string }>(
+    const startedAtMs = Date.now();
+    const insertResult = await pool.query<{ id: string }>(
       `INSERT INTO pipeline_runs (job_name, status, worker_id, metadata)
        VALUES ($1, 'running', $2, $3::jsonb)
        RETURNING id::text AS id`,
       [jobName, worker, JSON.stringify(metadata)]
     );
     runId = insertResult.rows[0]?.id ?? null;
+    heartbeat = setInterval(() => {
+      void pool.query(
+        `UPDATE job_leases SET expires_at = NOW() + INTERVAL '15 minutes'
+         WHERE job_name = $1 AND owner = $2`,
+        [jobName, owner]
+      ).catch((error) => console.error(`[JOB] ${jobName}: lease renewal failed`, error));
+    }, 60_000);
 
     try {
       const value = await task();
       const durationMs = Date.now() - startedAtMs;
       if (runId) {
-        await client.query(
+        await pool.query(
           `UPDATE pipeline_runs
               SET status = 'success', finished_at = NOW(), duration_ms = $2
             WHERE id = $1::bigint`,
@@ -140,7 +143,7 @@ export async function runExclusiveJob<T>(
     } catch (error) {
       const durationMs = Date.now() - startedAtMs;
       if (runId) {
-        await client.query(
+        await pool.query(
           `UPDATE pipeline_runs
               SET status = 'failed', finished_at = NOW(), duration_ms = $2, error = $3
             WHERE id = $1::bigint`,
@@ -151,14 +154,14 @@ export async function runExclusiveJob<T>(
       throw error;
     }
   } finally {
-    if (locked) {
+    if (heartbeat) clearInterval(heartbeat);
+    if (owned) {
       try {
-        await client.query('SELECT pg_advisory_unlock($1::bigint)', [key]);
-      } catch (unlockError) {
-        console.error(`[JOB] ${jobName}: failed to release advisory lock`, unlockError);
+        await pool.query('DELETE FROM job_leases WHERE job_name = $1 AND owner = $2', [jobName, owner]);
+      } catch (releaseError) {
+        console.error(`[JOB] ${jobName}: failed to release lease`, releaseError);
       }
     }
-    client.release();
   }
 }
 

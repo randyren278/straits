@@ -135,7 +135,8 @@ describe('Position CRUD Functions', () => {
       expect(result).toEqual(mockPositions);
       expect(mockQuery).toHaveBeenCalled();
       const [sql] = mockQuery.mock.calls[0];
-      expect(sql).toContain('DISTINCT ON (mmsi)');
+      expect(sql).toContain('FROM vessel_latest_positions');
+      expect(sql).not.toContain('DISTINCT ON');
     });
   });
 });

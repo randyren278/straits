@@ -26,7 +26,7 @@ describe('AisOutageBanner', () => {
     const banner = await screen.findByTestId('ais-outage-banner');
     expect(banner).toHaveTextContent(/AIS feed offline/i);
     // The point of the banner is explaining the empty map, not just flagging it.
-    expect(banner).toHaveTextContent(/upstream AIS provider/i);
+    expect(banner).toHaveTextContent(/no fresh vessel positions received/i);
   });
 
   it('is exposed to assistive tech as a status', async () => {

@@ -13,7 +13,7 @@ import { chromium } from 'playwright';
 const BASE = process.env.FLEET_URL ?? 'http://localhost:3000/fleet';
 const DESKTOP = { width: 1440, height: 900 };
 const MOBILE = { width: 390, height: 844 };
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 15;
 
 const results = [];
 const skipped = [];
@@ -73,7 +73,7 @@ async function metrics(page) {
 }
 
 async function run() {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL || undefined });
 
   for (const [label, viewport] of [['desktop', DESKTOP], ['mobile', MOBILE]]) {
     const page = await browser.newPage({ viewport });
@@ -218,7 +218,7 @@ async function run() {
     const expanded = await page.$$eval('[role="tabpanel"] tr[aria-expanded="true"]', (e) => e.length);
     check('dossier: row expands', expanded === 1, `${expanded} expanded rows`);
 
-    await page.click('[aria-label="Next page"]');
+    await page.click('[aria-label="Previous page"]');
     await page.waitForTimeout(300);
     const stillExpanded = await page.$$eval('[role="tabpanel"] tr[aria-expanded="true"]', (e) => e.length);
     check('dossier: closes on page change', stillExpanded === 0, `${stillExpanded} expanded after paging`);

@@ -107,7 +107,7 @@ async function blockedControls(page, scope = null) {
 }
 
 async function run() {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL ?? 'chrome' });
 
   for (const [w, h] of VIEWPORTS) {
     for (const route of ROUTES) {
