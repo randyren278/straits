@@ -1,6 +1,6 @@
 /** GET /api/tracks — track-engine output for the motion overlay. */
 import { NextResponse } from 'next/server';
-import { getTracks } from '@/lib/db/tracks';
+import { getTracks } from '@/lib/db/tracks-read';
 
 export async function GET() {
   try {

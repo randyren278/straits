@@ -1771,7 +1771,7 @@ git commit -m "Track engine: storage, migration and harvester step"
 - Test: `src/app/api/tracks/route.test.ts`
 
 **Interfaces:**
-- Consumes: `getTracks()` (Task 8)
+- Consumes: `getTracks()` (Task 8), which lives in `src/lib/db/tracks-read.ts` and imports no engine code. `db/tracks.ts` re-exports it. Importing the engine here would load and rasterize the land data on every serverless cold start (checked with an esbuild metafile: the route bundles only `route.ts`, `tracks-read.ts` and `db/index.ts`).
 - Produces: `GET /api/tracks` → `TracksResponse`, `Cache-Control: public, s-maxage=60, stale-while-revalidate=300`, and a `Server-Timing` header
 
 - [ ] **Step 1: Write the failing test**
@@ -1780,7 +1780,7 @@ git commit -m "Track engine: storage, migration and harvester step"
 ```ts
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/lib/db/tracks', () => ({
+vi.mock('@/lib/db/tracks-read', () => ({
   getTracks: vi.fn().mockResolvedValue({ generatedAt: 'x', vessels: [{ mmsi: '1' }], backtest: null, learned: null }),
 }));
 import { GET } from './route';
@@ -1806,7 +1806,7 @@ Expected: FAIL with `Cannot find module './route'`.
 ```ts
 /** GET /api/tracks — track-engine output for the motion overlay. */
 import { NextResponse } from 'next/server';
-import { getTracks } from '@/lib/db/tracks';
+import { getTracks } from '@/lib/db/tracks-read';
 
 export async function GET() {
   try {

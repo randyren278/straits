@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/lib/db/tracks', () => ({
+vi.mock('@/lib/db/tracks-read', () => ({
   getTracks: vi.fn().mockResolvedValue({ generatedAt: 'x', vessels: [{ mmsi: '1' }], backtest: null, learned: null }),
 }));
 import { GET } from './route';
