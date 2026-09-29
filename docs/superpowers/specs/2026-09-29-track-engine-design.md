@@ -18,7 +18,7 @@ The rendering made this worse: straight-line interpolation between fetch-time fi
 
 Every drawn ship moves only as fast as the evidence allows, and ships with more evidence carry the story. Success criteria:
 
-1. No drawn ship exceeds 28 kn. Jitter under 185 m never renders as motion.
+1. No drawn ship exceeds 28 kn. Jitter under 185 m never renders as motion. No history curve or estimate crosses land.
 2. Ships with no fix in 24 hours are hidden by default.
 3. Estimated positions beat the current "hold last fix" behavior by at least 50% median error in a rolling backtest, or estimation stays off.
 4. Every estimated position is visibly marked as estimated, with growing uncertainty, and stops at a fixed horizon.
@@ -33,11 +33,14 @@ The engine runs on the Mac harvester after each harvest. That machine already ha
    - **Jitter floor**: a move under 0.1 nm counts as dwelling, not motion.
    - **Teleport quarantine**: an implied speed over 35 kn holds the fix aside. If the next fix lands within 1 nm of it, both are accepted as a real relocation after a gap. Otherwise the fix is rejected and counted.
    - **Dwell**: a position repeated for 25 minutes or more means stopped, so a stationary measurement is added. Shorter repeats are treated as "no new report", which prevents stop-go motion for ships that are underway.
-2. **Smooth**: a constant-velocity Kalman filter per axis in local nautical miles (process noise 60 nm²/h³, measurement noise 0.02 nm²), with an RTS smoother for history. This produces the speed and course the feed doesn't have. History renders as a cubic Hermite curve through the smoothed knots, so position and velocity are continuous. Trails split wherever a step implies more than about 30 kn.
+   - **On land**: a fix more than one grid cell (about 1 nm) inland is rejected as likely GPS interference. Ships at berth sit within a cell of water, so they survive.
+2. **Smooth**: a constant-velocity Kalman filter per axis in local nautical miles (process noise 60 nm²/h³, measurement noise 0.02 nm²), with an RTS smoother for history. This produces the speed and course the feed doesn't have. History renders as a cubic Hermite curve through the smoothed knots, so position and velocity are continuous. Trails split wherever a step implies more than about 30 kn. **Any segment whose curve touches land away from its endpoints is replaced by a sea route** (see the router below). In the mockup, 95 history gaps were rerouted this way, for example ships that vanish off Ras al Khaimah and reappear on the Gulf of Oman side.
 3. **Classify**: a ship is underway only if its smoothed speed is between 3 and 28 kn, it made at least two real moves (over 0.3 nm) in the last 45 minutes, and its last knot is under 60 minutes old. Everything else is at rest and is never estimated.
-4. **Estimate** (underway only): project forward in 2-minute steps from the last smoothed state, stopping at land (0.01° land raster) and 120 minutes past the last real fix. Uncertainty radius = 0.15 nm + backtest error rate × minutes since the fix.
-   - **Straight line** (smoothed course and speed): the default.
-   - **Learned lanes**: a flow field built from everyone's cleaned tracks (0.05° cells, direction-matched neighbours, 65/35 blend). The INTERTANKO Gulf transit corridors can seed it as a prior.
+4. **Estimate** (underway only): project forward in 2-minute steps from the last smoothed state, up to 120 minutes past the last real fix. Uncertainty radius = 0.15 nm + backtest error rate × minutes since the fix.
+   - **Sea router**: an A* search on a 0.02° water grid built from the land raster. Coastal cells cost 2.5×, and cells with learned traffic density cost less (`1 / (1 + 0.6·ln(1 + density))`). A string-pulling pass removes the grid zig-zag but keeps straights under 6 nm so lane bends survive, followed by Chaikin corner-cutting that is kept only while every segment stays in water.
+   - **Straight, rerouted around land** (default): follow the smoothed course while the water ahead is open. About 20 minutes before that course would meet land, hand over to the sea router toward the most lane-like open water ahead. Plain straight-line estimation is never shipped, because it strands ships at the coast.
+   - **Sea route throughout**: route from the first minute. It scored worse in the mockup, since ships in open water hold their course over this horizon.
+   - **Learned lanes** feed the router's cost surface, not a separate estimator. The INTERTANKO Gulf transit corridors can seed the density as a prior.
    - **Destination route**: `searoute-ts` (MIT, Eurostat 2025 marnet) to a destination resolved by `src/lib/geo/ports.ts`. Only for fresh, resolvable destinations. Today those are almost all AISStream ships outside our region.
    - **The backtest decides which estimator is live.** A method is enabled only while it beats the incumbent.
 5. **Score evidence** (0–100): fix volume in 24 h (30), recency (25), regularity over the last 3 h (15), consistency, i.e. few rejected fixes (15), identity completeness (15). Tiers: well tracked ≥72, tracked 45–71, sparse <45, stale = no fix in 24 h.
@@ -50,10 +53,11 @@ Hiding the last hour and scoring 54 real position updates from 20 underway ships
 | Estimator | Median error |
 |---|---|
 | Hold last fix (today) | 4.5 nm |
-| Straight line from smoothed track | 1.1 nm |
-| Learned lanes, 24 h of history | 1.6 nm |
+| Straight line, runs aground | 1.08 nm |
+| Sea route throughout | 2.20 nm |
+| **Straight, rerouted around land** (shipped) | **1.10 nm** |
 
-Straight line wins, so lanes stay off. Three underway ships went silent in that hour; estimation is what keeps them on the map. Tiers from the same data: 190 well tracked, 237 tracked, 163 sparse, 1,889 stale.
+The rerouted estimator keeps straight-line accuracy (within 2%). Every sampled estimate point was in water, and history points came out 99.9% in water (the remainder hug the coast near ports). Three underway ships went silent in that hour; estimation is what keeps them on the map. Tiers from the same data: 185 well tracked, 234 tracked, 160 sparse, 1,900 stale.
 
 ## Data model
 
@@ -66,7 +70,19 @@ Straight line wins, so lanes stay off. Three underway ships went silent in that 
 
 ## Rendering
 
-- Well tracked: full brightness, larger glyph, 90-minute smoothed wake, names at close zoom.
+A council of four research agents (reference products, motion design, dark cartography, rendering technique) converged on the patterns below. All of them are built in the mockup, and it holds 60 fps on Canvas 2D. WebGL/deck.gl isn't needed at this scale; revisit past about 5,000 animated vessels.
+
+- **Baked basemap**, redrawn only when the camera changes: a shallow-water hint and a sea-side coast halo drawn as stacked wide, low-alpha strokes (clipped to water, fading out at close zoom), faint noise texture, land with an inner shadow, and a hierarchy of labels (italic spaced seas, then countries, then ports with a land-coloured halo). No `shadowBlur` anywhere.
+- **Comet tails** using the TripsLayer model: alpha falls with data-time age, `0.8·(1−age)^1.8` in 8 buckets, width tapers from 1.9 to 0.5 px, and trails split at coverage gaps. Only moving ships get tails.
+- **Observed vs estimated grammar**: solid for observed history, dashed for the estimate with an 8 px/s dash creep, a widening uncertainty cone that fades toward the horizon, and a hollow chevron while estimated.
+- **Level of detail**: at wide zoom, ships at rest melt into additive amber anchorage glows (pre-rendered sprites, `lighter` compositing) with collision-checked "N AT REST" counts. They cross-fade to individual dots via smoothstep as you zoom in. Underway ships stay individual at every zoom.
+- **Arrival pings**: a ring that grows from 3 to 16 px over 800 ms when a real fix lands during playback, staggered per ship so the map breathes instead of pulsing in unison.
+- **Camera**: the van Wijk & Nuij zoom-out-and-in flight (ρ = 1.41) with Material 3 emphasized easing, 500–1,400 ms.
+- **Selection**: staged. The ring contracts at 0 ms, context dims at 250 ms, history draws on at 350 ms, the cone at 850 ms, and the panel slides in at 520 ms.
+- **Playback** eases in over about 400 ms.
+- **Reduced motion** drops the flights, creep, breathing and pings.
+
+- Tier styling (unchanged): well tracked at full brightness, larger glyph, 90-minute smoothed wake, names at close zoom.
 - Tracked: normal glyph, 45-minute wake. Sparse: small and dim, no wake. Stale: hidden, available through a filter chip.
 - Estimated: hollow chevron, dashed path 30 minutes ahead, uncertainty ring. The contact panel shows the evidence breakdown, the estimate basis in plain words, and which fixes were kept or rejected.
 
