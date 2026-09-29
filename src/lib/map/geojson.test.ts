@@ -30,6 +30,11 @@ describe('GeoJSON Conversion', () => {
   };
 
   describe('vesselsToGeoJSON', () => {
+    it('adds tier and motion properties when a lookup is given', () => {
+      const v = vesselsToGeoJSON([mockVesselWithPosition], Date.now(), () => ({ tier: 2, motion: true }));
+      expect(v.features[0].properties).toMatchObject({ tier: 2, motion: true });
+    });
+
     it('converts vessel array to FeatureCollection', () => {
       const result = vesselsToGeoJSON([mockVesselWithPosition]);
       expect(result.type).toBe('FeatureCollection');

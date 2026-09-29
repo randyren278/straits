@@ -2054,7 +2054,7 @@ git commit -m "Track engine: client nowcaster with projective blending"
   - `useTrackStore`: `{ nowcaster: Nowcaster; byMmsi: Map<string, TrackPayload>; backtest; learned; showStale: boolean; setShowStale(b); ingest(r: TracksResponse) }`
   - `useTracks()`: polls `/api/tracks` every 60 s
   - `buildFrame(input: { vessels: MapVessel[]; nc: Nowcaster; byMmsi: Map<string, TrackPayload>; tMin: number; zoom: number; project: (lon: number, lat: number) => { x: number; y: number }; selected: string | null }): Frame`, where `Frame = { glow: { x: number; y: number }[]; glowMix: number; tails: { pts: { x: number; y: number }[]; est: boolean[]; tier: number }[]; ahead: { pts: { x: number; y: number }[]; tier: number }[]; rings: { x: number; y: number; r: number }[]; ships: { mmsi: string; x: number; y: number; heading: number; estimated: boolean; age: number; tier: number; color: string }[] }`
-  - `vesselsToGeoJSON(vessels, extra?: (v) => { tier: number; motion: boolean })`
+  - `vesselsToGeoJSON(vessels, now?, extra?: (v) => { tier: number; motion: boolean })`
   - `<MotionOverlay map={MapLibreMap} vessels={MapVessel[]} onPick={(mmsi) => void} />`
 
 - [ ] **Step 1: Write the failing tests**
@@ -2103,11 +2103,11 @@ describe('buildFrame', () => {
 Extend `src/lib/map/geojson.test.ts` with:
 ```ts
   it('adds tier and motion properties when a lookup is given', () => {
-    const v = vesselsToGeoJSON([sampleVessel], () => ({ tier: 2, motion: true }));
+    const v = vesselsToGeoJSON([mockVesselWithPosition], Date.now(), () => ({ tier: 2, motion: true }));
     expect(v.features[0].properties).toMatchObject({ tier: 2, motion: true });
   });
 ```
-(`sampleVessel` is the fixture already defined at the top of `geojson.test.ts`. If its name differs, use that file's existing fixture.)
+Put this inside the existing `describe('vesselsToGeoJSON', ...)` block, where the `mockVesselWithPosition` fixture is in scope.
 
 - [ ] **Step 2: Run them and confirm they fail**
 
@@ -2146,7 +2146,7 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
 }));
 ```
 
-`src/lib/hooks/useTracks.ts` (check `usePolledJson`'s signature in `src/lib/hooks/usePolledJson.ts` and match it; the call below assumes `usePolledJson<T>(url, intervalMs)` returning `{ data }`):
+`src/lib/hooks/useTracks.ts` (`usePolledJson<T>(key, fetcher, intervalMs): T | null` shares one poll per key):
 ```ts
 'use client';
 import { useEffect } from 'react';
@@ -2154,9 +2154,15 @@ import { usePolledJson } from './usePolledJson';
 import { useTrackStore } from '@/stores/tracks';
 import type { TracksResponse } from '@/lib/tracks/types';
 
+const fetchTracks = async (signal: AbortSignal): Promise<TracksResponse> => {
+  const res = await fetch('/api/tracks', { signal });
+  if (!res.ok) throw new Error(`tracks ${res.status}`);
+  return res.json();
+};
+
 /** Polls the track engine output and feeds the nowcaster. */
 export function useTracks() {
-  const { data } = usePolledJson<TracksResponse>('/api/tracks', 60_000);
+  const data = usePolledJson<TracksResponse>('/api/tracks', fetchTracks, 60_000);
   const ingest = useTrackStore((s) => s.ingest);
   useEffect(() => { if (data && Array.isArray(data.vessels)) ingest(data); }, [data, ingest]);
 }
@@ -2347,14 +2353,15 @@ export function MotionOverlay({ map, vessels, frameRef }: { map: MapLibreMap; ve
 
 - [ ] **Step 5: Extend GeoJSON and wire it into VesselMap**
 
-In `src/lib/map/geojson.ts`, add an optional second parameter to `vesselsToGeoJSON`:
+In `src/lib/map/geojson.ts`, add an optional third parameter to `vesselsToGeoJSON` (the second is the existing `now`):
 ```ts
 export function vesselsToGeoJSON(
-  vessels: MapVessel[],
-  extra?: (v: MapVessel) => { tier: number; motion: boolean },
-) {
+  vessels: VesselForGeoJSON[],
+  now: number = Date.now(),
+  extra?: (v: VesselForGeoJSON) => { tier: number; motion: boolean },
+): GeoJSON.FeatureCollection<GeoJSON.Point> {
 ```
-Inside the feature properties object, spread `...(extra ? extra(v) : {})`.
+Inside the feature properties object, after `anomalyConfidence`, add `...(extra ? extra(v) : {}),`.
 
 In `src/components/map/VesselMap.tsx`:
 
@@ -2371,7 +2378,7 @@ import type { Frame } from '@/lib/tracks/frame';
     const { nowcaster, byMmsi: tracks, showStale: stale } = useTrackStore.getState();
     const nowMin = Date.now() / 60000;
     const visible = stale ? filtered : filtered.filter((v) => tracks.size === 0 || tracks.has(v.mmsi));
-    source.setData(vesselsToGeoJSON(visible, (v) => ({
+    source.setData(vesselsToGeoJSON(visible, Date.now(), (v) => ({
       tier: tracks.get(v.mmsi)?.tier ?? 3,
       motion: nowcaster.isMotion(v.mmsi, nowMin),
     })));

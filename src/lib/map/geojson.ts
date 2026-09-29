@@ -53,7 +53,8 @@ export function observationAgeHours(time: Date | string | null | undefined, now:
 
 export function vesselsToGeoJSON(
   vessels: VesselForGeoJSON[],
-  now: number = Date.now()
+  now: number = Date.now(),
+  extra?: (v: VesselForGeoJSON) => { tier: number; motion: boolean },
 ): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
     type: 'FeatureCollection',
@@ -92,6 +93,8 @@ export function vesselsToGeoJSON(
           hasAnomaly: v.anomalyType !== undefined && v.anomalyType !== null,
           anomalyType: v.anomalyType || null,
           anomalyConfidence: v.anomalyConfidence || null,
+          // Track engine: evidence tier and whether the motion overlay owns this ship.
+          ...(extra ? extra(v) : {}),
         },
       })),
   };
