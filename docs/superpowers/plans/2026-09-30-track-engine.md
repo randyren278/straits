@@ -1344,9 +1344,8 @@ describe('codec', () => {
 import { describe, expect, it } from 'vitest';
 import { runTrackEngine } from './engine';
 import { emptyLearnState } from './learn';
-import { grid } from './land';
+import { grid, isLand } from './land';
 import { decodeSeries } from './codec';
-import { isLand } from './land';
 
 const NOW = 29_500_000;
 const east = (mmsi: string, lon0: number, lat: number, kn: number, ids = true) => ({
