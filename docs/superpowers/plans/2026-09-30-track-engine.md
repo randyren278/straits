@@ -1876,8 +1876,8 @@ describe('Nowcaster', () => {
   it('corrects onto new data without a velocity jump (smoothness gate)', () => {
     const n = new Nowcaster();
     n.ingest([base(1000, 57, 12)], 1000);
-    // new data lands at t=1020: the ship is actually 1.5 nm further north and slower
-    n.ingest([base(1018, 57.05, 8, { path: encodeSeries(Array.from({ length: 61 }, (_, k) => [1018 + k * 6, 25.025, 57.05 + (8 * (k * 6)) / 60 / (60 * Math.cos((25 * Math.PI) / 180))])) })], 1020);
+    // new data lands at t=1020: the ship is 1.5 nm further north, slower, and turning ~40° to the northeast
+    n.ingest([base(1018, 57.05, 8, { path: encodeSeries(Array.from({ length: 61 }, (_, k) => [1018 + k * 6, 25.025 + 0.012 * k, 57.05 + (8 * (k * 6)) / 60 / (60 * Math.cos((25 * Math.PI) / 180))])) })], 1020);
     const dt = 0.1, K = Math.cos((25 * Math.PI) / 180);
     let p0 = n.sample('1', 1019.8)!, p1 = n.sample('1', 1019.9)!, maxAcc = 0, maxTurn = 0, h1 = p1.heading;
     for (let t = 1020; t <= 1100; t += dt) {
