@@ -23,8 +23,12 @@ import {
   ACTIVITY_COLOR_EXPRESSION,
   IDENTITY_STROKE_COLOR_EXPRESSION,
   IDENTITY_STROKE_WIDTH_EXPRESSION,
-  freshnessOpacityExpression,
+  vesselOpacityExpression,
 } from '@/lib/map/marker-style';
+import { MotionOverlay, hitTest } from './MotionOverlay';
+import { useTracks } from '@/lib/hooks/useTracks';
+import { useTrackStore } from '@/stores/tracks';
+import type { Frame } from '@/lib/tracks/frame';
 import { BASEMAP_CLUTTER_PATTERN } from '@/lib/map/basemap';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
 import type { ClusterVessel, MapCenter } from '@/stores/vessel';
@@ -78,6 +82,12 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [vesselLoadState, setVesselLoadState] = useState<VesselLoadState>('loading');
+  // Track engine: motion overlay owns moving/estimated ships; the dot layer keeps the rest.
+  useTracks();
+  const frameRef = useRef<Frame | null>(null);
+  const vesselsRef = useRef<MapVessel[]>([]);
+  useEffect(() => { vesselsRef.current = vessels; }, [vessels]);
+  const { byMmsi: trackMap, showStale } = useTrackStore();
 
   const {
     tankersOnly, setSelectedVessel, setLastUpdate, setLastObservation, setTrackStatus,
@@ -125,7 +135,15 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     pendingRenderCleanupRef.current = cleanupRender;
     mapInstance.on('render', onRender);
 
-    source.setData(vesselsToGeoJSON(filtered));
+    // Stale ships (no fix in 24 h) are hidden once the engine has reported, unless the user
+    // asks for them; ships the motion overlay draws are flagged so the dot layer skips them.
+    const { nowcaster, byMmsi: tracks, showStale: stale } = useTrackStore.getState();
+    const nowMin = Date.now() / 60000;
+    const visible = stale || tracks.size === 0 ? filtered : filtered.filter((v) => tracks.has(v.mmsi));
+    source.setData(vesselsToGeoJSON(visible, Date.now(), (v) => ({
+      tier: tracks.get(v.mmsi)?.tier ?? 3,
+      motion: nowcaster.isMotion(v.mmsi, nowMin),
+    })));
   }, [anomalyFilter, tankersOnly]);
 
   // ─── Proximity detection ────────────────────────────────────────
@@ -306,6 +324,14 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       };
       setSelectedVessel(vessel);
     };
+    // Moving ships live on the overlay canvas, so they are picked from its last frame first.
+    const handleOverlayClick = (e: MapMouseEvent) => {
+      if (!e.point) return;
+      const mmsi = hitTest(frameRef.current, e.point.x, e.point.y);
+      if (!mmsi) return;
+      const v = vesselsRef.current.find((x) => x.mmsi === mmsi);
+      if (v) setSelectedVessel(expandMapVessel(v));
+    };
     const handleMouseEnter = () => {
       if (map.current) map.current.getCanvas().style.cursor = 'pointer';
     };
@@ -354,9 +380,10 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
             'circle-color': ACTIVITY_COLOR_EXPRESSION,
             'circle-stroke-color': IDENTITY_STROKE_COLOR_EXPRESSION,
             'circle-stroke-width': IDENTITY_STROKE_WIDTH_EXPRESSION,
-            'circle-opacity': freshnessOpacityExpression(null),
-            'circle-stroke-opacity': freshnessOpacityExpression(null),
+            'circle-opacity': vesselOpacityExpression(null),
+            'circle-stroke-opacity': vesselOpacityExpression(null),
           },
+          filter: ['!=', ['get', 'motion'], true],
         });
       }
 
@@ -532,6 +559,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       }
 
       // ─── Interaction handlers (named refs, detached in cleanup) ─
+      mapInstance.on('click', handleOverlayClick);
       mapInstance.on('click', 'vessel-circles', handleClick);
       mapInstance.on('mouseenter', 'vessel-circles', handleMouseEnter);
       mapInstance.on('mouseleave', 'vessel-circles', handleMouseLeave);
@@ -562,6 +590,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       // Detach layer/map listeners explicitly before removing the instance so
       // handlers don't accumulate across Strict Mode re-mounts.
       try {
+        mapInstance.off('click', handleOverlayClick);
         mapInstance.off('click', 'vessel-circles', handleClick);
         mapInstance.off('mouseenter', 'vessel-circles', handleMouseEnter);
         mapInstance.off('mouseleave', 'vessel-circles', handleMouseLeave);
@@ -664,6 +693,12 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     detectProximityGroup();
   }, [vessels, mapLoaded, submitVesselGeoJson, detectProximityGroup]);
 
+  // Re-split dots vs overlay whenever the track engine reports or the stale toggle flips.
+  useEffect(() => {
+    if (!map.current || !mapLoaded || acceptedResponseSequenceRef.current === 0) return;
+    submitVesselGeoJson(vesselsRef.current, acceptedResponseSequenceRef.current);
+  }, [trackMap, showStale, mapLoaded, submitVesselGeoJson]);
+
   // Handle track layer for selected vessel
   const TRACK_HOURS = 24;
   const updateTrackLayer = useCallback(async () => {
@@ -748,8 +783,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     const selectedMmsi = selectedVessel?.mmsi ?? null;
     try {
       map.current.setFilter('vessel-selected-ring', ['==', ['get', 'mmsi'], selectedMmsi ?? '__none__']);
-      map.current.setPaintProperty('vessel-circles', 'circle-opacity', freshnessOpacityExpression(selectedMmsi));
-      map.current.setPaintProperty('vessel-circles', 'circle-stroke-opacity', freshnessOpacityExpression(selectedMmsi));
+      map.current.setPaintProperty('vessel-circles', 'circle-opacity', vesselOpacityExpression(selectedMmsi));
+      map.current.setPaintProperty('vessel-circles', 'circle-stroke-opacity', vesselOpacityExpression(selectedMmsi));
     } catch {
       // Layers not present yet (style still loading); the load handler sets defaults.
     }
@@ -814,6 +849,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         data-reveal-state={vesselsReady ? 'ready' : 'covered'}
         className="straits-map-surface w-full h-full"
       />
+      {mapLoaded && map.current && <MotionOverlay map={map.current} vessels={vessels} frameRef={frameRef} />}
 
       <div
         data-testid="vessel-loading-overlay"

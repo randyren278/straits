@@ -15,7 +15,8 @@ const AMBER = '#f59e0b';
 
 function glowSprite(): HTMLCanvasElement {
   const c = document.createElement('canvas'); c.width = c.height = 32;
-  const g = c.getContext('2d')!, gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  const g = c.getContext('2d'); if (!g) return c;
+  const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
   gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = gr; g.fillRect(0, 0, 32, 32); return c;
 }
@@ -35,10 +36,12 @@ export function hitTest(frame: Frame | null, x: number, y: number): string | nul
 export function MotionOverlay({ map, vessels, frameRef }: { map: MapLibreMap; vessels: MapVessel[]; frameRef: React.MutableRefObject<Frame | null> }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const vesselsRef = useRef(vessels);
-  vesselsRef.current = vessels;
+  useEffect(() => { vesselsRef.current = vessels; }, [vessels]);
 
   useEffect(() => {
-    const cv = canvas.current!; const ctx = cv.getContext('2d')!;
+    const cv = canvas.current, ctx = cv?.getContext('2d');
+    // No 2D canvas (blocked by the browser, or a test DOM): the dot layer still works alone.
+    if (!cv || !ctx) return;
     const sprite = glowSprite(), buf = document.createElement('canvas');
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const dispHd = new Map<string, number>();

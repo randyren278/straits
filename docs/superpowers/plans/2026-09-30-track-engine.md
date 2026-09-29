@@ -2247,7 +2247,8 @@ const AMBER = '#f59e0b';
 
 function glowSprite(): HTMLCanvasElement {
   const c = document.createElement('canvas'); c.width = c.height = 32;
-  const g = c.getContext('2d')!, gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  const g = c.getContext('2d'); if (!g) return c;
+  const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
   gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = gr; g.fillRect(0, 0, 32, 32); return c;
 }
@@ -2267,10 +2268,12 @@ export function hitTest(frame: Frame | null, x: number, y: number): string | nul
 export function MotionOverlay({ map, vessels, frameRef }: { map: MapLibreMap; vessels: MapVessel[]; frameRef: React.MutableRefObject<Frame | null> }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const vesselsRef = useRef(vessels);
-  vesselsRef.current = vessels;
+  useEffect(() => { vesselsRef.current = vessels; }, [vessels]);
 
   useEffect(() => {
-    const cv = canvas.current!; const ctx = cv.getContext('2d')!;
+    const cv = canvas.current, ctx = cv?.getContext('2d');
+    // No 2D canvas (blocked by the browser, or a test DOM): the dot layer still works alone.
+    if (!cv || !ctx) return;
     const sprite = glowSprite(), buf = document.createElement('canvas');
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const dispHd = new Map<string, number>();
@@ -2394,6 +2397,7 @@ Use the same expression for `'circle-stroke-opacity'`. If `freshnessOpacityExpre
 5. In the map `click` flow, register a general handler before the layer handler: `mapInstance.on('click', handleOverlayClick);` with
 ```ts
     const handleOverlayClick = (e: MapMouseEvent) => {
+      if (!e.point) return;
       const mmsi = hitTest(frameRef.current, e.point.x, e.point.y);
       if (!mmsi) return;
       const v = vesselsRef.current.find((x) => x.mmsi === mmsi);
@@ -2406,7 +2410,7 @@ where `vesselsRef` is a `useRef` mirror of `vessels` (add `const vesselsRef = us
 - [ ] **Step 6: Run the tests and the full suite**
 
 Run: `npx vitest run src/lib/tracks src/lib/map src/components/map`
-Expected: PASS, including the existing `VesselMap.test.tsx`. If that test's MapLibre mock lacks `project`/`getZoom`/`getContainer`, add them to the mock (`project: () => ({ x: 0, y: 0 })`, `getZoom: () => 8`, `getContainer: () => document.createElement('div')`).
+Expected: PASS, including the existing `VesselMap.test.tsx`. That file counts `fetch` calls, so mock the track feed there: `vi.mock('@/lib/hooks/useTracks', () => ({ useTracks: () => {} }));` before importing `VesselMap`. The overlay must return early when `getContext('2d')` is `null`, which covers the test DOM and browsers with canvas blocked.
 
 - [ ] **Step 7: Commit**
 

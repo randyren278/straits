@@ -129,3 +129,15 @@ export function freshnessOpacityExpression(selectedMmsi: string | null): Express
     ['*', freshness, RECEDE_FACTOR],
   ];
 }
+
+/** Tracking-quality dimming: well tracked 1, tracked 0.85, sparse 0.5, stale 0.25. */
+const TIER_FACTOR: ExpressionSpecification = ['match', ['coalesce', ['get', 'tier'], 0], 0, 1, 1, 0.85, 2, 0.5, 0.25];
+
+/**
+ * Dot opacity = freshness × tracking tier, and at wide zoom ships at rest recede to 45%
+ * under the motion overlay's glow (the zoom interpolation must be the top-level expression).
+ */
+export function vesselOpacityExpression(selectedMmsi: string | null): ExpressionSpecification {
+  const base: ExpressionSpecification = ['*', TIER_FACTOR, freshnessOpacityExpression(selectedMmsi)];
+  return ['interpolate', ['linear'], ['zoom'], 8.2, ['*', 0.45, base], 9.2, base];
+}

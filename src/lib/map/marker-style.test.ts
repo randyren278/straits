@@ -10,6 +10,7 @@ import {
   IDENTITY_COLORS,
   RECEDE_FACTOR,
 } from './marker-style';
+import { vesselOpacityExpression } from './marker-style';
 
 describe('marker vocabulary', () => {
   it('keeps activity (fill) and identity (outline) on separate channels', () => {
@@ -47,5 +48,15 @@ describe('marker vocabulary', () => {
     expect(JSON.stringify(expr[1])).toContain('123456789');
     expect(expr[2]).toBe(1);
     expect(JSON.stringify(expr[3])).toContain(String(RECEDE_FACTOR));
+  });
+});
+
+describe('vesselOpacityExpression', () => {
+  it('fades ships at rest under the glow when zoomed out and dims by tracking tier', () => {
+    const e = vesselOpacityExpression(null) as unknown[];
+    expect(e[0]).toBe('interpolate');
+    expect(e[2]).toEqual(['zoom']);
+    expect(JSON.stringify(e[4])).toContain('0.45');
+    expect(JSON.stringify(e)).toContain('"tier"');
   });
 });

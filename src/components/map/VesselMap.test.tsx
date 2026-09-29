@@ -113,6 +113,9 @@ vi.mock('@/stores/vessel', () => {
   return { useVesselStore };
 });
 
+// The track feed has its own tests; here it would only add requests to the vessel-feed counts.
+vi.mock('@/lib/hooks/useTracks', () => ({ useTracks: () => {} }));
+
 import { VesselMap } from './VesselMap';
 
 type Deferred<T> = {
