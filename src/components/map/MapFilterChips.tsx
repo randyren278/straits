@@ -13,6 +13,7 @@
 
 import { TankerFilter } from '@/components/ui/TankerFilter';
 import { AnomalyFilter } from '@/components/ui/AnomalyFilter';
+import { StaleFilter } from '@/components/ui/StaleFilter';
 
 export function MapFilterChips() {
   return (
@@ -22,6 +23,7 @@ export function MapFilterChips() {
     >
       <TankerFilter />
       <AnomalyFilter />
+      <StaleFilter />
     </div>
   );
 }

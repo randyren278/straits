@@ -15,6 +15,7 @@ import { SearchInput } from './SearchInput';
 import { ChokepointWidgets } from './ChokepointWidget';
 import { NotificationBell } from './NotificationBell';
 import { AnomalyFilter } from './AnomalyFilter';
+import { StaleFilter } from './StaleFilter';
 import { StatusChip } from './StatusChip';
 import { StraitsMark } from './StraitsMark';
 import { AisOutageBanner } from './AisOutageBanner';
@@ -134,6 +135,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
               <div className="hidden desk:flex items-center gap-4">
                 <TankerFilter />
                 <AnomalyFilter />
+                <StaleFilter />
               </div>
             )}
             <NotificationBell />

@@ -2477,6 +2477,7 @@ Expected: FAIL with `Cannot find module './TrackingSection'`.
 ```tsx
 'use client';
 /** Evidence breakdown and estimate basis for the selected vessel. */
+import { useEffect, useState } from 'react';
 import { useTrackStore } from '@/stores/tracks';
 
 const TIER = ['Well tracked', 'Tracked', 'Sparse'];
@@ -2485,8 +2486,11 @@ const METHOD = { hybrid: 'on its smoothed course, bending through open water whe
 
 export function TrackingSection({ mmsi }: { mmsi: string }) {
   const p = useTrackStore((s) => s.byMmsi.get(mmsi));
+  // A ticking clock keeps "estimated for N min" honest while the panel stays open.
+  const [nowMin, setNowMin] = useState(() => Date.now() / 60000);
+  useEffect(() => { const id = setInterval(() => setNowMin(Date.now() / 60000), 30_000); return () => clearInterval(id); }, []);
   if (!p) return null;
-  const since = Math.max(0, Math.round(Date.now() / 60000 - p.lastRealAt));
+  const since = Math.max(0, Math.round(nowMin - p.lastRealAt));
   const basis = p.state === 'rest'
     ? 'At rest. Moves under 185 m are held in place instead of drawn as motion.'
     : since <= 10

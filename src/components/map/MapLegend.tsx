@@ -9,6 +9,7 @@
  * (freshness) — plus the chokepoint and coverage overlays.
  */
 import { useState } from 'react';
+import { useTrackStore } from '@/stores/tracks';
 import { LEGEND_ACTIVITY, LEGEND_IDENTITY, FRESHNESS_STOPS, ACTIVITY_COLORS, IDENTITY_COLORS } from '@/lib/map/marker-style';
 
 function Dot({ fill, stroke, opacity = 1 }: { fill: string; stroke: string; opacity?: number }) {
@@ -23,6 +24,7 @@ function Dot({ fill, stroke, opacity = 1 }: { fill: string; stroke: string; opac
 
 export function MapLegend() {
   const [open, setOpen] = useState(false);
+  const backtest = useTrackStore((s) => s.backtest);
 
   return (
     <div data-testid="map-legend" className="absolute left-3 bottom-3 z-20 phone:bottom-[calc(var(--straits-nav-h)+100px)]">
@@ -89,6 +91,34 @@ export function MapLegend() {
             </ul>
             <p className="mt-1.5 text-[10px] text-gray-500 leading-snug">
               Faded contacts are last-known positions, not live ones. Select one to see its observation time.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="text-[10px] uppercase tracking-widest text-amber-500 mb-1.5">Motion · estimates</h3>
+            <ul className="space-y-1">
+              <li className="flex items-center gap-2">
+                <span aria-hidden="true" className="inline-block w-4 h-0.5 bg-gradient-to-r from-transparent to-amber-500" />
+                <span>Wake · recent real track</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span aria-hidden="true" className="inline-block w-4 border-t-2 border-dashed border-amber-500" />
+                <span>Estimated path ahead</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span aria-hidden="true" className="inline-block w-3 h-3 rounded-full border border-amber-500/60" />
+                <span>Estimate uncertainty</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span aria-hidden="true" className="inline-block w-3 h-3 rounded-full bg-[#c9975a]/40" />
+                <span>Ships at rest (glow when zoomed out)</span>
+              </li>
+            </ul>
+            <p className="mt-1.5 text-[10px] text-gray-500 leading-snug">
+              Hollow ships are estimated from their last real fix; they fade the longer it has been.
+              {backtest && Number.isFinite(backtest.estimate) && backtest.estimate !== null
+                ? ` Last backtest: ±${backtest.estimate.toFixed(1)} nm vs ${backtest.hold.toFixed(1)} nm frozen.`
+                : ''}
             </p>
           </section>
 

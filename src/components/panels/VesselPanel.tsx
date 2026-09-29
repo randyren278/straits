@@ -23,6 +23,7 @@ import { decodeNavStatus, isDeclaredStationary } from '@/lib/ais/nav-status';
 import { compactAge } from '../ui/StatusChip';
 import { observationTone } from '../ui/DataFreshness';
 import { riskCategoryLabel, authorityLabel } from '@/lib/sanctions/labels';
+import { TrackingSection } from './TrackingSection';
 import { buildEvidenceTrail, whyItMatters, type EvidenceEvent } from '@/lib/dossier/evidence';
 import type { AnomalyType, Confidence } from '@/types/anomaly';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
@@ -580,6 +581,11 @@ export function VesselPanel() {
           )}
         </div>
       )}
+
+      {/* Track engine — evidence score and how the drawn position was estimated */}
+      <div className="mx-3 mt-2 px-3 pb-3 border border-amber-500/20">
+        <TrackingSection mmsi={selectedVessel.mmsi} />
+      </div>
 
       {/* Level 3 — identity & kinematics */}
       <div className="mx-3 mt-2 border border-amber-500/20">
