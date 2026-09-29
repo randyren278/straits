@@ -1110,7 +1110,7 @@ const id = { name: true, type: true, flag: true, imoOrDest: true };
 
 describe('scoreEvidence', () => {
   it('scores a regularly reporting, clean, identified ship as well tracked', () => {
-    const now = 10_000, fixTimes = Array.from({ length: 144 }, (_, k) => now - 1440 + k * 10);
+    const now = 10_000, fixTimes = Array.from({ length: 144 }, (_, k) => now - 1430 + k * 10);
     const e = scoreEvidence({ fixTimes, now, rejected: 0, moves: 40, identity: id });
     expect(e.score).toBe(100);
     expect(e.tier).toBe(0);
