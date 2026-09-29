@@ -772,7 +772,7 @@ Expected: FAIL with `Cannot find module './router'`.
  * bends survive), then Chaikin corner-cutting is kept only while it stays in water.
  */
 import { GRID_RES } from './constants';
-import { cellCenter, cellOf, grid, inGrid, isLand, nearestWater } from './land';
+import { cellCenter, cellOf, grid, isLand, nearestWater } from './land';
 import { hermite, polyline, type Kin } from './curve';
 import type { Smoothed } from './kalman';
 import { nmBetween, toLat, toLon, toX, toY, type Proj } from './proj';
@@ -893,7 +893,6 @@ export function repairLand(s: Smoothed, proj: Proj, density: Density | null): nu
   return added;
 }
 
-export const _cellFor = (lon: number, lat: number) => { const [c, r] = cellOf(lon, lat); return inGrid(c, r) ? r * grid.w + c : -1; };
 ```
 
 - [ ] **Step 4: Run the test and confirm it passes**
