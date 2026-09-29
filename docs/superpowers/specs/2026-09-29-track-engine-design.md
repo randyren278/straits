@@ -62,6 +62,46 @@ Hiding the last hour and scoring 54 real position updates from 20 underway ships
 
 The rerouted estimator keeps straight-line accuracy (within 2%). Every sampled estimate point was in water, and history points came out 99.9% in water (the remainder hug the coast near ports). Three underway ships went silent in that hour; estimation is what keeps them on the map. Tiers from the same data: 185 well tracked, 234 tracked, 160 sparse, 1,900 stale.
 
+## Smooth motion
+
+The mockup has a playback harness that steps the timeline at 0.1 map-minutes and flags every frame where a drawn ship accelerates beyond 400 nm/h² or its drawn heading turns more than 2.5° in a frame. Measured over 213k ship-frames:
+
+| | Acceleration spikes | Snap turns |
+|---|---|---|
+| Before (offset easing on new data) | 3,991 (3,945 at new-data corrections) | 361 |
+| After | 111, plus 284 from real coverage jumps | 40 |
+
+Frame time stayed at 16.7 ms across the "last data" boundary before and after; the "lag" was motion, not rendering.
+
+- **Projective blending on corrections** (the technique networked games use for dead reckoning). When new data lands, the drawn position is `(1 − w)·old(t) + w·new(t)` with smoothstep `w`. Position *and* velocity are continuous at both ends. The blend lasts about 15 map-minutes per nm of correction, clamped to 6–60, so it never needs an implausible speed. Blends nest recursively when the next update lands mid-blend.
+- **Heading follows the course, not the correction.** Outside a blend it is the central difference of the epoch's own path over ±2 min. Across a blend it turns from the old course to the new, no faster than 10°/map-minute, also blended recursively. The renderer damps it further per frame (τ = 120 ms).
+- **Estimate paths are Catmull-Rom splines** through the 2-minute samples, with mirrored phantom end points so the handoff from history keeps its speed. Estimates decelerate to a halt over their final 10 minutes instead of stopping dead.
+- **Ships that won't be estimated end their history at rest** (final knot velocity zeroed).
+- **Coverage jumps are marked.** A knot-to-knot hop faster than 28 kn is drawn as one steady smoothstep slide, not a spline that sprints and overshoots.
+- **Trails are sampled on fixed 3-minute marks**, so their vertices don't crawl between frames.
+- **The harness is a ship gate.** Production must keep spikes at or below these numbers on a replay of the last 24 h.
+
+## Learning
+
+The engine gets better as it sees more traffic, and it proves it with **walk-forward evaluation**. Each hour it learns only from earlier hours, predicts the next hour, and is scored against real updates it has never trained on.
+
+- **Contexts:** speed band (<6, 6–12, >12 kn) × within about 3 nm of land, giving six situations.
+- **Candidate estimators:** straight-rerouted, sea route, and **slowing**. Slowing uses the same water-aware geometry with speed decaying as `e^(−Δt/τ)`, for ships heading into anchorages.
+- **What it learns:**
+  - For each context, the estimator with the lowest median error over its last 60 scored predictions. It needs at least 8 per candidate before it may switch away from straight.
+  - The slow-down time constant τ ∈ {30, 60, 120, 240} min.
+  - The lane density used for routing, built only from hours already seen.
+- **Mockup result on one day of Hormuz data (19 scored hours, 7–54 ships per hour, so treat it as a signal):**
+  - Learning 1.6 nm vs fixed 1.9 nm median error in the second half of the day (14% better).
+  - 3.3 vs 3.7 nm in the first half.
+  - Learned: ships near the coast are best estimated as *slowing* (τ = 60 min); slow and cruising ships in open water stay *straight*.
+- **Applying what it learns:** corrections still ahead of the playhead are re-estimated with the learned model. Nothing already drawn is re-shot, so no ship jumps.
+- **Production persists this across days.** A small `estimator_stats` table holds rolling per-context errors per candidate and the chosen τ. Lane density accumulates with decay (a half-life of about 14 days). The Mac harvester updates both after each run's backtest, so every day of traffic sharpens the next.
+- **Next learners, each gated by walk-forward:**
+  - Per-vessel habits: usual speed and recurring shuttle routes between the same anchorages.
+  - Learned turning points (TREAD-style waypoints) where ships reliably change course.
+  - Destination inference from which corridor a ship is following.
+
 ## Data model
 
 - `vessel_track_state` (one row per MMSI, upserted in a single batch per run): smoothed lat/lon, sog, cog, state, last fix and last move times, evidence score and its components (jsonb), tier, estimator used, estimated path (up to 60 `[minutes, lat, lon]` points), uncertainty rate, fixes rejected in 24 h.
