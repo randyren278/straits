@@ -26,5 +26,6 @@ describe('runTrackEngine', () => {
     expect(rest.state).toBe('rest');
     expect(rest.path).toBeNull();
     expect(out.backtest.n).toBeGreaterThan(0);
+    expect(out.densityDelta.size).toBeGreaterThan(0);          // a first run seeds lanes from history
   });
 });

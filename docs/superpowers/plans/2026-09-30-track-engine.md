@@ -1369,6 +1369,7 @@ describe('runTrackEngine', () => {
     expect(rest.state).toBe('rest');
     expect(rest.path).toBeNull();
     expect(out.backtest.n).toBeGreaterThan(0);
+    expect(out.densityDelta.size).toBeGreaterThan(0);          // a first run seeds lanes from history
   });
 });
 ```
@@ -1434,7 +1435,8 @@ export function runTrackEngine(input: { vessels: EngineVessel[]; now: number; de
   const method = CONTEXTS.map((_, k) => chooseMethod(learn, k)), tau = chooseTau(learn), uncert = uncertaintyRate(learn);
   const payloads: TrackPayload[] = [], densityDelta = new Map<number, number>();
   const holdErr: number[] = [], estErr: number[] = [];
-  const since = learn.lastRunAt ?? now - 10;
+  // First-ever run seeds lanes from the whole day; after that, only motion since the last run.
+  const since = Math.max(now - 1440, learn.lastRunAt ?? now - 1440);
   const kin: Kin = { x: 0, y: 0, vx: 0, vy: 0 };
 
   for (const v of vessels) {

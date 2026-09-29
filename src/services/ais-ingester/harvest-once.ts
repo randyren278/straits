@@ -77,6 +77,9 @@ import { batchUpsertSanctions, migrateSanctionsSchema } from '../../lib/db/sanct
 import { binPositionsByRegion } from '../../lib/coverage/buckets';
 import { ensureCollectionBucketsSchema, upsertCollectionBuckets } from '../../lib/db/coverage';
 import { runSuezCrossingsJob } from './crossings-job';
+import { runTrackEngine } from '../../lib/tracks/engine';
+import { grid } from '../../lib/tracks/land';
+import { loadEngineVessels, loadLaneDensity, loadLearnState, saveEngineRun, saveLaneDensity } from '../../lib/db/tracks';
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const WINDOW_MS = Number(process.env.HARVEST_WINDOW_MS ?? 90_000);
@@ -625,6 +628,20 @@ async function runDetectors(): Promise<void> {
   console.log(`Detectors: ${going} going_dark + ${routeTotal} route anomalies`);
 }
 
+// ── Track engine: clean, smooth, estimate, learn ──────────────────────────────
+async function runTrackEngineStep(): Promise<void> {
+  const now = new Date();
+  const [vessels, density, learn] = await Promise.all([
+    loadEngineVessels(), loadLaneDensity(now, grid.w * grid.h), loadLearnState(),
+  ]);
+  const t0 = Date.now();
+  const out = runTrackEngine({ vessels, now: now.getTime() / 60000, density, learn });
+  await saveEngineRun(out.payloads, learn, { backtest: out.backtest, learned: out.learned });
+  await saveLaneDensity(out.densityDelta);
+  const moving = out.payloads.filter((p) => p.state === 'underway').length;
+  console.log(`Track engine: ${out.payloads.length} vessels, ${moving} estimated, backtest ${out.backtest.n} → ${out.backtest.estimate.toFixed(2)} nm vs hold ${out.backtest.hold.toFixed(2)} nm (${Date.now() - t0} ms compute)`);
+}
+
 // ── Freshness-gated enrichment refresh ────────────────────────────────────────
 async function isStale(sql: string, minutes: number): Promise<boolean> {
   try {
@@ -878,6 +895,7 @@ async function main(): Promise<void> {
       const r = await runSuezCrossingsJob({ days: 2 });
       console.log(`Suez crossings: ${r.complete} complete, ${r.incomplete} incomplete, ${r.waiting} waiting for ${r.writeDays.join(', ')} (${r.tracks} tracks since ${r.loadedSince.slice(0, 10)})`);
     });
+    await step('track engine', 90_000, runTrackEngineStep);
     await step('prune + measure', 30_000, pruneAndMeasure);
     await step('prices refresh', 20_000, refreshPrices);
     await step('news refresh', 30_000, refreshNews);
