@@ -205,7 +205,8 @@ describe('land raster', () => {
 
   it('treats coastal berths as not deep inland', () => {
     expect(deepInland(57.0, 23.0)).toBe(true);
-    expect(deepInland(56.35, 25.13)).toBe(false); // Fujairah waterfront
+    expect(isLand(56.37, 25.15)).toBe(true);     // Fujairah waterline: land…
+    expect(deepInland(56.37, 25.15)).toBe(false); // …but a berth, not interference
   });
 
   it('has a water grid with coast cells and a nearest-water search', () => {

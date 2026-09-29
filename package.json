@@ -75,6 +75,8 @@
     "@vitejs/plugin-react": "^5.1.4",
     "happy-dom": "^20.11.2",
     "playwright": "^1.62.1",
-    "vitest": "^4.1.10"
+    "topojson-client": "^3.1.0",
+    "vitest": "^4.1.10",
+    "world-atlas": "^2.0.2"
   }
 }
