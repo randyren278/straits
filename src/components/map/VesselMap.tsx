@@ -94,7 +94,6 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
   // Opens at Hormuz instantly, then glides once to the busiest chokepoint when the engine
   // reports — unless the user has already moved the map or a link asked for a view.
   const autoFrameRef = useRef(true);
-  const userTookMapRef = useRef(false);
   // Hovered ship: the overlay rings it; the tooltip names it.
   const hoverRef = useRef<string | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -368,12 +367,10 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       tip.style.transform = `translate(${e.point.x + 14}px, ${e.point.y - 26}px)`;
       tip.style.opacity = '1';
     };
-    // The user taking the map ends the opening: no auto-frame, and the intro hands back to live.
+    // The user taking the map cancels the auto-frame glide; the 6-hour opening keeps playing
+    // (only its Skip button ends it).
     const handleUserMove = (e: { originalEvent?: unknown }) => {
-      if (!e.originalEvent) return;
-      autoFrameRef.current = false;
-      userTookMapRef.current = true;
-      if (useReplayStore.getState().intro) useReplayStore.getState().exit();
+      if (e.originalEvent) autoFrameRef.current = false;
     };
     // A moving map strands the hover tooltip; drop it until the pointer moves again.
     const handleMoveStart = () => {
@@ -601,8 +598,6 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       mapInstance.on('dragstart', handleUserMove);
       mapInstance.on('mousemove', handleHover);
       mapInstance.on('movestart', handleMoveStart);
-      mapInstance.on('mousedown', handleUserMove);
-      mapInstance.on('touchstart', handleUserMove);
       mapInstance.on('zoomstart', handleUserMove);
 
       // ─── Proximity detection on zoom/pan ──────────────────────
@@ -638,8 +633,6 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         mapInstance.off('dragstart', handleUserMove);
         mapInstance.off('mousemove', handleHover);
         mapInstance.off('movestart', handleMoveStart);
-        mapInstance.off('mousedown', handleUserMove);
-        mapInstance.off('touchstart', handleUserMove);
         mapInstance.off('zoomstart', handleUserMove);
         mapInstance.off('moveend', handleMoveEnd);
       } catch {
@@ -900,9 +893,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     const b = (best?.chokepoint ?? CHOKEPOINTS.hormuz).bounds;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     map.current.flyTo({ center: [(b.minLon + b.maxLon) / 2, (b.minLat + b.maxLat) / 2], zoom: 8, duration: reduce ? 0 : 2600, essential: true });
-    // The glide in plays the last 6 hours fast, then lands on live; touching the map skips it.
-    const stillWanted = () => !userTookMapRef.current && !useVesselStore.getState().selectedVessel;
-    if (!reduce) void useReplayStore.getState().startIntro({ stillWanted });
+    // The glide in plays the last 6 hours, then lands on live; only Skip ends it early.
+    if (!reduce) void useReplayStore.getState().startIntro();
   }, [trackMap, vessels, mapLoaded]);
 
   // Hydrate pending target vessel from cross-route navigation (fleet → dashboard)
