@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { VesselMap } from '@/components/map/VesselMap';
+import { ReplayControls } from '@/components/map/ReplayControls';
 import { VesselPanel } from '@/components/panels/VesselPanel';
 import { VesselPeek } from '@/components/panels/VesselPeek';
 import { OilPricePanel } from '@/components/panels/OilPricePanel';
@@ -185,6 +186,7 @@ export function DashboardClient() {
             <VesselMap />
             <MapFilterChips />
             <MapLegend />
+            <ReplayControls />
           <IntelDrawer>
             <RailPanels />
           </IntelDrawer>

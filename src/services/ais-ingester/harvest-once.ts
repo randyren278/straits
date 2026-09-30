@@ -636,7 +636,7 @@ async function runTrackEngineStep(): Promise<void> {
   ]);
   const t0 = Date.now();
   const out = runTrackEngine({ vessels, now: now.getTime() / 60000, density, learn });
-  await saveEngineRun(out.payloads, learn, { backtest: out.backtest, learned: out.learned });
+  await saveEngineRun(out.payloads, learn, { backtest: out.backtest, learned: out.learned }, out.replay);
   await saveLaneDensity(out.densityDelta);
   const moving = out.payloads.filter((p) => p.state === 'underway').length;
   console.log(`Track engine: ${out.payloads.length} vessels, ${moving} estimated, backtest ${out.backtest.n} → ${out.backtest.estimate.toFixed(2)} nm vs hold ${out.backtest.hold.toFixed(2)} nm (${Date.now() - t0} ms compute)`);

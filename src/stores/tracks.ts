@@ -9,6 +9,8 @@ interface TrackStore {
   learned: TracksResponse['learned'];
   showStale: boolean;
   setShowStale: (b: boolean) => void;
+  /** Ships whose last real fix changed on the latest refresh → performance.now() when seen. */
+  pings: Map<string, number>;
   ingest: (r: TracksResponse) => void;
 }
 
@@ -19,8 +21,12 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
   learned: null,
   showStale: true,
   setShowStale: (showStale) => set({ showStale }),
+  pings: new Map(),
   ingest: (r) => {
+    const prev = get().byMmsi, at = performance.now(), pings = new Map<string, number>();
+    // The first load is not news; after that, every fresh fix pulses once.
+    if (prev.size) for (const v of r.vessels) { const p = prev.get(v.mmsi); if (!p || p.lastRealAt !== v.lastRealAt) pings.set(v.mmsi, at); }
     get().nowcaster.ingest(r.vessels, Date.now() / 60000);
-    set({ byMmsi: new Map(r.vessels.map((v) => [v.mmsi, v])), backtest: r.backtest, learned: r.learned });
+    set({ byMmsi: new Map(r.vessels.map((v) => [v.mmsi, v])), backtest: r.backtest, learned: r.learned, ...(pings.size ? { pings } : {}) });
   },
 }));

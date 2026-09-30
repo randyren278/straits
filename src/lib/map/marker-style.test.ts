@@ -56,7 +56,7 @@ describe('vesselOpacityExpression', () => {
     const e = vesselOpacityExpression(null) as unknown[];
     expect(e[0]).toBe('interpolate');
     expect(e[2]).toEqual(['zoom']);
-    expect(JSON.stringify(e[4])).toContain('0.45');
+    expect(JSON.stringify(e[4])).toContain('0.7');
     expect(JSON.stringify(e)).toContain('"tier"');
   });
 });

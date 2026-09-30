@@ -30,6 +30,7 @@ import {
 import { MotionOverlay, hitTest } from './MotionOverlay';
 import { useTracks } from '@/lib/hooks/useTracks';
 import { useTrackStore } from '@/stores/tracks';
+import { useReplayStore } from '@/stores/replay';
 import type { Frame } from '@/lib/tracks/frame';
 import { BASEMAP_CLUTTER_PATTERN } from '@/lib/map/basemap';
 import type { VesselWithSanctions } from '@/lib/db/sanctions';
@@ -93,6 +94,9 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
   // Opens at Hormuz instantly, then glides once to the busiest chokepoint when the engine
   // reports — unless the user has already moved the map or a link asked for a view.
   const autoFrameRef = useRef(true);
+  // Hovered ship: the overlay rings it; the tooltip names it.
+  const hoverRef = useRef<string | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   const {
     tankersOnly, setSelectedVessel, setLastUpdate, setLastObservation, setTrackStatus,
@@ -345,6 +349,23 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     const handleMouseLeave = () => {
       if (map.current) map.current.getCanvas().style.cursor = '';
     };
+    const handleHover = (e: MapMouseEvent) => {
+      if (!e.point) return;
+      let mmsi = hitTest(frameRef.current, e.point.x, e.point.y);
+      if (!mmsi && mapInstance.getLayer('vessel-hit') && !useReplayStore.getState().active) {
+        mmsi = (mapInstance.queryRenderedFeatures(e.point, { layers: ['vessel-hit'] })[0]?.properties?.mmsi as string | undefined) ?? null;
+      }
+      hoverRef.current = mmsi;
+      mapInstance.getCanvas().style.cursor = mmsi ? 'pointer' : '';
+      const tip = tooltipRef.current;
+      if (!tip) return;
+      const v = mmsi ? vesselsRef.current.find((x) => x.mmsi === mmsi) : undefined;
+      if (!v) { tip.style.opacity = '0'; return; }
+      const t = useTrackStore.getState().byMmsi.get(v.mmsi);
+      tip.textContent = `${v.name || v.mmsi} · ${t?.state === 'underway' ? `${t.sog.toFixed(1)} kn` : t ? 'at rest' : 'last known'}`;
+      tip.style.transform = `translate(${e.point.x + 14}px, ${e.point.y - 26}px)`;
+      tip.style.opacity = '1';
+    };
     const handleUserMove = (e: { originalEvent?: unknown }) => { if (e.originalEvent) autoFrameRef.current = false; };
     const handleMoveEnd = () => {
       detectProximityGroup();
@@ -388,8 +409,10 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
             'circle-color': ACTIVITY_COLOR_EXPRESSION,
             'circle-stroke-color': IDENTITY_STROKE_COLOR_EXPRESSION,
             'circle-stroke-width': IDENTITY_STROKE_WIDTH_EXPRESSION,
-            'circle-opacity': vesselOpacityExpression(null),
-            'circle-stroke-opacity': vesselOpacityExpression(null),
+            'circle-opacity': 0,
+            'circle-stroke-opacity': 0,
+            'circle-opacity-transition': { duration: 900, delay: 0 },
+            'circle-stroke-opacity-transition': { duration: 900, delay: 0 },
           },
           filter: ['!=', ['get', 'motion'], true],
         });
@@ -455,26 +478,6 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         }
       } catch {
         // Canvas or image support missing (tests, headless); dots still render.
-      }
-
-      // ─── Selection lock ────────────────────────────────────────
-      // A restrained ring around the acquired contact; the filter is set on
-      // selection change (see the selection effect below).
-      if (!mapInstance.getLayer('vessel-selected-ring')) {
-        mapInstance.addLayer({
-          id: 'vessel-selected-ring',
-          type: 'circle',
-          source: 'vessels',
-          filter: ['==', ['get', 'mmsi'], '__none__'],
-          paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 9, 10, 16],
-            'circle-color': '#f59e0b',
-            'circle-opacity': 0.08,
-            'circle-stroke-color': '#f59e0b',
-            'circle-stroke-width': 1.5,
-            'circle-stroke-opacity': 0.95,
-          },
-        });
       }
 
       // ─── Monitored coverage ────────────────────────────────────
@@ -583,6 +586,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       mapInstance.on('mouseenter', 'vessel-hit', handleMouseEnter);
       mapInstance.on('mouseleave', 'vessel-hit', handleMouseLeave);
       mapInstance.on('dragstart', handleUserMove);
+      mapInstance.on('mousemove', handleHover);
       mapInstance.on('zoomstart', handleUserMove);
 
       // ─── Proximity detection on zoom/pan ──────────────────────
@@ -616,6 +620,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         mapInstance.off('mouseenter', 'vessel-hit', handleMouseEnter);
         mapInstance.off('mouseleave', 'vessel-hit', handleMouseLeave);
         mapInstance.off('dragstart', handleUserMove);
+        mapInstance.off('mousemove', handleHover);
         mapInstance.off('zoomstart', handleUserMove);
         mapInstance.off('moveend', handleMoveEnd);
       } catch {
@@ -799,20 +804,30 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     updateTrackLayer();
   }, [updateTrackLayer]);
 
-  // Selection lock: ring the acquired contact and let the rest of the field
-  // recede. Opacity stays freshness-weighted for every marker.
+  // Selection lock: the overlay brackets the acquired contact; the rest of the field
+  // recedes. Opacity stays freshness-weighted for every marker. Until the first vessels
+  // land the dots sit at 0, so they fade in (paint transition) rather than pop.
+  const vesselsShown = vesselLoadState === 'ready';
   useEffect(() => {
-    if (!map.current || !mapLoaded) return;
+    if (!map.current || !mapLoaded || !vesselsShown) return;
     const selectedMmsi = selectedVessel?.mmsi ?? null;
     try {
-      // Moving ships get their ring from the motion overlay, at the estimated position.
-      map.current.setFilter('vessel-selected-ring', ['all', ['==', ['get', 'mmsi'], selectedMmsi ?? '__none__'], ['!=', ['get', 'motion'], true]]);
       map.current.setPaintProperty('vessel-circles', 'circle-opacity', vesselOpacityExpression(selectedMmsi));
       map.current.setPaintProperty('vessel-circles', 'circle-stroke-opacity', vesselOpacityExpression(selectedMmsi));
     } catch {
       // Layers not present yet (style still loading); the load handler sets defaults.
     }
-  }, [selectedVessel, mapLoaded]);
+  }, [selectedVessel, mapLoaded, vesselsShown]);
+
+  // Rewind: the overlay draws every ship at the replay time; the live layers step aside.
+  const replayActive = useReplayStore((s) => s.active);
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !mapLoaded) return;
+    for (const id of ['vessel-circles', 'vessel-headings', 'vessel-hit', 'vessel-track']) {
+      if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', replayActive ? 'none' : 'visible');
+    }
+  }, [replayActive, mapLoaded]);
 
   // Phone: keep the selected ship in the strip of map above the peek card.
   const selectedMmsi = selectedVessel?.mmsi ?? null;
@@ -907,7 +922,9 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         data-reveal-state={vesselsReady ? 'ready' : 'covered'}
         className="straits-map-surface w-full h-full"
       />
-      {mapLoaded && map.current && <MotionOverlay map={map.current} vessels={vessels} frameRef={frameRef} />}
+      {mapLoaded && map.current && <MotionOverlay map={map.current} vessels={vessels} frameRef={frameRef} hoverRef={hoverRef} />}
+      <div ref={tooltipRef} aria-hidden="true" style={{ opacity: 0 }}
+        className="pointer-events-none absolute left-0 top-0 z-[2] whitespace-nowrap bg-black/90 border border-amber-500/40 px-1.5 py-0.5 font-mono text-[10px] text-gray-200 transition-opacity duration-150" />
 
       <div
         data-testid="vessel-loading-overlay"

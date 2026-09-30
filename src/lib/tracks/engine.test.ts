@@ -28,4 +28,18 @@ describe('runTrackEngine', () => {
     expect(out.backtest.n).toBeGreaterThan(0);
     expect(out.densityDelta.size).toBeGreaterThan(0);          // a first run seeds lanes from history
   });
+
+  it('replays the day: a moving ship at 5-min steps, a still one thinned, silences marked as gaps', () => {
+    const gappy = east('3', 56.9, 24.7, 12);
+    gappy.fixes = gappy.fixes.filter((f) => f.t < NOW - 200 || f.t > NOW - 120);   // 80 min without a fix
+    const out = runTrackEngine({ vessels: [east('1', 57.0, 24.9, 10), anchored('2'), gappy], now: NOW, density: new Float32Array(grid.w * grid.h), learn: emptyLearnState() });
+    const [moving, still, gap] = out.replay.map((r) => ({ ...r, pts: decodeSeries(r.h) }));
+    expect(moving.m).toBe('1');
+    expect(moving.pts.length).toBeGreaterThan(50);                      // ~290 min at 5-min steps
+    expect(moving.pts.at(-1)![0]).toBeGreaterThanOrEqual(NOW - 10);            // up to the last smoothed fix
+    expect(still.pts.length).toBeLessThan(10);                          // hourly anchors, not 58 copies
+    expect(moving.g).toEqual([]);
+    expect(gap.g).toHaveLength(2);
+    expect(gap.g[1] - gap.g[0]).toBeGreaterThan(60);
+  });
 });

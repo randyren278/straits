@@ -29,15 +29,18 @@ describe('buildFrame', () => {
     expect(f.ahead[0].pts.length).toBeGreaterThan(3);
   });
 
-  it('places the selection at the estimated position, not the last real fix', () => {
+  it('focuses the selection at the estimated position, not the last real fix', () => {
     const nc = new Nowcaster(); const ps = [payload('m', true), payload('a', false)]; nc.ingest(ps, 1000);
     const project = (lon: number, lat: number) => ({ x: lon * 100, y: -lat * 100 });
     const vs = [vessel('m', 57, 25), vessel('a', 56.4, 25.3)], byMmsi = new Map(ps.map((p) => [p.mmsi, p]));
     const f = buildFrame({ vessels: vs, nc, byMmsi, tMin: 1030, zoom: 7.5, project, selected: 'm' });
     expect(f.sel).toEqual({ x: f.ships[0].x, y: f.ships[0].y });
     expect(f.sel!.x).toBeGreaterThan(57 * 100 + 5);   // 30 min at 12 kn east of the last fix
-    // A ship at rest keeps its ring on the map's dot layer.
-    expect(buildFrame({ vessels: vs, nc, byMmsi, tMin: 1030, zoom: 7.5, project, selected: 'a' }).sel).toBeNull();
+    // A ship at rest is focused at its fix.
+    const rest = buildFrame({ vessels: vs, nc, byMmsi, tMin: 1030, zoom: 7.5, project, selected: 'a', hovered: 'm' });
+    expect(rest.sel).toEqual({ x: 5640, y: -2530 });
+    expect(rest.selMoving).toBe(false);
+    expect(rest.hov).toEqual({ x: rest.ships[0].x, y: rest.ships[0].y });
   });
 
   it('fades the glow out when zoomed in', () => {

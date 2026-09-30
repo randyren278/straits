@@ -2,7 +2,7 @@
 import { pool } from './index';
 import type { EngineVessel } from '../tracks/engine';
 import { normalizeLearnState, type LearnState } from '../tracks/learn';
-import type { TrackPayload, TracksResponse } from '../tracks/types';
+import type { ReplayVessel, TrackPayload, TracksResponse } from '../tracks/types';
 
 const HALF_LIFE_DAYS = 14;
 
@@ -63,6 +63,7 @@ export async function loadLearnState(): Promise<LearnState> {
 export async function saveEngineRun(
   payloads: TrackPayload[], learn: LearnState,
   meta: { backtest: TracksResponse['backtest']; learned: TracksResponse['learned'] },
+  replay?: ReplayVessel[],
 ): Promise<void> {
   await pool.query(`
     INSERT INTO vessel_track_state (mmsi, payload, updated_at)
@@ -73,6 +74,12 @@ export async function saveEngineRun(
     INSERT INTO track_engine_state (key, value, updated_at) VALUES ('learn', $1::jsonb, NOW()), ('summary', $2::jsonb, NOW())
     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
   [JSON.stringify(learn), JSON.stringify({ ...meta, generatedAt: new Date().toISOString() })]);
+  if (replay) {
+    await pool.query(`
+      INSERT INTO track_engine_state (key, value, updated_at) VALUES ('replay', $1::jsonb, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    [JSON.stringify({ generatedAt: new Date().toISOString(), vessels: replay })]);
+  }
 }
 
-export { getTracks } from './tracks-read';
+export { getTracks, getReplay } from './tracks-read';

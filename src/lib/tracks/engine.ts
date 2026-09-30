@@ -16,9 +16,39 @@ import {
 } from './learn';
 import { projAt, toLat, toLon, type TPt } from './proj';
 import { repairLand, type Density } from './router';
-import type { TrackPayload, TracksResponse } from './types';
+import type { ReplayVessel, TrackPayload, TracksResponse } from './types';
 
 export interface EngineVessel { mmsi: string; fixes: RawFix[]; identity: { name: boolean; type: boolean; flag: boolean; imoOrDest: boolean } }
+
+/** Gaps longer than this between real fixes replay as estimated. */
+const REPLAY_GAP_MIN = 25;
+
+/**
+ * The last 24 h of the smoothed track at 5-min steps, thinned where the ship sat still
+ * (kept at least hourly, and the sample before each move so a rest doesn't smear into it).
+ */
+function replayOf(s: ReturnType<typeof smooth>, meas: TPt[], proj: ReturnType<typeof projAt>, now: number, kin: Kin): Omit<ReplayVessel, 'm'> {
+  const from = Math.max(s.t[0], now - 1440), end = s.t[s.n - 1], pts: TPt[] = [];
+  let prev: TPt | null = null;
+  const keep = (p: TPt) => { const q = pts[pts.length - 1]; if (!q || q.t !== p.t) pts.push(p); };
+  for (let t = from; ; t = Math.min(end, t + 5)) {
+    hermite(s, t, kin);
+    const p = { t, x: kin.x, y: kin.y }, q = pts[pts.length - 1];
+    const moved = !!q && Math.hypot(p.x - q.x, p.y - q.y) >= 0.05;
+    if (moved && prev && prev.t > q.t) keep(prev);
+    if (!q || moved || t === end || t - q.t >= 60) keep(p);
+    prev = p;
+    if (t >= end) break;
+  }
+  const g: number[] = [];
+  for (let k = 1; k < meas.length; k++) {
+    if (meas[k].t - meas[k - 1].t <= REPLAY_GAP_MIN || meas[k].t <= from) continue;
+    const a = Math.round(Math.max(from, meas[k - 1].t)), b = Math.round(meas[k].t);
+    // Report times sit midway between fixes, so one silence can arrive as two touching gaps.
+    if (g.length && g[g.length - 1] >= a) g[g.length - 1] = b; else g.push(a, b);
+  }
+  return { h: encodeSeries(toSeries(proj, pts, 1)), g };
+}
 
 const toSeries = (proj: ReturnType<typeof projAt>, pts: TPt[], every: number) =>
   pts.filter((_, k) => k % every === 0 || k === pts.length - 1).map((p) => [p.t, toLat(p.y), toLon(proj, p.x)] as [number, number, number]);
@@ -30,7 +60,7 @@ export function runTrackEngine(input: { vessels: EngineVessel[]; now: number; de
     const { method, tau } = parseCandidate(c);
     return predictWith(method, st, minutes, density, tau);
   };
-  const payloads: TrackPayload[] = [], densityDelta = new Map<number, number>();
+  const payloads: TrackPayload[] = [], replay: ReplayVessel[] = [], densityDelta = new Map<number, number>();
   const holdErr: number[] = [], estErr: number[] = [];
   // First-ever run seeds lanes from the whole day; after that, only motion since the last run.
   const since = Math.max(now - 1440, learn.lastRunAt ?? now - 1440);
@@ -53,6 +83,8 @@ export function runTrackEngine(input: { vessels: EngineVessel[]; now: number; de
       const [c, r] = cellOf(toLon(proj, kin.x), toLat(kin.y));
       if (inGrid(c, r)) { const i = r * grid.w + c; densityDelta.set(i, (densityDelta.get(i) ?? 0) + 1); }
     }
+
+    replay.push({ m: v.mmsi, ...replayOf(s, cl.meas, proj, now, kin) });
 
     const ev = scoreEvidence({ fixTimes: v.fixes.map((f) => f.t), now, rejected: cl.rejected, moves: cl.moves, identity: v.identity });
     let path: number[] | null = null, trail: number[] | null = null, m: TrackPayload['method'] = null, tau: number | null = null;
@@ -92,5 +124,5 @@ export function runTrackEngine(input: { vessels: EngineVessel[]; now: number; de
   }
   learn.lastRunAt = now;
   const learned: TracksResponse['learned'] = { choice: CONTEXTS.map((_, k) => chooseCandidate(learn, k)), contexts: CONTEXTS };
-  return { payloads, densityDelta, backtest: { n: estErr.length, hold: median(holdErr), estimate: median(estErr) }, learned };
+  return { payloads, replay, densityDelta, backtest: { n: estErr.length, hold: median(holdErr), estimate: median(estErr) }, learned };
 }

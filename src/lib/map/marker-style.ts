@@ -43,8 +43,8 @@ export const FRESHNESS_STOPS: ReadonlyArray<readonly [hours: number, opacity: nu
   [0, 1],
   [1, 1],
   [24, 0.65],
-  [72, 0.4],
-  [168, 0.25],
+  [72, 0.5],
+  [168, 0.4],
 ];
 
 /** How far the non-selected field recedes while a contact is locked. */
@@ -115,14 +115,17 @@ export const IDENTITY_STROKE_WIDTH_EXPRESSION: ExpressionSpecification = [
 ];
 
 /**
- * Dot radius: 2.4 px × tracking-tier size, scaling ×0.8 → ×1.9 with zoom (√2 per zoom level),
- * the same curve the motion overlay uses for chevrons.
+ * Dot radius: DOT_RADIUS px × tracking-tier size, scaling ×0.8 → ×1.9 with zoom (√2 per zoom
+ * level), the same curve the motion overlay uses for chevrons. Untracked ships stay readable:
+ * they are data, just older.
  */
-const TIER_SIZE: ExpressionSpecification = ['match', ['coalesce', ['get', 'tier'], 0], 0, 1.25, 1, 1, 2, 0.75, 0.7];
+export const DOT_RADIUS = 2.8;
+export const DOT_TIER_SIZE = [1.25, 1, 0.85, 0.8] as const;
+const TIER_SIZE: ExpressionSpecification = ['match', ['coalesce', ['get', 'tier'], 0], 0, DOT_TIER_SIZE[0], 1, DOT_TIER_SIZE[1], 2, DOT_TIER_SIZE[2], DOT_TIER_SIZE[3]];
 export const VESSEL_RADIUS_EXPRESSION: ExpressionSpecification = [
   'interpolate', ['exponential', Math.SQRT2], ['zoom'],
-  7.36, ['*', 2.4 * 0.8, TIER_SIZE],
-  9.85, ['*', 2.4 * 1.9, TIER_SIZE],
+  7.36, ['*', DOT_RADIUS * 0.8, TIER_SIZE],
+  9.85, ['*', DOT_RADIUS * 1.9, TIER_SIZE],
 ];
 
 /**
@@ -144,14 +147,14 @@ export function freshnessOpacityExpression(selectedMmsi: string | null): Express
   ];
 }
 
-/** Tracking-quality dimming: well tracked 1, tracked 0.8, sparse 0.5, untracked (no fix in 24 h) 0.5 × fix age. */
-const TIER_FACTOR: ExpressionSpecification = ['match', ['coalesce', ['get', 'tier'], 0], 0, 1, 1, 0.8, 2, 0.5, 0.5];
+/** Tracking-quality dimming: well tracked 1, tracked 0.85, sparse 0.7, untracked (no fix in 24 h) 0.75 × fix age. */
+const TIER_FACTOR: ExpressionSpecification = ['match', ['coalesce', ['get', 'tier'], 0], 0, 1, 1, 0.85, 2, 0.7, 0.75];
 
 /**
- * Dot opacity = freshness × tracking tier, and at wide zoom ships at rest recede to 45%
+ * Dot opacity = freshness × tracking tier, and at wide zoom ships at rest recede to 70%
  * under the motion overlay's glow (the zoom interpolation must be the top-level expression).
  */
 export function vesselOpacityExpression(selectedMmsi: string | null): ExpressionSpecification {
   const base: ExpressionSpecification = ['*', TIER_FACTOR, freshnessOpacityExpression(selectedMmsi)];
-  return ['interpolate', ['linear'], ['zoom'], 8.2, ['*', 0.45, base], 9.2, base];
+  return ['interpolate', ['linear'], ['zoom'], 8.2, ['*', 0.7, base], 9.2, base];
 }
