@@ -17,7 +17,7 @@ export const useTrackStore = create<TrackStore>((set, get) => ({
   byMmsi: new Map(),
   backtest: null,
   learned: null,
-  showStale: false,
+  showStale: true,
   setShowStale: (showStale) => set({ showStale }),
   ingest: (r) => {
     get().nowcaster.ingest(r.vessels, Date.now() / 60000);

@@ -90,7 +90,7 @@ export const ACTIVITY_COLOR_EXPRESSION: ExpressionSpecification = [
   ['match', ['coalesce', ['get', 'tier'], 0], 0, REST_GREYS[0], 2, REST_GREYS[2], 3, REST_GREYS[3], REST_GREYS[1]],
 ];
 
-/** Outline: list membership. None when the vessel is on no list (stale ships get a thin grey ring instead of a fill). */
+/** Outline: list membership. None when the vessel is on no list. */
 export const IDENTITY_STROKE_COLOR_EXPRESSION: ExpressionSpecification = [
   'case',
   ['!=', ['get', 'isSanctioned'], true],
@@ -111,13 +111,8 @@ export const IDENTITY_STROKE_WIDTH_EXPRESSION: ExpressionSpecification = [
   'case',
   ['==', ['get', 'isSanctioned'], true],
   1.5,
-  ['==', ['coalesce', ['get', 'tier'], 0], 3],
-  0.8,
   0,
 ];
-
-/** Stale ships (no track) are hollow rings; everything else is a solid dot. */
-export const FILL_OPACITY_FACTOR: ExpressionSpecification = ['case', ['==', ['coalesce', ['get', 'tier'], 0], 3], 0, 1];
 
 /**
  * Dot radius: 2.4 px × tracking-tier size, scaling ×0.8 → ×1.9 with zoom (√2 per zoom level),
@@ -149,16 +144,14 @@ export function freshnessOpacityExpression(selectedMmsi: string | null): Express
   ];
 }
 
-/** Tracking-quality dimming: well tracked 1, tracked 0.8, sparse 0.5, stale 0.22. */
-const TIER_FACTOR: ExpressionSpecification = ['match', ['coalesce', ['get', 'tier'], 0], 0, 1, 1, 0.8, 2, 0.5, 0.22];
+/** Tracking-quality dimming: well tracked 1, tracked 0.8, sparse 0.5, untracked (no fix in 24 h) 0.5 × fix age. */
+const TIER_FACTOR: ExpressionSpecification = ['match', ['coalesce', ['get', 'tier'], 0], 0, 1, 1, 0.8, 2, 0.5, 0.5];
 
 /**
  * Dot opacity = freshness × tracking tier, and at wide zoom ships at rest recede to 45%
  * under the motion overlay's glow (the zoom interpolation must be the top-level expression).
  */
-export function vesselOpacityExpression(selectedMmsi: string | null, fill = false): ExpressionSpecification {
-  const base: ExpressionSpecification = fill
-    ? ['*', FILL_OPACITY_FACTOR, TIER_FACTOR, freshnessOpacityExpression(selectedMmsi)]
-    : ['*', TIER_FACTOR, freshnessOpacityExpression(selectedMmsi)];
+export function vesselOpacityExpression(selectedMmsi: string | null): ExpressionSpecification {
+  const base: ExpressionSpecification = ['*', TIER_FACTOR, freshnessOpacityExpression(selectedMmsi)];
   return ['interpolate', ['linear'], ['zoom'], 8.2, ['*', 0.45, base], 9.2, base];
 }

@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Stale contacts toggle. Ships with no fix in 24 h are hidden by default: their dot would
- * show where they were, not where they are.
+ * Stale contacts toggle. Ships with no fix in 24 h are shown (faded by fix age) by default;
+ * turning this off leaves only ships the track engine is following.
  */
 import { History } from 'lucide-react';
 import { useTrackStore } from '@/stores/tracks';

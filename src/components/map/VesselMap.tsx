@@ -18,6 +18,7 @@ import { vesselsToGeoJSON } from '@/lib/map/geojson';
 import { expandMapVessel, type MapVessel } from '@/lib/map/map-vessel';
 import { filterTankers } from '@/lib/map/filter';
 import { CHOKEPOINTS } from '@/lib/geo/chokepoints-constants';
+import { busiestChokepoint } from '@/lib/map/busiest-chokepoint';
 import { AIS_COVERAGE } from '@/lib/geo/coverage-constants';
 import {
   ACTIVITY_COLOR_EXPRESSION,
@@ -89,6 +90,9 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
   const vesselsRef = useRef<MapVessel[]>([]);
   useEffect(() => { vesselsRef.current = vessels; }, [vessels]);
   const { byMmsi: trackMap, showStale } = useTrackStore();
+  // Opens at Hormuz instantly, then glides once to the busiest chokepoint when the engine
+  // reports — unless the user has already moved the map or a link asked for a view.
+  const autoFrameRef = useRef(true);
 
   const {
     tankersOnly, setSelectedVessel, setLastUpdate, setLastObservation, setTrackStatus,
@@ -136,8 +140,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     pendingRenderCleanupRef.current = cleanupRender;
     mapInstance.on('render', onRender);
 
-    // Stale ships (no fix in 24 h) are hidden once the engine has reported, unless the user
-    // asks for them; ships the motion overlay draws are flagged so the dot layer skips them.
+    // Every ship is shown; ships with no fix in 24 h (untracked) can be hidden with the Stale
+    // toggle. Ships the motion overlay draws are flagged so the dot layer skips them.
     const { nowcaster, byMmsi: tracks, showStale: stale } = useTrackStore.getState();
     const nowMin = Date.now() / 60000;
     const visible = stale || tracks.size === 0 ? filtered : filtered.filter((v) => tracks.has(v.mmsi));
@@ -341,6 +345,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     const handleMouseLeave = () => {
       if (map.current) map.current.getCanvas().style.cursor = '';
     };
+    const handleUserMove = (e: { originalEvent?: unknown }) => { if (e.originalEvent) autoFrameRef.current = false; };
     const handleMoveEnd = () => {
       detectProximityGroup();
       // Keep the store's notion of the viewport current for shareable links.
@@ -383,7 +388,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
             'circle-color': ACTIVITY_COLOR_EXPRESSION,
             'circle-stroke-color': IDENTITY_STROKE_COLOR_EXPRESSION,
             'circle-stroke-width': IDENTITY_STROKE_WIDTH_EXPRESSION,
-            'circle-opacity': vesselOpacityExpression(null, true),
+            'circle-opacity': vesselOpacityExpression(null),
             'circle-stroke-opacity': vesselOpacityExpression(null),
           },
           filter: ['!=', ['get', 'motion'], true],
@@ -577,6 +582,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       mapInstance.on('click', 'vessel-hit', handleClick);
       mapInstance.on('mouseenter', 'vessel-hit', handleMouseEnter);
       mapInstance.on('mouseleave', 'vessel-hit', handleMouseLeave);
+      mapInstance.on('dragstart', handleUserMove);
+      mapInstance.on('zoomstart', handleUserMove);
 
       // ─── Proximity detection on zoom/pan ──────────────────────
       // After the map settles, detect dense vessel groups and auto-
@@ -608,6 +615,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         mapInstance.off('click', 'vessel-hit', handleClick);
         mapInstance.off('mouseenter', 'vessel-hit', handleMouseEnter);
         mapInstance.off('mouseleave', 'vessel-hit', handleMouseLeave);
+        mapInstance.off('dragstart', handleUserMove);
+        mapInstance.off('zoomstart', handleUserMove);
         mapInstance.off('moveend', handleMoveEnd);
       } catch {
         // Instance may already be partially torn down; ignore.
@@ -798,16 +807,38 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     try {
       // Moving ships get their ring from the motion overlay, at the estimated position.
       map.current.setFilter('vessel-selected-ring', ['all', ['==', ['get', 'mmsi'], selectedMmsi ?? '__none__'], ['!=', ['get', 'motion'], true]]);
-      map.current.setPaintProperty('vessel-circles', 'circle-opacity', vesselOpacityExpression(selectedMmsi, true));
+      map.current.setPaintProperty('vessel-circles', 'circle-opacity', vesselOpacityExpression(selectedMmsi));
       map.current.setPaintProperty('vessel-circles', 'circle-stroke-opacity', vesselOpacityExpression(selectedMmsi));
     } catch {
       // Layers not present yet (style still loading); the load handler sets defaults.
     }
   }, [selectedVessel, mapLoaded]);
 
+  // Phone: keep the selected ship in the strip of map above the peek card.
+  const selectedMmsi = selectedVessel?.mmsi ?? null;
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !mapLoaded || !selectedMmsi || !window.matchMedia('(max-width: 767.98px), (max-height: 599.98px)').matches) return;
+    const raf = requestAnimationFrame(() => {
+      const sheet = document.querySelector('[data-testid="vessel-sheet"]')?.getBoundingClientRect();
+      const box = m.getContainer().getBoundingClientRect();
+      if (!sheet) return;
+      const s = useTrackStore.getState().nowcaster.sample(selectedMmsi, Date.now() / 60000, true);
+      const pos = useVesselStore.getState().selectedVessel?.position;
+      const lngLat: [number, number] | null = s ? [s.lon, s.lat] : pos ? [pos.longitude, pos.latitude] : null;
+      if (!lngLat) return;
+      const top = 64, bottom = sheet.top - box.top - 24;            // clear of the filter chips and the card
+      const p = m.project(lngLat);
+      if (p.y >= top && p.y <= bottom && p.x >= 16 && p.x <= box.width - 16) return;
+      m.easeTo({ center: lngLat, offset: [0, (top + bottom) / 2 - box.height / 2], duration: 600 });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [selectedMmsi, mapLoaded]);
+
   // Handle map navigation from search or chokepoint selection
   useEffect(() => {
     if (!map.current || !mapLoaded || !mapCenter) return;
+    autoFrameRef.current = false;
 
     map.current.flyTo({
       center: [mapCenter.lon, mapCenter.lat],
@@ -817,6 +848,18 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
 
     setMapCenter(null);
   }, [mapCenter, mapLoaded, setMapCenter]);
+
+  useEffect(() => {
+    if (!autoFrameRef.current || !map.current || !mapLoaded || trackMap.size === 0 || vessels.length === 0) return;
+    autoFrameRef.current = false;
+    const best = busiestChokepoint(
+      vessels.map((v) => ({ mmsi: v.mmsi, lat: v.position.latitude, lon: v.position.longitude })),
+      (mmsi) => trackMap.get(mmsi)?.state === 'underway',
+    );
+    if (!best || best.chokepoint.id === 'hormuz') return;
+    const b = best.chokepoint.bounds;
+    map.current.flyTo({ center: [(b.minLon + b.maxLon) / 2, (b.minLat + b.maxLat) / 2], zoom: 8, duration: 1800 });
+  }, [trackMap, vessels, mapLoaded]);
 
   // Hydrate pending target vessel from cross-route navigation (fleet → dashboard)
   useEffect(() => {

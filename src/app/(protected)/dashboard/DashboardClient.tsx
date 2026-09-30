@@ -4,9 +4,10 @@
  * Dashboard page with interactive vessel map.
  * Requirements: MAP-01, MAP-02, MAP-03, MAP-04, MAP-05, MAP-06, MAP-07, MAP-08, INTL-02, INTL-03, ANOM-01, HIST-02
  */
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { VesselMap } from '@/components/map/VesselMap';
 import { VesselPanel } from '@/components/panels/VesselPanel';
+import { VesselPeek } from '@/components/panels/VesselPeek';
 import { OilPricePanel } from '@/components/panels/OilPricePanel';
 import { NewsPanel } from '@/components/panels/NewsPanel';
 import { RailPanels } from '@/components/panels/RailPanels';
@@ -44,9 +45,10 @@ export function DashboardClient() {
   const tankersOnly = useVesselStore((state) => state.tankersOnly);
   const anomalyFilter = useVesselStore((state) => state.anomalyFilter);
   const targetVesselImo = useVesselStore((state) => state.targetVesselImo);
-  const mapCenter = useVesselStore((state) => state.mapCenter);
-  const viewport = useVesselStore((state) => state.viewport);
   const skippedInitialLinkWrite = useRef(false);
+  // Which ship's phone sheet is expanded; a new selection starts at the peek card.
+  const [expandedFor, setExpandedFor] = useState<string | null>(null);
+  const sheetExpanded = !!selectedVessel && expandedFor === selectedVessel.mmsi;
 
   // Shareable investigation links — read once on mount, write on change.
   // replaceState keeps the address bar honest without a Next navigation.
@@ -75,10 +77,9 @@ export function DashboardClient() {
       return;
     }
     const qs = serializeInvestigation({
+      // The view is not tracked in the address bar (a reload opens on the busiest
+      // chokepoint); the panel's copy-link action still captures it for sharing.
       vessel: selectedVessel?.imo ?? targetVesselImo,
-      // mapCenter is the requested destination while a fly-to is pending;
-      // viewport becomes authoritative after MapLibre reports moveend.
-      view: mapCenter ?? viewport,
       tankersOnly,
       anomaliesOnly: anomalyFilter,
     });
@@ -86,7 +87,7 @@ export function DashboardClient() {
     if (next !== `${window.location.pathname}${window.location.search}`) {
       window.history.replaceState(window.history.state, '', next);
     }
-  }, [selectedVessel?.imo, targetVesselImo, mapCenter, viewport, tankersOnly, anomalyFilter]);
+  }, [selectedVessel?.imo, targetVesselImo, tankersOnly, anomalyFilter]);
 
   const chokepointStats = useChokepointStats();
   const chokepoints: Chokepoint[] = (chokepointStats ?? []).map((c) => ({
@@ -210,12 +211,24 @@ export function DashboardClient() {
 
       {/* Sits above the bottom nav. At bottom-0 the nav would cover its
           controls, and the two would fight for the same edge. */}
+      {/* Phone: a peek card keeps the map visible; the full dossier is one swipe away. */}
       {selectedVessel && (
         <div
           data-testid="vessel-sheet"
+          data-detent={sheetExpanded ? 'full' : 'peek'}
           className="hidden phone:block fixed inset-x-0 bottom-[var(--straits-nav-h)] z-40 max-h-[60dvh] overflow-y-auto bg-black border-t border-amber-500/40 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]"
         >
-          <VesselPanel />
+          {sheetExpanded ? (
+            <>
+              <button type="button" onClick={() => setExpandedFor(null)} aria-label="Collapse details"
+                className="sticky top-0 z-10 w-full min-h-[32px] bg-black flex justify-center items-center">
+                <span className="h-1 w-10 bg-amber-500/50" aria-hidden="true" />
+              </button>
+              <VesselPanel />
+            </>
+          ) : (
+            <VesselPeek onExpand={() => setExpandedFor(selectedVessel.mmsi)} />
+          )}
         </div>
       )}
     </div>

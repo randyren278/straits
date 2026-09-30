@@ -84,6 +84,13 @@ describe('DashboardPage', () => {
     expect(sheet).not.toHaveClass('bottom-0');
   });
 
+  it('opens a selected ship as a phone peek card, not the full dossier', async () => {
+    store.selectedVessel = { imo: '9999999', mmsi: '1', name: 'TEST' };
+    await renderDashboard();
+    expect(screen.getByTestId('vessel-sheet')).toHaveAttribute('data-detent', 'peek');
+    expect(screen.queryByTestId('vessel-panel')).toBeNull();
+  });
+
   it('collapses the panel sheet when a vessel is selected', async () => {
     store.selectedVessel = { imo: '9999999', name: 'TEST' };
     await renderDashboard();
