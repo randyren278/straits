@@ -11,6 +11,8 @@ export interface Frame {
   ahead: { pts: XY[]; tier: number }[];
   rings: { x: number; y: number; r: number }[];
   ships: { mmsi: string; x: number; y: number; heading: number; estimated: boolean; age: number; tier: number; color: string }[];
+  /** The selected ship's drawn (estimated) position when the overlay owns it. */
+  sel: XY | null;
 }
 const smoothstep = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const anomalyColor = (v: MapVessel) => {
@@ -30,7 +32,7 @@ export function buildFrame(input: {
   project: (lon: number, lat: number) => XY; selected: string | null;
 }): Frame {
   const { vessels, nc, byMmsi, tMin, zoom, project, selected } = input;
-  const f: Frame = { glow: [], glowMix: 1 - smoothstep(8.2, 9.2, zoom), tails: [], ahead: [], rings: [], ships: [] };
+  const f: Frame = { glow: [], glowMix: 1 - smoothstep(8.2, 9.2, zoom), tails: [], ahead: [], rings: [], ships: [], sel: null };
   const pxPerNm = project(0, 0).y - project(0, 1 / 60).y;
   for (const v of vessels) {
     const s = nc.sample(v.mmsi, tMin, true);
@@ -40,6 +42,7 @@ export function buildFrame(input: {
       continue;
     }
     const p = project(s.lon, s.lat);
+    if (v.mmsi === selected) f.sel = p;
     f.ships.push({ mmsi: v.mmsi, x: p.x, y: p.y, heading: s.heading, estimated: s.estimated, age: s.age, tier: s.tier,
       color: anomalyColor(v) ?? (s.tier === 0 ? '#fff6e3' : '#d8dbe0') });
     if (s.tier <= 1 || v.mmsi === selected) {

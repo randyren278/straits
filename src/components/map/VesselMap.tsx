@@ -23,6 +23,7 @@ import {
   ACTIVITY_COLOR_EXPRESSION,
   IDENTITY_STROKE_COLOR_EXPRESSION,
   IDENTITY_STROKE_WIDTH_EXPRESSION,
+  VESSEL_RADIUS_EXPRESSION,
   vesselOpacityExpression,
 } from '@/lib/map/marker-style';
 import { MotionOverlay, hitTest } from './MotionOverlay';
@@ -287,6 +288,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     // (prevents handler accumulation across React Strict Mode re-mounts).
     const handleClick = (e: MapMouseEvent & { features?: MapGeoJSONFeature[] }) => {
       if (!e.features?.length) return;
+      // A moving ship under the pointer wins; handleOverlayClick has already selected it.
+      if (e.point && hitTest(frameRef.current, e.point.x, e.point.y)) return;
       const props = e.features[0].properties;
       const coords = (e.features[0].geometry as GeoJSON.Point).coordinates;
       // The fix's own observation time, carried through the GeoJSON properties.
@@ -370,7 +373,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
           type: 'circle',
           source: 'vessels',
           paint: {
-            'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3, 10, 8],
+            'circle-radius': VESSEL_RADIUS_EXPRESSION,
             // Three independent channels (see src/lib/map/marker-style.ts):
             //   fill    = activity (what the vessel is doing right now)
             //   outline = identity (what lists it is on)
@@ -380,9 +383,19 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
             'circle-color': ACTIVITY_COLOR_EXPRESSION,
             'circle-stroke-color': IDENTITY_STROKE_COLOR_EXPRESSION,
             'circle-stroke-width': IDENTITY_STROKE_WIDTH_EXPRESSION,
-            'circle-opacity': vesselOpacityExpression(null),
+            'circle-opacity': vesselOpacityExpression(null, true),
             'circle-stroke-opacity': vesselOpacityExpression(null),
           },
+          filter: ['!=', ['get', 'motion'], true],
+        });
+      }
+      // Dots are only a few pixels across; an invisible, finger-sized target takes the clicks.
+      if (!mapInstance.getLayer('vessel-hit')) {
+        mapInstance.addLayer({
+          id: 'vessel-hit',
+          type: 'circle',
+          source: 'vessels',
+          paint: { 'circle-radius': 10, 'circle-opacity': 0 },
           filter: ['!=', ['get', 'motion'], true],
         });
       }
@@ -418,6 +431,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
             source: 'vessels',
             minzoom: 7,
             filter: ['all',
+              ['!=', ['get', 'motion'], true],
               ['has', 'heading'],
               ['<', ['coalesce', ['get', 'heading'], 511], 360],
               ['>', ['coalesce', ['get', 'speed'], 0], 0.5],
@@ -560,9 +574,9 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
 
       // ─── Interaction handlers (named refs, detached in cleanup) ─
       mapInstance.on('click', handleOverlayClick);
-      mapInstance.on('click', 'vessel-circles', handleClick);
-      mapInstance.on('mouseenter', 'vessel-circles', handleMouseEnter);
-      mapInstance.on('mouseleave', 'vessel-circles', handleMouseLeave);
+      mapInstance.on('click', 'vessel-hit', handleClick);
+      mapInstance.on('mouseenter', 'vessel-hit', handleMouseEnter);
+      mapInstance.on('mouseleave', 'vessel-hit', handleMouseLeave);
 
       // ─── Proximity detection on zoom/pan ──────────────────────
       // After the map settles, detect dense vessel groups and auto-
@@ -591,9 +605,9 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       // handlers don't accumulate across Strict Mode re-mounts.
       try {
         mapInstance.off('click', handleOverlayClick);
-        mapInstance.off('click', 'vessel-circles', handleClick);
-        mapInstance.off('mouseenter', 'vessel-circles', handleMouseEnter);
-        mapInstance.off('mouseleave', 'vessel-circles', handleMouseLeave);
+        mapInstance.off('click', 'vessel-hit', handleClick);
+        mapInstance.off('mouseenter', 'vessel-hit', handleMouseEnter);
+        mapInstance.off('mouseleave', 'vessel-hit', handleMouseLeave);
         mapInstance.off('moveend', handleMoveEnd);
       } catch {
         // Instance may already be partially torn down; ignore.
@@ -782,8 +796,9 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     if (!map.current || !mapLoaded) return;
     const selectedMmsi = selectedVessel?.mmsi ?? null;
     try {
-      map.current.setFilter('vessel-selected-ring', ['==', ['get', 'mmsi'], selectedMmsi ?? '__none__']);
-      map.current.setPaintProperty('vessel-circles', 'circle-opacity', vesselOpacityExpression(selectedMmsi));
+      // Moving ships get their ring from the motion overlay, at the estimated position.
+      map.current.setFilter('vessel-selected-ring', ['all', ['==', ['get', 'mmsi'], selectedMmsi ?? '__none__'], ['!=', ['get', 'motion'], true]]);
+      map.current.setPaintProperty('vessel-circles', 'circle-opacity', vesselOpacityExpression(selectedMmsi, true));
       map.current.setPaintProperty('vessel-circles', 'circle-stroke-opacity', vesselOpacityExpression(selectedMmsi));
     } catch {
       // Layers not present yet (style still loading); the load handler sets defaults.

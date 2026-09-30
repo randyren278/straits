@@ -24,15 +24,18 @@ export const ACTIVITY_COLORS = {
   speed: '#3b82f6',
   deviation: '#a855f7',
   spoofed: '#14b8a6',
-  normal: '#6b7280',
+  normal: '#8d939b',
 } as const;
+
+/** Ships at rest with nothing flagged: a quiet grey that darkens as tracking thins (matches the track-engine mockup). */
+export const REST_GREYS = ['#b8bcc2', ACTIVITY_COLORS.normal, '#5d636b', '#6b7280'] as const;
 
 export const IDENTITY_COLORS = {
   sanctioned: '#ef4444',
   shadowFleet: '#a855f7',
   detained: '#fb7185',
   listed: '#f59e0b',
-  none: '#ffffff',
+  none: '#6b7280',
 } as const;
 
 /** Freshness stops: hours → opacity. Matches VESSEL_STALENESS_INTERVAL (7d). */
@@ -84,10 +87,10 @@ export const ACTIVITY_COLOR_EXPRESSION: ExpressionSpecification = [
   ACTIVITY_COLORS.deviation,
   ['==', ['get', 'anomalyType'], 'spoofed_position'],
   ACTIVITY_COLORS.spoofed,
-  ACTIVITY_COLORS.normal,
+  ['match', ['coalesce', ['get', 'tier'], 0], 0, REST_GREYS[0], 2, REST_GREYS[2], 3, REST_GREYS[3], REST_GREYS[1]],
 ];
 
-/** Outline: list membership. White (thin) when the vessel is on no list. */
+/** Outline: list membership. None when the vessel is on no list (stale ships get a thin grey ring instead of a fill). */
 export const IDENTITY_STROKE_COLOR_EXPRESSION: ExpressionSpecification = [
   'case',
   ['!=', ['get', 'isSanctioned'], true],
@@ -107,8 +110,24 @@ export const IDENTITY_STROKE_COLOR_EXPRESSION: ExpressionSpecification = [
 export const IDENTITY_STROKE_WIDTH_EXPRESSION: ExpressionSpecification = [
   'case',
   ['==', ['get', 'isSanctioned'], true],
-  2.25,
-  1,
+  1.5,
+  ['==', ['coalesce', ['get', 'tier'], 0], 3],
+  0.8,
+  0,
+];
+
+/** Stale ships (no track) are hollow rings; everything else is a solid dot. */
+export const FILL_OPACITY_FACTOR: ExpressionSpecification = ['case', ['==', ['coalesce', ['get', 'tier'], 0], 3], 0, 1];
+
+/**
+ * Dot radius: 2.4 px × tracking-tier size, scaling ×0.8 → ×1.9 with zoom (√2 per zoom level),
+ * the same curve the motion overlay uses for chevrons.
+ */
+const TIER_SIZE: ExpressionSpecification = ['match', ['coalesce', ['get', 'tier'], 0], 0, 1.25, 1, 1, 2, 0.75, 0.7];
+export const VESSEL_RADIUS_EXPRESSION: ExpressionSpecification = [
+  'interpolate', ['exponential', Math.SQRT2], ['zoom'],
+  7.36, ['*', 2.4 * 0.8, TIER_SIZE],
+  9.85, ['*', 2.4 * 1.9, TIER_SIZE],
 ];
 
 /**
@@ -130,14 +149,16 @@ export function freshnessOpacityExpression(selectedMmsi: string | null): Express
   ];
 }
 
-/** Tracking-quality dimming: well tracked 1, tracked 0.85, sparse 0.5, stale 0.25. */
-const TIER_FACTOR: ExpressionSpecification = ['match', ['coalesce', ['get', 'tier'], 0], 0, 1, 1, 0.85, 2, 0.5, 0.25];
+/** Tracking-quality dimming: well tracked 1, tracked 0.8, sparse 0.5, stale 0.22. */
+const TIER_FACTOR: ExpressionSpecification = ['match', ['coalesce', ['get', 'tier'], 0], 0, 1, 1, 0.8, 2, 0.5, 0.22];
 
 /**
  * Dot opacity = freshness × tracking tier, and at wide zoom ships at rest recede to 45%
  * under the motion overlay's glow (the zoom interpolation must be the top-level expression).
  */
-export function vesselOpacityExpression(selectedMmsi: string | null): ExpressionSpecification {
-  const base: ExpressionSpecification = ['*', TIER_FACTOR, freshnessOpacityExpression(selectedMmsi)];
+export function vesselOpacityExpression(selectedMmsi: string | null, fill = false): ExpressionSpecification {
+  const base: ExpressionSpecification = fill
+    ? ['*', FILL_OPACITY_FACTOR, TIER_FACTOR, freshnessOpacityExpression(selectedMmsi)]
+    : ['*', TIER_FACTOR, freshnessOpacityExpression(selectedMmsi)];
   return ['interpolate', ['linear'], ['zoom'], 8.2, ['*', 0.45, base], 9.2, base];
 }

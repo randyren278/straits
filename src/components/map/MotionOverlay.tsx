@@ -107,10 +107,17 @@ export function MotionOverlay({ map, vessels, frameRef }: { map: MapLibreMap; ve
         const size = 4.6 * zs * ([1.25, 1, 0.75][s.tier] ?? 0.75);
         ctx.beginPath(); chevron(ctx, s.x, s.y, h, size);
         if (s.estimated) {
-          ctx.globalAlpha = s.age < 60 ? 1 : s.age < 180 ? 0.62 : 0.38; ctx.strokeStyle = '#fff6e3'; ctx.lineWidth = 1.1; ctx.stroke();
+          ctx.globalAlpha = s.mmsi === selected ? 1 : s.age < 60 ? 1 : s.age < 180 ? 0.62 : 0.38; ctx.strokeStyle = '#fff6e3'; ctx.lineWidth = 1.1; ctx.stroke();
         } else {
           ctx.globalAlpha = [1, 0.8, 0.5][s.tier] ?? 0.5; ctx.fillStyle = s.color; ctx.fill();
         }
+      }
+      // Selection lock for a moving ship, drawn where the ship is drawn (same look as the map's ring layer).
+      if (f.sel) {
+        const rr = 9 + 7 * Math.max(0, Math.min(1, (map.getZoom() - 3) / 7));
+        ctx.beginPath(); ctx.arc(f.sel.x, f.sel.y, rr, 0, Math.PI * 2);
+        ctx.globalAlpha = 0.08; ctx.fillStyle = AMBER; ctx.fill();
+        ctx.globalAlpha = 0.95; ctx.strokeStyle = AMBER; ctx.lineWidth = 1.5; ctx.stroke();
       }
       ctx.globalAlpha = 1; ctx.strokeStyle = AMBER;
     };

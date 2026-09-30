@@ -14,7 +14,7 @@ function Swatch({ fill, stroke, opacity = 1 }: { fill: string; stroke: string; o
     <span
       aria-hidden="true"
       className="inline-block w-3.5 h-3.5 rounded-full shrink-0"
-      style={{ backgroundColor: fill, boxShadow: `0 0 0 1.5px ${stroke}`, opacity }}
+      style={{ backgroundColor: fill, boxShadow: stroke === IDENTITY_COLORS.none ? undefined : `0 0 0 1.5px ${stroke}`, opacity }}
     />
   );
 }
