@@ -68,9 +68,21 @@ describe('ReplayControls', () => {
     useReplayStore.setState({ data, active: true, playing: false, t: 1500 });
     render(<ReplayControls />);
     expect(screen.getByTestId('replay-banner')).toHaveTextContent(/Replay/);
-    fireEvent.click(screen.getByRole('button', { name: /20m\/s/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^20m\/s$/ }));
     expect(useReplayStore.getState().speed).toBe(20);
     fireEvent.click(screen.getByTestId('replay-live'));
+    expect(useReplayStore.getState().active).toBe(false);
+  });
+
+  it('can also be exited from the banner, and by Esc', () => {
+    useReplayStore.setState({ data, active: true, playing: true, t: 1500 });
+    const { unmount } = render(<ReplayControls />);
+    fireEvent.click(screen.getByRole('button', { name: 'Exit replay' }));
+    expect(useReplayStore.getState().active).toBe(false);
+    unmount();
+    useReplayStore.setState({ active: true });
+    render(<ReplayControls />);
+    fireEvent.keyDown(window, { key: 'Escape' });
     expect(useReplayStore.getState().active).toBe(false);
   });
 });
