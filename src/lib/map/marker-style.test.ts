@@ -10,7 +10,7 @@ import {
   IDENTITY_COLORS,
   RECEDE_FACTOR,
 } from './marker-style';
-import { vesselOpacityExpression } from './marker-style';
+import { vesselOpacityExpression, zoomScale, ZOOM_SCALE_STOPS, VESSEL_RADIUS_EXPRESSION } from './marker-style';
 
 describe('marker vocabulary', () => {
   it('keeps activity (fill) and identity (outline) on separate channels', () => {
@@ -58,5 +58,17 @@ describe('vesselOpacityExpression', () => {
     expect(e[2]).toEqual(['zoom']);
     expect(JSON.stringify(e[4])).toContain('0.7');
     expect(JSON.stringify(e)).toContain('"tier"');
+  });
+});
+
+describe('zoomScale', () => {
+  it('matches the dot layer stops, grows monotonically, and clamps outside them', () => {
+    expect(zoomScale(3)).toBeCloseTo(0.55);
+    expect(zoomScale(7.36)).toBeCloseTo(0.8);
+    expect(zoomScale(12)).toBeCloseTo(1.9);
+    let prev = 0;
+    for (let z = 3; z <= 12; z += 0.25) { expect(zoomScale(z)).toBeGreaterThanOrEqual(prev); prev = zoomScale(z); }
+    const e = VESSEL_RADIUS_EXPRESSION as unknown[];
+    expect(e.slice(3).filter((_, k) => k % 2 === 0)).toEqual(ZOOM_SCALE_STOPS.map(([z]) => z));
   });
 });

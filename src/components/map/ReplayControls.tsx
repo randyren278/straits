@@ -15,7 +15,7 @@ const ago = (min: number) => {
 };
 
 export function ReplayControls() {
-  const { active, status, playing, t, speed, data, enter, exit, setPlaying, seek, setSpeed } = useReplayStore();
+  const { active, status, playing, t, speed, data, intro, introStart, introEnd, enter, exit, setPlaying, seek, setSpeed } = useReplayStore();
 
   useEffect(() => {
     if (!active) return;
@@ -36,6 +36,20 @@ export function ReplayControls() {
         <History className="w-4 h-4" />
         {status === 'loading' ? 'Loading 24h…' : status === 'error' ? 'Replay unavailable · retry' : 'Replay 24h'}
       </button>
+    );
+  }
+
+  if (intro) {
+    const k = Math.max(0, Math.min(1, (t - introStart) / (introEnd - introStart || 1)));
+    return (
+      <div data-testid="replay-intro" className="absolute z-20 top-3 left-1/2 -translate-x-1/2 phone:top-[60px] bg-black/85 border border-amber-500/50 font-mono">
+        <div className="flex items-center gap-3 px-3 py-1 text-[11px] uppercase tracking-widest">
+          <span className="text-amber-500">Last 6 hours</span>
+          <span className="text-white tabular-nums">{clock(t)}</span>
+          <button type="button" onClick={exit} className="min-h-[32px] px-1 text-gray-400 hover:text-white uppercase tracking-widest">Skip ›</button>
+        </div>
+        <div aria-hidden="true" className="h-0.5 bg-amber-500" style={{ width: `${k * 100}%` }} />
+      </div>
     );
   }
 

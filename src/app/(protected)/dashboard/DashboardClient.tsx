@@ -213,24 +213,16 @@ export function DashboardClient() {
 
       {/* Sits above the bottom nav. At bottom-0 the nav would cover its
           controls, and the two would fight for the same edge. */}
-      {/* Phone: a peek card keeps the map visible; the full dossier is one swipe away. */}
+      {/* Phone: a one-row bar keeps the map the screen; details open beneath it, and the
+          sheet never takes more than 36% of the viewport. */}
       {selectedVessel && (
         <div
           data-testid="vessel-sheet"
           data-detent={sheetExpanded ? 'full' : 'peek'}
-          className="hidden phone:block fixed inset-x-0 bottom-[var(--straits-nav-h)] z-40 max-h-[60dvh] overflow-y-auto bg-black border-t border-amber-500/40 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]"
+          className="hidden phone:block fixed inset-x-0 bottom-[var(--straits-nav-h)] z-40 max-h-[36dvh] overflow-y-auto overscroll-contain bg-black border-t border-amber-500/40 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]"
         >
-          {sheetExpanded ? (
-            <>
-              <button type="button" onClick={() => setExpandedFor(null)} aria-label="Collapse details"
-                className="sticky top-0 z-10 w-full min-h-[32px] bg-black flex justify-center items-center">
-                <span className="h-1 w-10 bg-amber-500/50" aria-hidden="true" />
-              </button>
-              <VesselPanel />
-            </>
-          ) : (
-            <VesselPeek onExpand={() => setExpandedFor(selectedVessel.mmsi)} />
-          )}
+          <VesselPeek expanded={sheetExpanded} onToggle={() => setExpandedFor(sheetExpanded ? null : selectedVessel.mmsi)} />
+          {sheetExpanded && <VesselPanel compact />}
         </div>
       )}
     </div>

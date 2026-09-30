@@ -115,18 +115,29 @@ export const IDENTITY_STROKE_WIDTH_EXPRESSION: ExpressionSpecification = [
 ];
 
 /**
- * Dot radius: DOT_RADIUS px × tracking-tier size, scaling ×0.8 → ×1.9 with zoom (√2 per zoom
- * level), the same curve the motion overlay uses for chevrons. Untracked ships stay readable:
- * they are data, just older.
+ * One size curve for every ship glyph, so the map's dots and the overlay's chevrons grow and
+ * shrink together: ×0.55 at zoom 4 (a whole-region view of 5,000 ships), ×0.8 at 7.4,
+ * ×1.9 from 9.9, exponential (√2 per zoom level) between stops, clamped outside them.
  */
+export const ZOOM_SCALE_STOPS: ReadonlyArray<readonly [zoom: number, scale: number]> = [[4, 0.55], [7.36, 0.8], [9.85, 1.9]];
+export function zoomScale(zoom: number): number {
+  const S = ZOOM_SCALE_STOPS;
+  if (zoom <= S[0][0]) return S[0][1];
+  for (let k = 1; k < S.length; k++) {
+    const [z0, a] = S[k - 1], [z1, b] = S[k];
+    if (zoom <= z1) { const B = Math.SQRT2, u = (B ** (zoom - z0) - 1) / (B ** (z1 - z0) - 1); return a + (b - a) * u; }
+  }
+  return S[S.length - 1][1];
+}
+
+/** Dot radius: DOT_RADIUS px × tracking-tier size × zoomScale. Untracked ships stay readable: they are data, just older. */
 export const DOT_RADIUS = 2.8;
 export const DOT_TIER_SIZE = [1.25, 1, 0.85, 0.8] as const;
 const TIER_SIZE: ExpressionSpecification = ['match', ['coalesce', ['get', 'tier'], 0], 0, DOT_TIER_SIZE[0], 1, DOT_TIER_SIZE[1], 2, DOT_TIER_SIZE[2], DOT_TIER_SIZE[3]];
 export const VESSEL_RADIUS_EXPRESSION: ExpressionSpecification = [
   'interpolate', ['exponential', Math.SQRT2], ['zoom'],
-  7.36, ['*', DOT_RADIUS * 0.8, TIER_SIZE],
-  9.85, ['*', DOT_RADIUS * 1.9, TIER_SIZE],
-];
+  ...ZOOM_SCALE_STOPS.flatMap(([z, k]) => [z, ['*', DOT_RADIUS * k, TIER_SIZE]]),
+] as ExpressionSpecification;
 
 /**
  * Opacity from fix age, and — while a contact is selected — the rest of the

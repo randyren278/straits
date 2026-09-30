@@ -1,8 +1,8 @@
 'use client';
 /**
- * Phone peek card for the selected ship: who it is, what it is doing, and whether the
- * position is real or estimated, in ~150 px so the map stays visible. Swipe up (or tap
- * Details) for the full dossier; swipe down to dismiss.
+ * Phone bar for the selected ship: one 56 px row — who it is, what it is doing, whether the
+ * position is real or estimated — so the map stays the screen. Tap the row (or swipe up) to
+ * open details beneath it, capped by the sheet; swipe down to fold, then to dismiss.
  */
 import { useEffect, useRef, useState } from 'react';
 import { X, ChevronUp } from 'lucide-react';
@@ -10,7 +10,7 @@ import { useVesselStore } from '@/stores/vessel';
 import { useTrackStore } from '@/stores/tracks';
 import { compactAge } from '@/components/ui/StatusChip';
 
-export function VesselPeek({ onExpand }: { onExpand: () => void }) {
+export function VesselPeek({ expanded, onToggle }: { expanded: boolean; onToggle: () => void }) {
   const vessel = useVesselStore((s) => s.selectedVessel);
   const setSelectedVessel = useVesselStore((s) => s.setSelectedVessel);
   const track = useTrackStore((s) => (vessel ? s.byMmsi.get(vessel.mmsi) : undefined));
@@ -22,37 +22,32 @@ export function VesselPeek({ onExpand }: { onExpand: () => void }) {
   const fixTime = vessel.position?.time ? new Date(vessel.position.time) : null;
   const sinceFix = track ? Math.max(0, Math.round(nowMs / 60000 - track.lastRealAt)) : null;
   const underway = track?.state === 'underway';
-  const state = underway ? `Underway · ${track!.sog.toFixed(1)} kn · ${String(track!.cog).padStart(3, '0')}°` : track ? 'At rest' : 'Last known position';
-  const basis = underway && sinceFix !== null && sinceFix > 10
-    ? `Estimated · ${sinceFix} min since last fix · ±${(0.15 + track!.uncert * sinceFix).toFixed(1)} nm`
-    : underway
-      ? 'On real data'
-      : fixTime && !Number.isNaN(fixTime.getTime()) ? `Observed ${compactAge(fixTime, nowMs)} ago` : 'No recent fix';
+  const status = underway
+    ? `${track!.sog.toFixed(1)} kn · ${String(track!.cog).padStart(3, '0')}° · ${sinceFix !== null && sinceFix > 10 ? `est ${sinceFix}m ±${(0.15 + track!.uncert * sinceFix).toFixed(1)} nm` : 'real'}`
+    : `${track ? 'At rest' : 'Last known'}${fixTime && !Number.isNaN(fixTime.getTime()) ? ` · ${compactAge(fixTime, nowMs)} ago` : ''}`;
 
   return (
     <div
       data-testid="vessel-peek"
-      className="px-4 pt-2 pb-3 font-mono select-none touch-pan-x"
+      className="sticky top-0 z-10 h-14 bg-black flex items-center gap-1 pl-4 font-mono select-none touch-pan-x border-b border-amber-500/20"
       onPointerDown={(e) => { startY.current = e.clientY; }}
       onPointerUp={(e) => {
         if (startY.current === null) return;
         const dy = e.clientY - startY.current; startY.current = null;
-        if (dy < -30) onExpand(); else if (dy > 40) setSelectedVessel(null);
+        if (dy < -30 && !expanded) onToggle();
+        else if (dy > 30) { if (expanded) onToggle(); else setSelectedVessel(null); }
       }}
     >
-      <div className="mx-auto mb-2 h-1 w-10 bg-amber-500/50" aria-hidden="true" />
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-white text-base truncate">{vessel.name || vessel.mmsi}</div>
-          <div className="text-[11px] uppercase tracking-wider text-amber-500 mt-0.5">{state}</div>
-          <div className="text-[11px] text-gray-400 mt-0.5">{basis}{vessel.destination ? ` · → ${vessel.destination}` : ''}</div>
-        </div>
-        <button type="button" aria-label="Close" onClick={() => setSelectedVessel(null)} className="min-h-[44px] min-w-[44px] -mr-2 -mt-1 flex items-center justify-center text-gray-400">
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-      <button type="button" onClick={onExpand} className="mt-2 w-full min-h-[40px] border border-amber-500/40 text-amber-500 text-[11px] uppercase tracking-widest flex items-center justify-center gap-1.5">
-        <ChevronUp className="w-4 h-4" /> Details
+      <button type="button" onClick={onToggle} aria-expanded={expanded} aria-label={expanded ? 'Hide details' : 'Show details'}
+        className="min-w-0 flex-1 h-full text-left flex items-center gap-2">
+        <span className="min-w-0 flex-1">
+          <span className="block text-white text-sm truncate">{vessel.name || vessel.mmsi}</span>
+          <span className={`block text-[10px] uppercase tracking-wider truncate ${underway ? 'text-amber-500' : 'text-gray-400'}`}>{status}</span>
+        </span>
+        <ChevronUp className={`w-4 h-4 shrink-0 text-amber-500 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+      <button type="button" aria-label="Close" onClick={() => setSelectedVessel(null)} className="h-14 w-12 shrink-0 flex items-center justify-center text-gray-400">
+        <X className="w-5 h-5" />
       </button>
     </div>
   );

@@ -94,6 +94,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
   // Opens at Hormuz instantly, then glides once to the busiest chokepoint when the engine
   // reports — unless the user has already moved the map or a link asked for a view.
   const autoFrameRef = useRef(true);
+  const userTookMapRef = useRef(false);
   // Hovered ship: the overlay rings it; the tooltip names it.
   const hoverRef = useRef<string | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -270,7 +271,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         style: MAP_STYLE,
         // Begin at the primary chokepoint without waiting for a DB count.
         center: initialCenter ? [initialCenter.lon, initialCenter.lat] : [56.5, 25.25],
-        zoom: initialCenter ? initialCenter.zoom : 8,
+        // Opens a step out, so the glide in to the busiest chokepoint reads as arriving.
+        zoom: initialCenter ? initialCenter.zoom : 7,
         attributionControl: { compact: true },
       });
       performance.mark('straits:map-created');
@@ -366,7 +368,18 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       tip.style.transform = `translate(${e.point.x + 14}px, ${e.point.y - 26}px)`;
       tip.style.opacity = '1';
     };
-    const handleUserMove = (e: { originalEvent?: unknown }) => { if (e.originalEvent) autoFrameRef.current = false; };
+    // The user taking the map ends the opening: no auto-frame, and the intro hands back to live.
+    const handleUserMove = (e: { originalEvent?: unknown }) => {
+      if (!e.originalEvent) return;
+      autoFrameRef.current = false;
+      userTookMapRef.current = true;
+      if (useReplayStore.getState().intro) useReplayStore.getState().exit();
+    };
+    // A moving map strands the hover tooltip; drop it until the pointer moves again.
+    const handleMoveStart = () => {
+      hoverRef.current = null;
+      if (tooltipRef.current) tooltipRef.current.style.opacity = '0';
+    };
     const handleMoveEnd = () => {
       detectProximityGroup();
       // Keep the store's notion of the viewport current for shareable links.
@@ -587,6 +600,9 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       mapInstance.on('mouseleave', 'vessel-hit', handleMouseLeave);
       mapInstance.on('dragstart', handleUserMove);
       mapInstance.on('mousemove', handleHover);
+      mapInstance.on('movestart', handleMoveStart);
+      mapInstance.on('mousedown', handleUserMove);
+      mapInstance.on('touchstart', handleUserMove);
       mapInstance.on('zoomstart', handleUserMove);
 
       // ─── Proximity detection on zoom/pan ──────────────────────
@@ -621,6 +637,9 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
         mapInstance.off('mouseleave', 'vessel-hit', handleMouseLeave);
         mapInstance.off('dragstart', handleUserMove);
         mapInstance.off('mousemove', handleHover);
+        mapInstance.off('movestart', handleMoveStart);
+        mapInstance.off('mousedown', handleUserMove);
+        mapInstance.off('touchstart', handleUserMove);
         mapInstance.off('zoomstart', handleUserMove);
         mapInstance.off('moveend', handleMoveEnd);
       } catch {
@@ -829,12 +848,13 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     }
   }, [replayActive, mapLoaded]);
 
-  // Phone: keep the selected ship in the strip of map above the peek card.
+  // Phone: keep the selected ship in the strip of map above the sheet — re-checked whenever
+  // the sheet changes height (opening details must never bury the ship).
   const selectedMmsi = selectedVessel?.mmsi ?? null;
   useEffect(() => {
     const m = map.current;
     if (!m || !mapLoaded || !selectedMmsi || !window.matchMedia('(max-width: 767.98px), (max-height: 599.98px)').matches) return;
-    const raf = requestAnimationFrame(() => {
+    const ensureVisible = () => {
       const sheet = document.querySelector('[data-testid="vessel-sheet"]')?.getBoundingClientRect();
       const box = m.getContainer().getBoundingClientRect();
       if (!sheet) return;
@@ -842,12 +862,18 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       const pos = useVesselStore.getState().selectedVessel?.position;
       const lngLat: [number, number] | null = s ? [s.lon, s.lat] : pos ? [pos.longitude, pos.latitude] : null;
       if (!lngLat) return;
-      const top = 64, bottom = sheet.top - box.top - 24;            // clear of the filter chips and the card
+      const top = 64, bottom = sheet.top - box.top - 24;            // clear of the filter chips and the sheet
       const p = m.project(lngLat);
       if (p.y >= top && p.y <= bottom && p.x >= 16 && p.x <= box.width - 16) return;
-      m.easeTo({ center: lngLat, offset: [0, (top + bottom) / 2 - box.height / 2], duration: 600 });
+      m.easeTo({ center: lngLat, offset: [0, (top + bottom) / 2 - box.height / 2], duration: 500 });
+    };
+    let ro: ResizeObserver | null = null;
+    const raf = requestAnimationFrame(() => {
+      ensureVisible();
+      const el = document.querySelector('[data-testid="vessel-sheet"]');
+      if (el && typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(() => ensureVisible()); ro.observe(el); }
     });
-    return () => cancelAnimationFrame(raf);
+    return () => { cancelAnimationFrame(raf); ro?.disconnect(); };
   }, [selectedMmsi, mapLoaded]);
 
   // Handle map navigation from search or chokepoint selection
@@ -871,9 +897,12 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
       vessels.map((v) => ({ mmsi: v.mmsi, lat: v.position.latitude, lon: v.position.longitude })),
       (mmsi) => trackMap.get(mmsi)?.state === 'underway',
     );
-    if (!best || best.chokepoint.id === 'hormuz') return;
-    const b = best.chokepoint.bounds;
-    map.current.flyTo({ center: [(b.minLon + b.maxLon) / 2, (b.minLat + b.maxLat) / 2], zoom: 8, duration: 1800 });
+    const b = (best?.chokepoint ?? CHOKEPOINTS.hormuz).bounds;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    map.current.flyTo({ center: [(b.minLon + b.maxLon) / 2, (b.minLat + b.maxLat) / 2], zoom: 8, duration: reduce ? 0 : 2600, essential: true });
+    // The glide in plays the last 6 hours fast, then lands on live; touching the map skips it.
+    const stillWanted = () => !userTookMapRef.current && !useVesselStore.getState().selectedVessel;
+    if (!reduce) void useReplayStore.getState().startIntro({ stillWanted });
   }, [trackMap, vessels, mapLoaded]);
 
   // Hydrate pending target vessel from cross-route navigation (fleet → dashboard)

@@ -5,7 +5,7 @@ import { ReplayControls } from '@/components/map/ReplayControls';
 import { encodeSeries } from '@/lib/tracks/codec';
 
 const data = { generatedAt: '', from: 1000, to: 2440, vessels: [{ m: 'a', h: encodeSeries([[1000, 25, 56], [2440, 25, 56.5]]), g: [] }] };
-const reset = () => useReplayStore.setState({ data: null, model: null, status: 'idle', active: false, playing: false, t: 0, speed: 6, rate: 0 });
+const reset = () => useReplayStore.setState({ data: null, model: null, status: 'idle', active: false, playing: false, t: 0, speed: 6, rate: 0, intro: false });
 
 afterEach(() => { cleanup(); reset(); vi.unstubAllGlobals(); });
 
@@ -38,6 +38,28 @@ describe('replay store', () => {
     useReplayStore.setState({ data, active: true, playing: true, t: 1500 });
     useReplayStore.getState().seek(99999);
     expect(useReplayStore.getState()).toMatchObject({ t: 2500, playing: false });
+  });
+});
+
+describe('intro', () => {
+  it('plays the last 6 h in ~8 s, then hands back to live', async () => {
+    const now = Date.now() / 60000;
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ ...data, from: now - 1440, to: now - 5 }) })));
+    await useReplayStore.getState().startIntro();
+    const s = useReplayStore.getState();
+    expect(s.intro && s.active).toBe(true);
+    expect(s.introEnd - s.t).toBeCloseTo(360, 0);
+    expect(s.speed).toBeCloseTo(45, 0);
+    for (let k = 0; k < 7; k++) useReplayStore.getState().tick(1, false);
+    expect(useReplayStore.getState().active).toBe(true);
+    useReplayStore.getState().tick(1.1, false);
+    expect(useReplayStore.getState()).toMatchObject({ active: false, intro: false });
+  });
+
+  it('does not start once the user has taken over the map', async () => {
+    useReplayStore.setState({ data });
+    await useReplayStore.getState().startIntro({ stillWanted: () => false });
+    expect(useReplayStore.getState().active).toBe(false);
   });
 });
 

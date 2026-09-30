@@ -44,7 +44,8 @@ const SOURCE_LABEL: Record<EvidenceEvent['source'], { label: string; cls: string
   reference: { label: 'REF', cls: 'text-red-300 border-red-500/60' },
 };
 
-export function VesselPanel() {
+/** `compact`: under the phone bar, which already names the ship and closes it. */
+export function VesselPanel({ compact = false }: { compact?: boolean } = {}) {
   const {
     selectedVessel, showTrack, setShowTrack, setSelectedVessel, watchlist, addToWatchlist, removeFromWatchlist,
     trackStatus, setMapCenter, setTargetVesselImo, viewport, tankersOnly, anomalyFilter,
@@ -279,7 +280,7 @@ export function VesselPanel() {
           >
             {isWatched ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
           </button>
-          <button
+          {!compact && <button
             onClick={() => setSelectedVessel(null)}
             className="text-gray-500 hover:text-white p-1"
             aria-label="Close panel"
@@ -296,13 +297,13 @@ export function VesselPanel() {
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
-          </button>
+          </button>}
         </div>
       </div>
 
       {/* Level 1 — the contact */}
       <div key={selectedVessel.mmsi} className="px-3 py-2.5 border-b border-amber-500/10 straits-acquire" data-testid="contact-header">
-        <div className="font-mono text-white text-sm tracking-wide">{selectedVessel.name || `MMSI ${selectedVessel.mmsi}`}</div>
+        {!compact && <div className="font-mono text-white text-sm tracking-wide">{selectedVessel.name || `MMSI ${selectedVessel.mmsi}`}</div>}
         <div className="mt-1 flex items-center gap-3 text-xs font-mono">
           <span
             data-testid="observation-age"

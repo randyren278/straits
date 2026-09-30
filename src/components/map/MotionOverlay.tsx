@@ -10,13 +10,25 @@ import { useEffect, useRef } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import type { MapVessel } from '@/lib/map/map-vessel';
 import { buildFrame, type Frame } from '@/lib/tracks/frame';
-import { DOT_RADIUS, DOT_TIER_SIZE } from '@/lib/map/marker-style';
+import { DOT_RADIUS, DOT_TIER_SIZE, zoomScale } from '@/lib/map/marker-style';
 import { useTrackStore } from '@/stores/tracks';
 import { useReplayStore } from '@/stores/replay';
 import { useVesselStore } from '@/stores/vessel';
 
 const AMBER = '#f59e0b';
+/** Wakes and estimate lines are capped in screen length, so they read the same at every zoom. */
+const TAIL_PX = 120, AHEAD_PX = 90;
+/** Below this zoom a whole region is on screen: moving ships draw as dots, wakes fade out. */
+const REGION_ZOOM = 6.3;
+
+/** Index from which the last `maxPx` of a screen polyline starts. */
+function tailStart(pts: { x: number; y: number }[], maxPx: number): number {
+  let len = 0;
+  for (let k = pts.length - 1; k > 0; k--) { len += Math.hypot(pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y); if (len > maxPx) return k; }
+  return 0;
+}
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+const smoothstep = (a: number, b: number, x: number) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const easeOut = (x: number) => 1 - (1 - x) ** 3;
 
 function glowSprite(): HTMLCanvasElement {
@@ -63,8 +75,11 @@ export function MotionOverlay({ map, vessels, frameRef, hoverRef }: {
     const replayPings = new Map<string, number>();
     let raf = 0, prev = performance.now(), introAt = 0, lastSel: string | null = null, selAt = 0, prevReplayT = NaN;
 
+    // While the camera moves, draw inside MapLibre's own render so the overlay never runs a
+    // frame behind the basemap (the swim you see when zooming); otherwise our own loop animates.
+    const loop = (now: number) => { raf = requestAnimationFrame(loop); if (!map.isMoving()) draw(now); };
+    const onRender = () => { if (map.isMoving()) draw(performance.now()); };
     const draw = (now: number) => {
-      raf = requestAnimationFrame(draw);
       if (document.hidden) return;
       const dt = Math.min(0.1, (now - prev) / 1000); prev = now;
       const box = map.getContainer().getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -106,7 +121,9 @@ export function MotionOverlay({ map, vessels, frameRef, hoverRef }: {
         ctx.globalAlpha = 0.3 * f.glowMix * intro(1); ctx.drawImage(buf, 0, 0, W, H); ctx.globalAlpha = 1;
       }
 
-      const zs = Math.max(0.8, Math.min(1.9, Math.pow(2, (zoom - 8) / 2)));
+      const zs = zoomScale(zoom);
+      // Detail that only reads up close: rings, then dashed estimates, fade out as you zoom out.
+      const ringMix = smoothstep(8.3, 9.2, zoom), aheadMix = smoothstep(6.6, 7.6, zoom), tailMix = smoothstep(REGION_ZOOM - 0.5, REGION_ZOOM + 0.5, zoom);
       // Replay: ships at rest (live, the map's dot layer draws them), same size and greys.
       if (f.dots.length) {
         const byColor = new Map<string, Path2D>();
@@ -122,12 +139,12 @@ export function MotionOverlay({ map, vessels, frameRef, hoverRef }: {
 
       // Comet tails: alpha by age, tapering; estimated stretches as a faint ghost. They draw on during the intro.
       ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = AMBER;
-      for (const t of f.tails) {
-        const n = t.pts.length, shown = Math.floor(n * intro(t.tier));
-        for (let k = Math.max(1, n - shown); k < n; k++) {
-          const age = 1 - k / n;
-          ctx.globalAlpha = t.est[k] ? 0.2 : 0.8 * Math.pow(1 - age, 1.8) * (t.tier === 0 ? 1 : 0.5);
-          ctx.lineWidth = t.est[k] ? 1 : 1.9 - 1.4 * age;
+      for (const t of tailMix > 0.01 ? f.tails : []) {
+        const n = t.pts.length, k0 = tailStart(t.pts, TAIL_PX), span = n - k0, shown = Math.floor(span * intro(t.tier));
+        for (let k = Math.max(k0 + 1, n - shown); k < n; k++) {
+          const age = 1 - (k - k0) / span;
+          ctx.globalAlpha = tailMix * (t.est[k] ? 0.2 : 0.8 * Math.pow(1 - age, 1.8) * (t.tier === 0 ? 1 : 0.5));
+          ctx.lineWidth = (t.est[k] ? 1 : 1.9 - 1.4 * age) * Math.min(1, zs);
           ctx.beginPath(); ctx.moveTo(t.pts[k - 1].x, t.pts[k - 1].y); ctx.lineTo(t.pts[k].x, t.pts[k].y); ctx.stroke();
         }
       }
@@ -135,12 +152,21 @@ export function MotionOverlay({ map, vessels, frameRef, hoverRef }: {
       ctx.setLineDash([4, 5]); ctx.lineDashOffset = reduce ? 0 : -(now / 1000) * 8; ctx.lineWidth = 1.1;
       for (const a of f.ahead) {
         if (a.pts.length < 2) continue;
-        ctx.globalAlpha = (a.tier === 2 ? 0.3 : 0.55) * intro(a.tier);
-        ctx.beginPath(); a.pts.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke();
+        ctx.globalAlpha = (a.tier === 2 ? 0.3 : 0.55) * intro(a.tier) * aheadMix;
+        if (ctx.globalAlpha < 0.01) continue;
+        ctx.beginPath();
+        let len = 0;
+        for (let k = 0; k < a.pts.length; k++) {
+          const p = a.pts[k];
+          if (k) { len += Math.hypot(p.x - a.pts[k - 1].x, p.y - a.pts[k - 1].y); ctx.lineTo(p.x, p.y); if (len > AHEAD_PX) break; } else ctx.moveTo(p.x, p.y);
+        }
+        ctx.stroke();
       }
       ctx.setLineDash([]); ctx.lineDashOffset = 0;
-      ctx.globalAlpha = 0.2; ctx.lineWidth = 1;
-      for (const r of f.rings) { ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke(); }
+      if (ringMix > 0.01) {
+        ctx.globalAlpha = 0.2 * ringMix; ctx.lineWidth = 1;
+        for (const r of f.rings) { ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke(); }
+      }
 
       if (selected && f.sel) drawSelectionTrail(selected, tMin, now);
 
@@ -151,7 +177,10 @@ export function MotionOverlay({ map, vessels, frameRef, hoverRef }: {
         else { const d = Math.atan2(Math.sin(s.heading - h), Math.cos(s.heading - h)); h += d * (1 - Math.exp(-dt / 0.12)); }
         dispHd.set(s.mmsi, h);
         const k = intro(s.tier), size = 4.6 * zs * ([1.25, 1, 0.75][s.tier] ?? 0.75) * (0.6 + 0.4 * k);
-        ctx.beginPath(); chevron(ctx, s.x, s.y, h, size);
+        ctx.beginPath();
+        // A region view packs hundreds of chevrons into blobs; there, moving ships are bright dots.
+        if (zoom < REGION_ZOOM) { const r = DOT_RADIUS * zs * 1.1; ctx.moveTo(s.x + r, s.y); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); }
+        else chevron(ctx, s.x, s.y, h, size);
         if (s.estimated) {
           ctx.globalAlpha = k * (s.mmsi === selected ? 1 : s.age < 60 ? 1 : s.age < 180 ? 0.62 : 0.38); ctx.strokeStyle = '#fff6e3'; ctx.lineWidth = 1.1; ctx.stroke();
         } else {
@@ -242,8 +271,9 @@ export function MotionOverlay({ map, vessels, frameRef, hoverRef }: {
       ctx!.stroke();
     }
 
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(loop);
+    map.on('render', onRender);
+    return () => { cancelAnimationFrame(raf); map.off('render', onRender); };
   }, [map, frameRef, hoverRef]);
 
   return <canvas ref={canvas} data-testid="motion-overlay" aria-hidden="true" className="absolute inset-0 w-full h-full pointer-events-none z-[1]" />;

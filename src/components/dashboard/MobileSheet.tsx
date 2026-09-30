@@ -46,8 +46,9 @@ const TABS: Array<{ id: TabId; label: string }> = [
 
 const HEIGHT: Record<Detent, string> = {
   peek: 'h-[88px]',
-  half: 'h-[46dvh]',
-  full: 'h-[72dvh]',
+  // Never more than about a third of the screen: the map is the product.
+  half: 'h-[28dvh]',
+  full: 'h-[36dvh]',
 };
 
 export function MobileSheet({ chokepoints, collapsed, panels, watch = null, onOpenWatch }: MobileSheetProps) {
@@ -82,7 +83,7 @@ export function MobileSheet({ chokepoints, collapsed, panels, watch = null, onOp
     <div
       data-testid="mobile-sheet"
       data-detent={detent}
-      className={`roomy:hidden fixed inset-x-0 bottom-[var(--straits-nav-h)] z-30 flex flex-col bg-black border-t border-amber-500 shadow-[0_-8px_24px_rgba(0,0,0,0.85)] transition-[height] duration-200 ${HEIGHT[detent]}`}
+      className={`roomy:hidden fixed inset-x-0 bottom-[var(--straits-nav-h)] z-30 flex flex-col bg-black border-t border-amber-500 shadow-[0_-8px_24px_rgba(0,0,0,0.85)] transition-[height] duration-200 ${HEIGHT[detent]} ${collapsed ? 'hidden' : ''}`}
     >
       <button
         type="button"
