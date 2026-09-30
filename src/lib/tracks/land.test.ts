@@ -31,3 +31,16 @@ describe('land raster', () => {
     expect(isLand(32.10, 30.50)).toBe(true);   // desert west of the canal stays land
   });
 });
+
+describe('routing through the Suez Canal', () => {
+  it('finds a water route from Port Said to Suez along the canal', async () => {
+    const { route } = await import('./router');
+    const { isLand: onLand } = await import('./land');
+    const r = route(32.33, 31.25, 32.56, 29.95, null);
+    expect(r).not.toBeNull();
+    let len = 0;
+    for (let k = 1; k < r!.length; k++) len += Math.hypot((r![k][0] - r![k - 1][0]) * 60 * Math.cos(0.53), (r![k][1] - r![k - 1][1]) * 60);
+    expect(len).toBeLessThan(110);                 // the canal is ~90 nm; a detour round Africa is not
+    expect(r!.filter(([lo, la]) => onLand(lo, la)).length).toBeLessThanOrEqual(2);
+  });
+});

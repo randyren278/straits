@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { runTrackEngine } from './engine';
+import { runTrackEngine, seaSafe } from './engine';
+import { projAt, toX, toY, toLon, toLat } from './proj';
+import { clearPath } from './router';
 import { emptyLearnState } from './learn';
 import { grid, isLand } from './land';
 import { decodeSeries } from './codec';
@@ -41,5 +43,23 @@ describe('runTrackEngine', () => {
     expect(moving.g).toEqual([]);
     expect(gap.g).toHaveLength(2);
     expect(gap.g[1] - gap.g[0]).toBeGreaterThan(60);
+  });
+
+  it('never crosses land: sails around Musandam when it had the time, hides a data jump otherwise', () => {
+    const proj = projAt(25.5), P = (t: number, lon: number, lat: number) => ({ t, x: toX(proj, lon), y: toY(lat) });
+    const west = P(0, 55.9, 25.9), east = P(0, 56.6, 25.3);                 // Gulf side → Gulf of Oman side
+    expect(clearPath(55.9, 25.9, 56.6, 25.3)).toBe(false);                    // the straight line is over land
+    const jump = seaSafe([west, { ...east, t: 5 }], proj, null);
+    expect(jump.hidden).toEqual([0, 5]);
+    // Fast over open water is left alone: it never crosses land.
+    expect(seaSafe([P(0, 56.6, 25.3), P(5, 56.9, 25.3)], proj, null).hidden).toEqual([]);
+    const sailed = seaSafe([west, { ...east, t: 720 }], proj, null);
+    expect(sailed.hidden).toEqual([]);
+    expect(sailed.pts.length).toBeGreaterThan(3);
+    for (let k = 1; k < sailed.pts.length; k++) {
+      const a = sailed.pts[k - 1], b = sailed.pts[k];
+      expect(b.t).toBeGreaterThan(a.t);
+      expect(clearPath(toLon(proj, a.x), toLat(a.y), toLon(proj, b.x), toLat(b.y))).toBe(true);
+    }
   });
 });

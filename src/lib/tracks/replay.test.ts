@@ -46,4 +46,13 @@ describe('ReplayModel', () => {
     expect(trail.some((p) => p.estimated)).toBe(true);
     expect(trail.some((p) => !p.estimated)).toBe(true);
   });
+
+  it('hides a ship through a jump in its data instead of sliding it across land, and breaks its wake', () => {
+    const m = new ReplayModel({ ...resp, vessels: [{ m: 'a', h: encodeSeries(east), g: [], j: [1050, 1060] }] }, new Map());
+    expect(m.sample('a', 1055)).toBeNull();
+    expect(m.sample('a', 1065)).not.toBeNull();
+    const trail = m.trailBehind('a', 1080);
+    expect(trail.length).toBe(7);                                   // only the stretch after the jump
+    expect(m.resumedBetween(1055, 1062)).toEqual(['a']);
+  });
 });

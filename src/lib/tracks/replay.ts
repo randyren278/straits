@@ -15,7 +15,7 @@ export interface MotionSource {
 }
 
 interface Pt { t: number; lat: number; lon: number }
-interface Track { pts: Pt[]; gaps: number[]; after: Pt[] | null; tier: 0 | 1 | 2 }
+interface Track { pts: Pt[]; gaps: number[]; jumps: number[]; after: Pt[] | null; tier: 0 | 1 | 2 }
 
 const kAt = (lat: number) => Math.cos((lat * Math.PI) / 180);
 /** Below this (nm per minute, ≈1 kn) a ship reads as at rest. */
@@ -50,7 +50,7 @@ export class ReplayModel implements MotionSource {
       if (!pts.length) continue;
       const p = live.get(v.m);
       const after = p?.state === 'underway' && p.path ? decodeSeries(p.path).map(([t, lat, lon]) => ({ t, lat, lon })) : null;
-      this.tracks.set(v.m, { pts, gaps: v.g, after: after && after.length > 1 ? after : null, tier: p?.tier ?? 2 });
+      this.tracks.set(v.m, { pts, gaps: v.g, jumps: v.j ?? [], after: after && after.length > 1 ? after : null, tier: p?.tier ?? 2 });
     }
   }
 
@@ -61,10 +61,15 @@ export class ReplayModel implements MotionSource {
     return null;
   }
 
-  /** Position at t, or null before the ship was first seen. `past` = beyond the last fix. */
+  private inJump(tr: Track, t: number): boolean {
+    for (let k = 0; k < tr.jumps.length; k += 2) if (t > tr.jumps[k] && t < tr.jumps[k + 1]) return true;
+    return false;
+  }
+
+  /** Position at t, or null before the ship was first seen and during a jump in its data. `past` = beyond the last fix. */
   private pos(tr: Track, t: number): { lat: number; lon: number; past: boolean } | null {
     const P = tr.pts, last = P[P.length - 1];
-    if (t < P[0].t) return null;
+    if (t < P[0].t || this.inJump(tr, t)) return null;
     if (t <= last.t) return { ...curveAt(P, t), past: false };
     if (tr.after && t <= tr.after[tr.after.length - 1].t) return { ...curveAt(tr.after, Math.max(t, tr.after[0].t)), past: true };
     return { lat: last.lat, lon: last.lon, past: true };
@@ -94,16 +99,20 @@ export class ReplayModel implements MotionSource {
     const tr = this.tracks.get(mmsi); if (!tr) return [];
     const out: { lat: number; lon: number; estimated: boolean }[] = [];
     for (let t = Math.max(tr.pts[0].t, tMin - minutes); t <= tMin; t += 3) {
-      const p = this.pos(tr, t); if (p) out.push({ lat: p.lat, lon: p.lon, estimated: p.past || this.gapStart(tr, t) !== null });
+      const p = this.pos(tr, t);
+      // A jump breaks the wake: never draw a line across it.
+      if (!p) { out.length = 0; continue; }
+      out.push({ lat: p.lat, lon: p.lon, estimated: p.past || this.gapStart(tr, t) !== null });
     }
     return out;
   }
 
-  /** Ships whose real data resumed (a gap ended) in (t0, t1] — they ping as the replay passes. */
+  /** Ships whose real data resumed (a gap or jump ended) in (t0, t1] — they ping as the replay passes. */
   resumedBetween(t0: number, t1: number): string[] {
     const out: string[] = [];
     if (t1 <= t0) return out;
-    for (const [m, tr] of this.tracks) for (let k = 1; k < tr.gaps.length; k += 2) if (tr.gaps[k] > t0 && tr.gaps[k] <= t1) { out.push(m); break; }
+    const hit = (ends: number[]) => { for (let k = 1; k < ends.length; k += 2) if (ends[k] > t0 && ends[k] <= t1) return true; return false; };
+    for (const [m, tr] of this.tracks) if (hit(tr.gaps) || hit(tr.jumps)) out.push(m);
     return out;
   }
 }

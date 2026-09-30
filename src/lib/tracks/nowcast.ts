@@ -3,7 +3,8 @@
  * an estimated path. When a new epoch arrives, the drawn position blends old → new with a
  * smoothstep weight, so position AND velocity stay continuous (projective blending, as in
  * networked-game dead reckoning). The blend lasts ~15 map-min per nm of correction (6–60);
- * heading turns no faster than 10°/map-min. Pure and framework-free.
+ * heading turns no faster than 10°/map-min. Corrections over 5 nm snap rather than glide,
+ * so a ship never slides across land to reach its new fix. Pure and framework-free.
  */
 import { decodeSeries } from './codec';
 import type { TrackPayload } from './types';
@@ -13,6 +14,8 @@ interface Pt { t: number; lat: number; lon: number }
 interface Epoch { avail: number; lastRealAt: number; lat: number; lon: number; cog: number; path: Pt[] | null; trail: Pt[]; B: number; BH: number; tier: 0 | 1 | 2; sig: string }
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+/** Corrections larger than this (nm) snap in SNAP_MIN map-minutes instead of blending. */
+const SNAP_NM = 5, SNAP_MIN = 0.05;
 const smooth = (u: number) => u * u * (3 - 2 * u);
 const kAt = (lat: number) => Math.cos((lat * Math.PI) / 180);
 
@@ -49,9 +52,13 @@ export class Nowcaster {
       if (prev) {
         const a = this.at(list, list.length - 1, nowMin), b = this.base(e, nowMin);
         const off = Math.hypot((b.lon - a.lon) * 60 * kAt(a.lat), (b.lat - a.lat) * 60);
-        e.B = Math.max(6, Math.min(60, 15 * off));
-        const hA = this.headingAt(list, list.length - 1, nowMin), hB = this.baseHeading(e, nowMin);
-        e.BH = Math.max(e.B, (Math.abs(Math.atan2(Math.sin(hB - hA), Math.cos(hB - hA))) * 180) / Math.PI / 10);
+        // A big correction is not glided: the straight-ish mix of two paths can cut across a
+        // headland. The ship moves to where the data puts it (the overlay pings it there).
+        if (off > SNAP_NM) { e.B = e.BH = SNAP_MIN; } else {
+          e.B = Math.max(6, Math.min(60, 15 * off));
+          const hA = this.headingAt(list, list.length - 1, nowMin), hB = this.baseHeading(e, nowMin);
+          e.BH = Math.max(e.B, (Math.abs(Math.atan2(Math.sin(hB - hA), Math.cos(hB - hA))) * 180) / Math.PI / 10);
+        }
       }
       list.push(e);
       // Drop epochs whose successor's blend is long finished.

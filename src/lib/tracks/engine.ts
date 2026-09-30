@@ -9,25 +9,65 @@ import { hermite, type Kin } from './curve';
 import { canEstimate, predictWith, stateOf } from './estimate';
 import { scoreEvidence } from './evidence';
 import { smooth } from './kalman';
-import { cellOf, grid, inGrid } from './land';
+import { cellOf, grid, inGrid, isLand } from './land';
 import {
   CANDIDATES, chooseCandidate, CONTEXTS, contextOf, median, medianError, parseCandidate, record, truthUpdates,
   uncertaintyRate, type Candidate, type LearnState,
 } from './learn';
-import { projAt, toLat, toLon, type TPt } from './proj';
-import { repairLand, type Density } from './router';
+import { projAt, toLat, toLon, toX, toY, type TPt } from './proj';
+import { clearPath, repairLand, route, type Density } from './router';
 import type { ReplayVessel, TrackPayload, TracksResponse } from './types';
 
 export interface EngineVessel { mmsi: string; fixes: RawFix[]; identity: { name: boolean; type: boolean; flag: boolean; imoOrDest: boolean } }
 
 /** Gaps longer than this between real fixes replay as estimated. */
 const REPLAY_GAP_MIN = 25;
+/**
+ * A land-crossing step is re-sailed by sea only if the route is plausible at this speed
+ * (generous: scraped fixes carry harvest-time stamps, so honest ships can look fast).
+ */
+const SEA_ROUTE_MAX_KN = 60;
+
+/**
+ * Ships never cross land. A step that does (both ends in water) follows a sea route when the
+ * ship could plausibly have sailed it in the time; otherwise it is a jump in the data, and the
+ * ship is hidden for that stretch (`hidden` pairs, whole minutes, rounded outward to cover the
+ * series' whole-minute stamps) instead of sliding across land. Steps over open water are left
+ * alone, however fast.
+ */
+export function seaSafe(pts: TPt[], proj: ReturnType<typeof projAt>, density: Density | null): { pts: TPt[]; hidden: number[] } {
+  const out: TPt[] = pts.length ? [pts[0]] : [], hidden: number[] = [];
+  for (let k = 1; k < pts.length; k++) {
+    const a = pts[k - 1], b = pts[k], d = Math.hypot(b.x - a.x, b.y - a.y), dt = Math.max(0.1, b.t - a.t);
+    if (d < 0.3) { out.push(b); continue; }
+    const la = toLon(proj, a.x), pa = toLat(a.y), lb = toLon(proj, b.x), pb = toLat(b.y);
+    if (isLand(la, pa) || isLand(lb, pb) || clearPath(la, pa, lb, pb)) { out.push(b); continue; }
+    {
+      const r = route(la, pa, lb, pb, density);
+      if (r && r.length > 1) {
+        const xy = r.map(([lo, lat]) => ({ x: toX(proj, lo), y: toY(lat) }));
+        xy[0] = { x: a.x, y: a.y }; xy[xy.length - 1] = { x: b.x, y: b.y };
+        const cum = [0];
+        for (let i = 1; i < xy.length; i++) cum.push(cum[i - 1] + Math.hypot(xy[i].x - xy[i - 1].x, xy[i].y - xy[i - 1].y));
+        const L = cum[cum.length - 1];
+        if ((L / dt) * 60 <= SEA_ROUTE_MAX_KN) {
+          for (let i = 1; i < xy.length - 1; i++) out.push({ t: a.t + (dt * cum[i]) / L, ...xy[i] });
+          out.push(b); continue;
+        }
+      }
+    }
+    const h0 = Math.floor(a.t), h1 = Math.ceil(b.t);
+    if (hidden.length && hidden[hidden.length - 1] >= h0) hidden[hidden.length - 1] = h1; else hidden.push(h0, h1);
+    out.push(b);
+  }
+  return { pts: out, hidden };
+}
 
 /**
  * The last 24 h of the smoothed track at 5-min steps, thinned where the ship sat still
  * (kept at least hourly, and the sample before each move so a rest doesn't smear into it).
  */
-function replayOf(s: ReturnType<typeof smooth>, meas: TPt[], proj: ReturnType<typeof projAt>, now: number, kin: Kin): Omit<ReplayVessel, 'm'> {
+function replayOf(s: ReturnType<typeof smooth>, meas: TPt[], proj: ReturnType<typeof projAt>, now: number, kin: Kin, density: Density | null): Omit<ReplayVessel, 'm'> {
   const from = Math.max(s.t[0], now - 1440), end = s.t[s.n - 1], pts: TPt[] = [];
   let prev: TPt | null = null;
   const keep = (p: TPt) => { const q = pts[pts.length - 1]; if (!q || q.t !== p.t) pts.push(p); };
@@ -47,7 +87,8 @@ function replayOf(s: ReturnType<typeof smooth>, meas: TPt[], proj: ReturnType<ty
     // Report times sit midway between fixes, so one silence can arrive as two touching gaps.
     if (g.length && g[g.length - 1] >= a) g[g.length - 1] = b; else g.push(a, b);
   }
-  return { h: encodeSeries(toSeries(proj, pts, 1)), g };
+  const safe = seaSafe(pts, proj, density);
+  return { h: encodeSeries(toSeries(proj, safe.pts, 1)), g, ...(safe.hidden.length ? { j: safe.hidden } : {}) };
 }
 
 const toSeries = (proj: ReturnType<typeof projAt>, pts: TPt[], every: number) =>
@@ -84,7 +125,7 @@ export function runTrackEngine(input: { vessels: EngineVessel[]; now: number; de
       if (inGrid(c, r)) { const i = r * grid.w + c; densityDelta.set(i, (densityDelta.get(i) ?? 0) + 1); }
     }
 
-    replay.push({ m: v.mmsi, ...replayOf(s, cl.meas, proj, now, kin) });
+    replay.push({ m: v.mmsi, ...replayOf(s, cl.meas, proj, now, kin, density) });
 
     const ev = scoreEvidence({ fixTimes: v.fixes.map((f) => f.t), now, rejected: cl.rejected, moves: cl.moves, identity: v.identity });
     let path: number[] | null = null, trail: number[] | null = null, m: TrackPayload['method'] = null, tau: number | null = null;
@@ -96,7 +137,8 @@ export function runTrackEngine(input: { vessels: EngineVessel[]; now: number; de
       if (ev.tier <= 1) {
         const pts: TPt[] = [];
         for (let t = Math.ceil((st.t - 120) / 3) * 3; t <= st.t; t += 3) { if (t < s.t[0]) continue; hermite(s, t, kin); pts.push({ t, x: kin.x, y: kin.y }); }
-        trail = encodeSeries(toSeries(proj, pts, 1));
+        const safe = seaSafe(pts, proj, density), lastJump = safe.hidden.length ? safe.hidden[safe.hidden.length - 1] : -Infinity;
+        trail = encodeSeries(toSeries(proj, safe.pts.filter((p) => p.t >= lastJump), 1));
       }
     }
     let cog = (90 - (Math.atan2(st.vy, st.vx) * 180) / Math.PI + 360) % 360;

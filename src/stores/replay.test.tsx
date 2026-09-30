@@ -42,15 +42,15 @@ describe('replay store', () => {
 });
 
 describe('intro', () => {
-  it('plays the last 6 h in ~8 s, then hands back to live', async () => {
+  it('plays the last 6 h at ~8 min/s, then hands back to live', async () => {
     const now = Date.now() / 60000;
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ ...data, from: now - 1440, to: now - 5 }) })));
     await useReplayStore.getState().startIntro();
     const s = useReplayStore.getState();
     expect(s.intro && s.active).toBe(true);
     expect(s.introEnd - s.t).toBeCloseTo(360, 0);
-    expect(s.speed).toBeCloseTo(45, 0);
-    for (let k = 0; k < 7; k++) useReplayStore.getState().tick(1, false);
+    expect(s.speed).toBeCloseTo(8, 0);
+    for (let k = 0; k < 44; k++) useReplayStore.getState().tick(1, false);
     expect(useReplayStore.getState().active).toBe(true);
     useReplayStore.getState().tick(1.1, false);
     expect(useReplayStore.getState()).toMatchObject({ active: false, intro: false });

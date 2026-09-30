@@ -67,7 +67,9 @@ export const useReplayStore = create<ReplayStore>((set, get) => ({
     if (!data) return;
     set({ active: true, intro: false, playing: true, rate: 0, t: data.from, speed: 6 });
   },
-  startIntro: async ({ hours = 6, seconds = 8, stillWanted = () => true } = {}) => {
+  // 6 h at ~8 replay-min per second: brisk enough to read as a day's traffic, slow enough that
+  // ships sail rather than streak (45 min/s was far too fast). Any touch skips it.
+  startIntro: async ({ hours = 6, seconds = 45, stillWanted = () => true } = {}) => {
     await get().load();
     if (!get().data || get().active || !stillWanted()) return;
     const end = Date.now() / 60000, start = Math.max(get().data!.from, end - hours * 60);

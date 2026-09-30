@@ -12,6 +12,9 @@ export interface TracksResponse {
   backtest: { n: number; hold: number; estimate: number } | null;
   learned: { choice: string[]; contexts: string[] } | null;
 }
-/** 24 h replay: per ship, the smoothed track ([t, lat, lon] codec series) and the stretches with no real fix. */
-export interface ReplayVessel { m: string; h: number[]; g: number[] }
+/**
+ * 24 h replay: per ship, the smoothed track ([t, lat, lon] codec series), the stretches with no
+ * real fix (`g`, estimated) and the jumps in the data where it is hidden (`j`), all [t0, t1] pairs.
+ */
+export interface ReplayVessel { m: string; h: number[]; g: number[]; j?: number[] }
 export interface ReplayResponse { generatedAt: string; from: number; to: number; vessels: ReplayVessel[] }

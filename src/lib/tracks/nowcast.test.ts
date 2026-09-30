@@ -43,4 +43,13 @@ describe('Nowcaster', () => {
     const end = 1000 + 360, a = n.sample('1', end - 1)!, b = n.sample('1', end - 0.5)!;
     expect(Math.abs(b.lon - a.lon)).toBeLessThan(0.0005);
   });
+
+  it('snaps a big correction instead of gliding it (a glide can cut across land)', () => {
+    const nc = new Nowcaster();
+    const at = (lon: number): TrackPayload => ({ mmsi: 'x', tier: 0, score: 90, parts: [30, 25, 15, 15, 5], state: 'rest', sog: 0, cog: 0, lastRealAt: 1000,
+      method: null, tau: null, uncert: 0.03, path: null, trail: encodeSeries([[1000, 25.9, lon]]), cleaning: { kept: 1, rejected: 0, inland: 0, rerouted: 0 } });
+    nc.ingest([at(55.9)], 1000);
+    nc.ingest([{ ...at(56.6), lastRealAt: 1010 }], 1010);                 // ~38 nm east, across Musandam
+    expect(nc.sample('x', 1010.1)!.lon).toBeCloseTo(56.6, 3);             // there within seconds, no glide
+  });
 });

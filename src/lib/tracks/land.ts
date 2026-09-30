@@ -38,7 +38,7 @@ function rasterize(rings: number[][][]): Uint8Array {
 }
 
 /**
- * Waterways too narrow for Natural Earth 10 m land data, which does not cut the Suez Canal:
+ * Waterways Natural Earth 10 m land data misses — the Suez Canal and its lakes:
  * without this, every canal transit reads as a ship on land. The centerline is the median of
  * 7 days of real fixes per 0.02° latitude band (Port Said → Ballah → Timsah → Bitter Lakes →
  * Suez). Half-width 0.015° (~1.6 km) covers both lanes of the doubled sections.
@@ -54,6 +54,16 @@ export const WATERWAYS: { name: string; halfWidthDeg: number; points: [number, n
     [32.452, 30.28], [32.497, 30.26], [32.537, 30.24], [32.563, 30.20], [32.570, 30.14], [32.572, 30.06],
     [32.586, 29.98], [32.560, 29.93],
   ],
+}, {
+  // The canal's lakes are wider than the channel: ships anchor and pass well off the centerline.
+  name: 'Great Bitter Lake', halfWidthDeg: 0.055,
+  points: [[32.335, 30.42], [32.39, 30.36], [32.45, 30.31], [32.51, 30.27]],
+}, {
+  name: 'Little Bitter Lake', halfWidthDeg: 0.025,
+  points: [[32.53, 30.25], [32.565, 30.20], [32.575, 30.13]],
+}, {
+  name: 'Lake Timsah', halfWidthDeg: 0.02,
+  points: [[32.27, 30.575], [32.31, 30.565], [32.33, 30.55]],
 }];
 
 function carveWaterways(mask: Uint8Array) {
@@ -83,7 +93,7 @@ export function isLand(lon: number, lat: number): boolean {
   return c >= 0 && r >= 0 && c < LW && r < LH && landMask[r * LW + c] === 1;
 }
 
-// Routing grid: a 0.02° cell is water only if all four 0.01° sub-cells are water.
+// Routing grid: a 0.02° cell is water only if all four 0.01° sub-cells are water (plus the carved waterways).
 const GW = Math.round((REGION.maxLon - REGION.minLon) * GRID_RES);
 const GH = Math.round((REGION.maxLat - REGION.minLat) * GRID_RES);
 const water = new Uint8Array(GW * GH), coast = new Uint8Array(GW * GH);
@@ -94,6 +104,21 @@ for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
     if (mr < LH && mc < LW && landMask[mr * LW + mc]) land = 1;
   }
   water[r * GW + c] = land ? 0 : 1;
+}
+// Waterways narrower than a routing cell would never connect under the all-four rule: carve
+// them into the routing grid directly, at least one cell wide, so routes can follow them.
+for (const w of WATERWAYS) {
+  const hw = Math.max(w.halfWidthDeg, 0.6 / GRID_RES);
+  for (let k = 0; k + 1 < w.points.length; k++) {
+    const [x1, y1] = w.points[k], [x2, y2] = w.points[k + 1], dx = x2 - x1, dy = y2 - y1, len2 = dx * dx + dy * dy || 1e-12;
+    const c0 = Math.max(0, Math.floor((Math.min(x1, x2) - hw - REGION.minLon) * GRID_RES)), c1 = Math.min(GW - 1, Math.ceil((Math.max(x1, x2) + hw - REGION.minLon) * GRID_RES));
+    const r0 = Math.max(0, Math.floor((REGION.maxLat - Math.max(y1, y2) - hw) * GRID_RES)), r1 = Math.min(GH - 1, Math.ceil((REGION.maxLat - Math.min(y1, y2) + hw) * GRID_RES));
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      const lon = REGION.minLon + (c + 0.5) / GRID_RES, lat = REGION.maxLat - (r + 0.5) / GRID_RES;
+      const u = Math.max(0, Math.min(1, ((lon - x1) * dx + (lat - y1) * dy) / len2));
+      if (Math.hypot(lon - (x1 + u * dx), lat - (y1 + u * dy)) <= hw) water[r * GW + c] = 1;
+    }
+  }
 }
 for (let r = 1; r < GH - 1; r++) for (let c = 1; c < GW - 1; c++) {
   const i = r * GW + c; if (!water[i]) continue;
