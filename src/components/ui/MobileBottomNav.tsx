@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Map, BarChart3, Ship, Info, FlaskConical } from 'lucide-react';
 import { IS_CANARY_CLIENT } from '@/lib/canary-client';
+import { isCanaryWorkspacePath } from './CanaryWorkspaceNav';
 
 const DESTINATIONS = [
   { href: '/dashboard', label: 'Map', Icon: Map },
@@ -31,7 +32,9 @@ export function MobileBottomNav() {
       {(IS_CANARY_CLIENT
         ? [...DESTINATIONS, { href: '/investigations', label: 'Cases', Icon: FlaskConical }]
         : DESTINATIONS).map(({ href, label, Icon }) => {
-        const active = pathname === href;
+        const active = href === '/investigations' && IS_CANARY_CLIENT
+          ? isCanaryWorkspacePath(pathname)
+          : pathname === href;
         return (
           <Link
             key={href}

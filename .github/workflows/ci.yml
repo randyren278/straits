@@ -106,10 +106,23 @@ jobs:
           test "$pipeline_table" = "t"
 
   build:
-    name: Production build
+    name: ${{ matrix.target }} build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [quality, schema]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: production-gate
+            vercel_env: production
+            straits_canary: '0'
+          - target: canary-preview
+            vercel_env: preview
+            straits_canary: '1'
+    env:
+      VERCEL_ENV: ${{ matrix.vercel_env }}
+      STRAITS_CANARY: ${{ matrix.straits_canary }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7

@@ -65,4 +65,13 @@ describe('investigation claims', () => {
     expect(result.observedQuantity).toContain('down 50%');
     expect(result.headline).not.toContain('confirmed');
   });
+
+  it('labels a measured decrease below the signal threshold instead of implying no change', () => {
+    const claim = parseClaim('Suez disruption');
+    const slightlyReduced = { ...passage, completed: 20 };
+    const result = evaluateClaim(claim, activity, activity, 'recent', { current: slightlyReduced, previous: passage }, { currentDays: 7, previousDays: 7, expectedDays: 7 });
+    expect(result.status).toBe('no_clear_reduction');
+    expect(result.headline).toContain('below the 40% signal threshold');
+    expect(result.observedQuantity).toContain('8 fewer, 29% reduction');
+  });
 });

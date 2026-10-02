@@ -1,4 +1,5 @@
 import { pool } from '@/lib/db';
+import { unstable_cache } from 'next/cache';
 import { loadRegionContext, type RegionContext } from '@/lib/context/region';
 import { getChokepointDaily } from '@/lib/db/crossings';
 import { getRecentBuckets } from '@/lib/db/coverage';
@@ -266,7 +267,7 @@ function passageWindow(rows: Awaited<ReturnType<typeof getChokepointDaily>>, sta
   };
 }
 
-export async function loadInvestigationEvidence(region: InvestigationRegion, window: InvestigationWindow): Promise<InvestigationEvidence> {
+async function loadInvestigationEvidenceUncached(region: InvestigationRegion, window: InvestigationWindow): Promise<InvestigationEvidence> {
   const now = new Date();
   const bounds = CHOKEPOINTS[region].bounds;
   const activityPromise = window === '24h'
@@ -338,4 +339,15 @@ export async function loadInvestigationEvidence(region: InvestigationRegion, win
       ...(region === 'suez' ? ['Completed passages are counted only when both Suez gates are observed in order; aggregate rows may be absent when the crossing job did not record that day.'] : ['No completed-passage model is available for this region.']),
     ],
   };
+}
+
+const loadCachedInvestigationEvidence = unstable_cache(
+  async (region: InvestigationRegion, window: InvestigationWindow) => loadInvestigationEvidenceUncached(region, window),
+  ['straits-investigation-evidence-v1'],
+  { revalidate: 60 },
+);
+
+/** Keep repeated analyst refreshes from multiplying public-data and database reads. */
+export async function loadInvestigationEvidence(region: InvestigationRegion, window: InvestigationWindow): Promise<InvestigationEvidence> {
+  return loadCachedInvestigationEvidence(region, window);
 }

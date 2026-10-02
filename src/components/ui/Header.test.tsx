@@ -3,7 +3,9 @@ import { render, screen, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Header } from './Header';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/dashboard', useRouter: () => ({ push: vi.fn() }) }));
+const pathname = vi.hoisted(() => ({ current: '/dashboard' }));
+vi.mock('next/navigation', () => ({ usePathname: () => pathname.current, useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('@/lib/canary-client', () => ({ IS_CANARY_CLIENT: true }));
 vi.mock('./StatusChip', () => ({ StatusChip: () => <div data-testid="status-chip" /> }));
 vi.mock('./NotificationBell', () => ({ NotificationBell: () => <button>Notifications</button> }));
 vi.mock('./ChokepointWidget', () => ({ ChokepointWidgets: () => <div data-testid="chokepoints" /> }));
@@ -12,7 +14,7 @@ vi.mock('./SearchInput', () => ({
 }));
 vi.mock('./DataFreshness', () => ({ DataFreshness: () => <span data-testid="freshness" /> }));
 
-afterEach(() => cleanup());
+afterEach(() => { cleanup(); pathname.current = '/dashboard'; });
 
 describe('Header', () => {
   it('hides the primary nav below lg, where the bottom bar takes over', () => {
@@ -61,5 +63,14 @@ describe('Header', () => {
     render(<Header />);
     expect(within(screen.getByTestId('header-mobile-controls')).getAllByTestId('status-chip')).toHaveLength(1);
     expect(within(screen.getByTestId('header-controls')).getAllByTestId('status-chip')).toHaveLength(1);
+  });
+
+  it('keeps Investigations active on canary workspace routes', () => {
+    pathname.current = '/coverage';
+    render(<Header />);
+    const primary = screen.getAllByRole('link', { name: 'Investigations' }).find((link) => link.getAttribute('aria-current') === 'page');
+    expect(primary).toBeDefined();
+    expect(primary).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('navigation', { name: 'Canary workspaces' })).toBeInTheDocument();
   });
 });

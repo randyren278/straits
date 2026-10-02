@@ -132,6 +132,8 @@ export function evaluateClaim(
   }
 
   const drop = before.completed > 0 ? (before.completed - now.completed) / before.completed : null;
+  const countChange = before.completed - now.completed;
+  const countChangeLabel = countChange >= 0 ? `${countChange} fewer` : `${Math.abs(countChange)} more`;
   if (drop !== null && drop >= 0.4) {
     return {
       status: 'reduction_observed',
@@ -142,8 +144,8 @@ export function evaluateClaim(
   }
   return {
     status: 'no_clear_reduction',
-    headline: 'No clear reduction appears in the available passage counts',
-    basis: 'This compares recorded gate-to-gate AIS crossings; a reduction of at least 40% is the displayed signal threshold. It does not rule out delays or disruption outside the measured window.',
-    observedQuantity: `${now.completed} completed passages recorded in ${now.label}; ${before.completed} in ${before.label}`,
+    headline: 'Recorded change is below the 40% signal threshold',
+    basis: `This compares recorded gate-to-gate AIS crossings: ${before.completed} in the previous period and ${now.completed} now. The change does not meet the 40% reduction threshold for the displayed signal and does not rule out delays or disruption outside the measured window.`,
+    observedQuantity: `${now.completed} completed passages recorded in ${now.label}; ${before.completed} in ${before.label} (${countChangeLabel}, ${Math.round((drop ?? 0) * 100)}% reduction)`,
   };
 }

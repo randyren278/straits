@@ -22,6 +22,7 @@ import { AisOutageBanner } from './AisOutageBanner';
 import { CommandPalette } from './CommandPalette';
 import { useViewportMatch } from '@/lib/hooks/useViewportMatch';
 import { IS_CANARY_CLIENT } from '@/lib/canary-client';
+import { CanaryWorkspaceNav, isCanaryWorkspacePath } from './CanaryWorkspaceNav';
 
 interface SearchResult {
   imo: string | null;
@@ -55,7 +56,7 @@ const NAV_ITEMS = [
 export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
   const roomy = useViewportMatch('(min-width: 768px) and (min-height: 600px)');
   const pathname = usePathname();
-  const activeTab = pathname === '/investigations' ? 'investigations' : pathname === '/fleet' ? 'fleet' : pathname === '/analytics' ? 'analytics' : pathname === '/about' ? 'about' : 'dashboard';
+  const activeTab = IS_CANARY_CLIENT && isCanaryWorkspacePath(pathname) ? 'investigations' : pathname === '/fleet' ? 'fleet' : pathname === '/analytics' ? 'analytics' : pathname === '/about' ? 'about' : 'dashboard';
   const navItems = IS_CANARY_CLIENT
     ? [...NAV_ITEMS, { href: '/investigations', label: 'Investigations', id: 'investigations' }]
     : NAV_ITEMS;
@@ -88,6 +89,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
                 key={href}
                 href={href}
                 prefetch={false}
+                aria-current={activeTab === id ? 'page' : undefined}
                 className={`inline-flex items-center whitespace-nowrap px-3 py-1 tablet:min-h-[44px] text-xs font-mono uppercase tracking-wider border transition-colors ${
                   activeTab === id
                     ? 'border-amber-500 text-amber-500 bg-amber-500/10'
@@ -170,6 +172,8 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
           </div>
         </div>
       )}
+
+      <CanaryWorkspaceNav />
 
     </header>
       {/* An outage can begin after hydration. Float the explanation over the
