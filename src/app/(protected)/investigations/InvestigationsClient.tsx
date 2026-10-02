@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { RegionContext } from '@/lib/context/region';
 import type { ClaimEvaluation, InvestigationRegion, InvestigationWindow, ParsedClaim } from '@/lib/investigations/claims';
 import type { InvestigationEvidence } from '@/lib/investigations/evidence';
+import { SaveFollowActions } from '@/components/investigations/SaveFollowActions';
 
 interface ClaimCheckResult {
   region: InvestigationRegion;
@@ -30,7 +31,7 @@ function statusLabel(status: ClaimEvaluation['status']): string {
   switch (status) {
     case 'activity_observed': return 'Activity observed';
     case 'reduction_observed': return 'Reduction observed';
-    case 'no_clear_reduction': return 'No clear reduction';
+    case 'no_clear_reduction': return 'Reduction threshold not reached';
     case 'insufficient': return 'Insufficient evidence';
     case 'unsupported': return 'Unsupported';
   }
@@ -126,6 +127,7 @@ export function InvestigationsClient() {
   const [result, setResult] = useState<ClaimCheckResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAllVessels, setShowAllVessels] = useState(false);
   const activeRequest = useRef<AbortController | null>(null);
 
   async function runCheck(
@@ -138,6 +140,7 @@ export function InvestigationsClient() {
     activeRequest.current = controller;
     const requestSignal = controller.signal;
     setResult(null);
+    setShowAllVessels(false);
     setLoading(true);
     setError(null);
     try {
@@ -198,19 +201,6 @@ export function InvestigationsClient() {
           </Link>
         </div>
 
-        <nav aria-label="Canary workspaces" className="mb-4 flex flex-wrap gap-2">
-          {[
-            { href: '/investigations', label: 'Investigations' },
-            { href: '/scenarios', label: 'Parallel Seas' },
-            { href: '/coverage', label: 'Coverage' },
-            { href: '/investigations/following', label: 'Following' },
-          ].map((item) => (
-            <Link key={item.href} href={item.href} aria-current={item.href === '/investigations' ? 'page' : undefined} className={`border px-3 py-2 text-[9px] font-mono uppercase tracking-wider transition-colors ${item.href === '/investigations' ? 'border-amber-500/50 bg-amber-500/5 text-amber-400' : 'border-gray-800 text-gray-600 hover:border-gray-600 hover:text-gray-300'}`}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(19rem,0.85fr)]">
           <section aria-labelledby="claim-checker-heading" className="min-w-0 border border-gray-800 bg-gray-950/60">
             <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
@@ -261,6 +251,7 @@ export function InvestigationsClient() {
                 </div>
                 <h3 className="text-lg font-mono text-gray-100">{result.evaluation.headline}</h3>
                 <p className="mt-2 max-w-3xl text-xs leading-5 text-gray-400">{result.evaluation.basis}</p>
+                {result.claim.supported && evidence && <SaveFollowActions key={`${result.region}:${result.window}:${result.claim.normalized}`} region={result.region} window={result.window} claimText={result.claim.normalized} evidence={evidence} evaluation={result.evaluation} />}
 
                 {!result.claim.supported ? (
                   <div className="mt-4 border-l-2 border-amber-500/50 bg-black px-3 py-3 text-xs leading-5 text-gray-400">
@@ -349,10 +340,10 @@ export function InvestigationsClient() {
                   <div className="mt-5 border-t border-gray-800 pt-3">
                     <div className="mb-2 flex items-center justify-between">
                       <h3 className="text-[9px] font-mono uppercase tracking-widest text-gray-600">Individual observed contacts</h3>
-                      <span className="text-[9px] font-mono text-gray-700">latest 30</span>
+                      <span className="text-[9px] font-mono text-gray-700">latest sample · {evidence.vessels.length}</span>
                     </div>
                     <ul className="max-h-[25rem] divide-y divide-gray-900 overflow-y-auto">
-                      {evidence.vessels.map((vessel) => (
+                      {evidence.vessels.slice(0, showAllVessels ? 30 : 10).map((vessel) => (
                         <li key={vessel.imo ?? vessel.mmsi}>
                           <Link href={vessel.mapHref} className="flex min-h-11 items-center justify-between gap-3 py-2 text-xs hover:text-amber-300">
                             <span className="min-w-0 truncate text-gray-300">{vessel.name}<span className="ml-2 text-[10px] text-gray-600">{vessel.flag ?? 'Flag unknown'} · {vessel.imo ?? vessel.mmsi}</span></span>
@@ -361,14 +352,19 @@ export function InvestigationsClient() {
                         </li>
                       ))}
                     </ul>
+                    {evidence.vessels.length > 10 && (
+                      <button type="button" onClick={() => setShowAllVessels((value) => !value)} className="mt-2 min-h-11 text-[10px] font-mono uppercase tracking-wider text-amber-500 hover:text-amber-300">
+                        {showAllVessels ? 'Show fewer contacts' : `Show all ${evidence.vessels.length} sampled contacts`}
+                      </button>
+                    )}
                   </div>
                 </>
               )}
             </div>
           </section>
         </div>
-        <ContextSources context={evidence?.context ?? null} />
-        <p className="mt-4 text-[9px] font-mono uppercase tracking-wider text-gray-700">First-party AIS record · positions are observations; passages require their own route model.</p>
+        {evidence && <ContextSources context={evidence.context} />}
+        <p className="mt-4 text-[9px] font-mono uppercase tracking-wider text-gray-700">Straits observation record · AIS positions are observations; passages require their own route model.</p>
       </main>
     </div>
   );

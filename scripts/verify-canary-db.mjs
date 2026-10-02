@@ -47,6 +47,9 @@ async function verify() {
 
     await expectDenied(client, 'public.watchlist SELECT', 'SELECT * FROM public.watchlist LIMIT 1');
     await expectDenied(client, 'public.vessels UPDATE', 'UPDATE public.vessels SET imo = imo WHERE false');
+    const forbiddenStoryId = randomUUID();
+    await expectDenied(client, 'story UPDATE', `UPDATE canary.investigation_stories SET annotation = 'changed' WHERE id = '${forbiddenStoryId}'::uuid`);
+    await expectDenied(client, 'story DELETE', `DELETE FROM canary.investigation_stories WHERE id = '${forbiddenStoryId}'::uuid`);
 
     const forbiddenName = `straits_canary_permission_probe_${randomUUID().replaceAll('-', '')}`;
     await client.query('BEGIN');
@@ -76,7 +79,26 @@ async function verify() {
       await client.query('ROLLBACK').catch(() => {});
     }
 
-    console.log('Canary database verified: public vessel observations readable; private public tables and public writes denied; canary performance write/read succeeded and was rolled back.');
+    const storyId = randomUUID();
+    await client.query('BEGIN');
+    try {
+      const inserted = await client.query(`
+        INSERT INTO canary.investigation_stories
+          (id, region, claim_id, comparison_window, claim_text, annotation, snapshot)
+        VALUES ($1, 'hormuz', 'hormuz-stopped', '24h', 'Hormuz traffic stopped', 'verification probe', $2::jsonb)
+        RETURNING id::text, snapshot
+      `, [storyId, JSON.stringify({ version: 1, probe: true })]);
+      const readBack = await client.query(`
+        SELECT id::text, snapshot FROM canary.investigation_stories WHERE id = $1::uuid
+      `, [storyId]);
+      if (inserted.rowCount !== 1 || readBack.rowCount !== 1 || readBack.rows[0].id !== storyId || readBack.rows[0].snapshot?.probe !== true) {
+        throw new Error('CANARY_STORY_ROUNDTRIP_FAILED');
+      }
+    } finally {
+      await client.query('ROLLBACK').catch(() => {});
+    }
+
+    console.log('Canary database verified: public vessel observations readable; private public tables and writes denied; canary performance and immutable story write/read probes succeeded and were rolled back.');
   } catch (error) {
     if (error?.message === 'UNEXPECTED_PERMISSION:public.watchlist SELECT') {
       console.error('Canary verification failed: role can read public.watchlist.');
@@ -84,6 +106,10 @@ async function verify() {
       console.error('Canary verification failed: role can update public.vessels.');
     } else if (error?.message === 'UNEXPECTED_PERMISSION:public CREATE') {
       console.error('Canary verification failed: role can create objects in public.');
+    } else if (error?.message === 'UNEXPECTED_PERMISSION:story UPDATE') {
+      console.error('Canary verification failed: immutable investigation stories can be updated.');
+    } else if (error?.message === 'UNEXPECTED_PERMISSION:story DELETE') {
+      console.error('Canary verification failed: immutable investigation stories can be deleted.');
     } else if (error?.message?.startsWith('DENIAL_PROBE_ERROR:')) {
       const [, probe, code] = error.message.split(':');
       console.error(`Canary verification failed: ${probe} did not fail with permission denied (SQLSTATE ${code}).`);
@@ -91,6 +117,8 @@ async function verify() {
       console.error('Canary verification failed: connected role identity is not straits_canary.');
     } else if (error?.message === 'NO_OBSERVATION_ROWS') {
       console.error('Canary verification failed: public.vessels returned no rows.');
+    } else if (error?.message === 'CANARY_STORY_ROUNDTRIP_FAILED') {
+      console.error('Canary verification failed: immutable story insert/read probe did not match and was rolled back.');
     } else {
       console.error(safeError(error));
     }

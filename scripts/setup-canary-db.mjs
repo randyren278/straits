@@ -89,8 +89,9 @@ async function main() {
 
   if (!APPLY) {
     console.log('Canary database setup plan (dry run; no connection opened):');
-    console.log(`- Create or update role ${ROLE} with LOGIN, NOINHERIT, NOCREATEDB, NOCREATEROLE, NOBYPASSRLS.`);
+    console.log(`- Create role ${ROLE} with least-privilege login flags if absent; validate flags and preserve credentials if it already exists.`);
     console.log('- Grant schema USAGE and table DML only in schema canary; revoke PUBLIC access there.');
+    console.log('- Create immutable investigation story storage with SELECT and INSERT only.');
     console.log(`- Grant SELECT and add role-specific RLS policies only for the fixed observation allowlist (${OBSERVATION_TABLES.length} table names).`);
     console.log('- Revoke this role’s privileges on every current public table and sequence before allowlisting.');
     console.log('- Write .env.canary.local with mode 0600. Credentials are omitted from this plan.');
@@ -162,6 +163,8 @@ async function main() {
       if (createPrivilege.rows[0]?.allowed) throw new Error('PUBLIC_SCHEMA_CREATE_INHERITED');
       const schemaSql = await readFile(new URL('./canary-schema.sql', import.meta.url), 'utf8');
       await client.query(schemaSql);
+      const storiesSql = await readFile(new URL('./canary-stories.sql', import.meta.url), 'utf8');
+      await client.query(storiesSql);
       await client.query(`REVOKE ALL ON SCHEMA canary FROM PUBLIC`);
       await client.query(`GRANT USAGE ON SCHEMA canary TO ${ROLE}`);
       await client.query(`REVOKE ALL ON ALL TABLES IN SCHEMA canary FROM PUBLIC`);

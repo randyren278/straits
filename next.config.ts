@@ -40,6 +40,15 @@ const nextConfig: NextConfig = {
         headers: securityHeaders,
       },
       {
+        // This compact snapshot card is designed to be embedded in other sites.
+        // Other Straits routes retain the global DENY framing policy.
+        source: '/embed/investigations/:id',
+        headers: [
+          { key: 'X-Frame-Options', value: '' },
+          { key: 'Content-Security-Policy', value: 'frame-ancestors *' },
+        ],
+      },
+      {
         source: '/maplibre/v:version/:path*',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
