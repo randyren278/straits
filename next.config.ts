@@ -10,11 +10,18 @@ const securityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+  ...(process.env.STRAITS_CANARY === '1' && process.env.VERCEL_ENV !== 'production'
+    ? [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }]
+    : []),
 ]
 
 const nextConfig: NextConfig = {
   distDir: process.env.STRAITS_DIST_DIR || '.next',
-  env: { NEXT_PUBLIC_MAPLIBRE_VERSION: maplibreVersion },
+  env: {
+    NEXT_PUBLIC_MAPLIBRE_VERSION: maplibreVersion,
+    NEXT_PUBLIC_STRAITS_CANARY:
+      process.env.STRAITS_CANARY === '1' && process.env.VERCEL_ENV !== 'production' ? '1' : '0',
+  },
   reactStrictMode: true,
   poweredByHeader: false,
 

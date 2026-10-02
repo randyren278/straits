@@ -1,9 +1,10 @@
 /** Small first-party sink for sampled Web Vitals and map readiness. */
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
+import { appTable } from '@/lib/canary';
 
 const METRICS = new Set(['LCP', 'INP', 'CLS', 'MAP_READY', 'MAP_INIT_ERROR', 'MAP_DATA_ERROR', 'SHELL_READY', 'SNAPSHOT_RECEIVED', 'MAP_STYLE_READY']);
-const ROUTES = new Set(['/dashboard', '/fleet', '/analytics', '/about']);
+const ROUTES = new Set(['/dashboard', '/fleet', '/analytics', '/about', '/investigations']);
 const DEVICES = new Set(['phone', 'tablet', 'desktop']);
 const CONNECTIONS = new Set(['slow-2g', '2g', '3g', '4g', 'unknown']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await pool.query(
-      `INSERT INTO performance_samples (sample_id, metric, route, device, connection, value, build_sha)
+      `INSERT INTO ${appTable('performance_samples')} (sample_id, metric, route, device, connection, value, build_sha)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (sample_id, metric) DO UPDATE SET
          value = EXCLUDED.value, updated_at = NOW()`,

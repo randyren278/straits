@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const query = vi.hoisted(() => vi.fn());
@@ -21,6 +21,7 @@ function request(body: unknown, origin = 'http://localhost') {
 }
 
 beforeEach(() => { query.mockReset().mockResolvedValue({ rows: [] }); });
+afterEach(() => vi.unstubAllEnvs());
 
 describe('POST /api/performance', () => {
   it('stores a bounded anonymous sample and upserts later vital updates', async () => {
@@ -32,6 +33,15 @@ describe('POST /api/performance', () => {
     ]);
     expect((await POST(request({ ...sample, metric: 'SNAPSHOT_RECEIVED' }))).status).toBe(204);
     expect((await POST(request({ ...sample, metric: 'MAP_STYLE_READY' }))).status).toBe(204);
+  });
+
+  it('accepts investigations telemetry and writes it to canary storage', async () => {
+    vi.stubEnv('STRAITS_CANARY', '1');
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    const response = await POST(request({ ...sample, route: '/investigations' }));
+
+    expect(response.status).toBe(204);
+    expect(query.mock.calls[0][0]).toContain('INSERT INTO canary.performance_samples');
   });
 
   it('rejects arbitrary routes, values, and cross-origin writes before the database', async () => {

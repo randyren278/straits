@@ -3,7 +3,7 @@
  *
  * Tests for watchlist database operations with mocked pool.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Create mock query function
 const mockQuery = vi.fn();
@@ -18,6 +18,8 @@ class MockPool {
 vi.mock('pg', () => ({
   Pool: MockPool,
 }));
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe('addToWatchlist', () => {
   beforeEach(() => {
@@ -35,6 +37,17 @@ describe('addToWatchlist', () => {
     const [sql, params] = mockQuery.mock.calls[0];
     expect(sql).toContain('INSERT INTO watchlist');
     expect(params).toEqual(['user-123', '1234567', 'Test notes']);
+  });
+
+  it('writes canary watchlist data to the isolated schema', async () => {
+    vi.stubEnv('STRAITS_CANARY', '1');
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    const { addToWatchlist } = await import('./watchlist');
+    await addToWatchlist('user-123', '1234567');
+
+    expect(mockQuery.mock.calls[0][0]).toContain('INSERT INTO canary.watchlist');
   });
 
   it('updates notes on conflict (upsert)', async () => {

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { JetBrains_Mono } from 'next/font/google';
 import { WebVitals } from '@/components/telemetry/WebVitals';
+import { isCanaryEnabled } from '@/lib/canary';
 import './globals.css';
 
 const jetbrainsMono = JetBrains_Mono({
@@ -12,6 +13,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'Straits',
   description: 'Real-time Middle East oil tanker tracking',
+  ...(isCanaryEnabled() ? { robots: { index: false, follow: false } } : {}),
   icons: {
     icon: [
       { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },

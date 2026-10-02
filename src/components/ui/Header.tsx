@@ -21,6 +21,7 @@ import { StraitsMark } from './StraitsMark';
 import { AisOutageBanner } from './AisOutageBanner';
 import { CommandPalette } from './CommandPalette';
 import { useViewportMatch } from '@/lib/hooks/useViewportMatch';
+import { IS_CANARY_CLIENT } from '@/lib/canary-client';
 
 interface SearchResult {
   imo: string | null;
@@ -54,7 +55,10 @@ const NAV_ITEMS = [
 export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
   const roomy = useViewportMatch('(min-width: 768px) and (min-height: 600px)');
   const pathname = usePathname();
-  const activeTab = pathname === '/fleet' ? 'fleet' : pathname === '/analytics' ? 'analytics' : pathname === '/about' ? 'about' : 'dashboard';
+  const activeTab = pathname === '/investigations' ? 'investigations' : pathname === '/fleet' ? 'fleet' : pathname === '/analytics' ? 'analytics' : pathname === '/about' ? 'about' : 'dashboard';
+  const navItems = IS_CANARY_CLIENT
+    ? [...NAV_ITEMS, { href: '/investigations', label: 'Investigations', id: 'investigations' }]
+    : NAV_ITEMS;
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
@@ -70,13 +74,16 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
             <StraitsMark size={20} className="shrink-0" />
             {/* Wordmark hidden on narrow phones so all 4 nav tabs fit without clipping */}
             <h1 className="text-sm font-mono uppercase tracking-widest text-amber-500 max-sm:hidden">Straits</h1>
+            {IS_CANARY_CLIENT && (
+              <span className="border border-amber-500/40 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider text-amber-500">Canary</span>
+            )}
           </Link>
 
           {/* Below 768 this is replaced by MobileBottomNav, which puts the same
               destinations in the thumb zone instead of the top 33%. Tablets keep
               this row — rotation must not change the navigation model. */}
           <nav className="phone:hidden flex gap-1 ml-6">
-            {NAV_ITEMS.map(({ href, label, id }) => (
+            {navItems.map(({ href, label, id }) => (
               <Link
                 key={href}
                 href={href}

@@ -10,7 +10,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Map, BarChart3, Ship, Info } from 'lucide-react';
+import { Map, BarChart3, Ship, Info, FlaskConical } from 'lucide-react';
+import { IS_CANARY_CLIENT } from '@/lib/canary-client';
 
 const DESTINATIONS = [
   { href: '/dashboard', label: 'Map', Icon: Map },
@@ -25,9 +26,11 @@ export function MobileBottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="roomy:hidden fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 h-[var(--straits-nav-h)] bg-black border-t border-amber-500/20 pb-[env(safe-area-inset-bottom)]"
+      className={`roomy:hidden fixed inset-x-0 bottom-0 z-40 grid ${IS_CANARY_CLIENT ? 'grid-cols-5' : 'grid-cols-4'} h-[var(--straits-nav-h)] bg-black border-t border-amber-500/20 pb-[env(safe-area-inset-bottom)]`}
     >
-      {DESTINATIONS.map(({ href, label, Icon }) => {
+      {(IS_CANARY_CLIENT
+        ? [...DESTINATIONS, { href: '/investigations', label: 'Cases', Icon: FlaskConical }]
+        : DESTINATIONS).map(({ href, label, Icon }) => {
         const active = pathname === href;
         return (
           <Link

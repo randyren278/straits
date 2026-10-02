@@ -5,6 +5,7 @@
  * Uses session-based user identification (localStorage UUID).
  */
 import { pool } from './index';
+import { appTable } from '@/lib/canary';
 import type { WatchlistEntry } from '../../types/anomaly';
 
 /**
@@ -17,7 +18,7 @@ import type { WatchlistEntry } from '../../types/anomaly';
  */
 export async function addToWatchlist(userId: string, imo: string, notes?: string): Promise<void> {
   await pool.query(
-    `INSERT INTO watchlist (user_id, imo, notes)
+    `INSERT INTO ${appTable('watchlist')} (user_id, imo, notes)
      VALUES ($1, $2, $3)
      ON CONFLICT (user_id, imo) DO UPDATE SET notes = EXCLUDED.notes`,
     [userId, imo, notes || null]
@@ -32,7 +33,7 @@ export async function addToWatchlist(userId: string, imo: string, notes?: string
  */
 export async function removeFromWatchlist(userId: string, imo: string): Promise<void> {
   await pool.query(
-    `DELETE FROM watchlist WHERE user_id = $1 AND imo = $2`,
+    `DELETE FROM ${appTable('watchlist')} WHERE user_id = $1 AND imo = $2`,
     [userId, imo]
   );
 }
@@ -52,7 +53,7 @@ export async function getUserWatchlist(userId: string): Promise<WatchlistEntry[]
     notes: string | null;
   }>(
     `SELECT user_id, imo, added_at, notes
-     FROM watchlist
+     FROM ${appTable('watchlist')}
      WHERE user_id = $1
      ORDER BY added_at DESC`,
     [userId]
@@ -76,7 +77,7 @@ export async function getUserWatchlist(userId: string): Promise<WatchlistEntry[]
 export async function isOnWatchlist(userId: string, imo: string): Promise<boolean> {
   const result = await pool.query<{ exists: boolean }>(
     `SELECT EXISTS(
-      SELECT 1 FROM watchlist WHERE user_id = $1 AND imo = $2
+      SELECT 1 FROM ${appTable('watchlist')} WHERE user_id = $1 AND imo = $2
     ) as exists`,
     [userId, imo]
   );
@@ -92,7 +93,7 @@ export async function isOnWatchlist(userId: string, imo: string): Promise<boolea
  */
 export async function getWatchersForVessel(imo: string): Promise<string[]> {
   const result = await pool.query<{ user_id: string }>(
-    `SELECT user_id FROM watchlist WHERE imo = $1`,
+    `SELECT user_id FROM ${appTable('watchlist')} WHERE imo = $1`,
     [imo]
   );
   return result.rows.map(row => row.user_id);
@@ -130,7 +131,7 @@ export async function getWatchlistWithVessels(userId: string): Promise<Watchlist
   }>(
     `SELECT w.user_id, w.imo, w.added_at, w.notes,
             v.name, v.flag, v.ship_type
-     FROM watchlist w
+     FROM ${appTable('watchlist')} w
      LEFT JOIN vessels v ON v.imo = w.imo
      WHERE w.user_id = $1
      ORDER BY w.added_at DESC`,

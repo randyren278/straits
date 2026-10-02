@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
+import { isCanaryEnabled } from '@/lib/canary';
 
 export default function Home() {
-  redirect('/dashboard');
+  redirect(isCanaryEnabled() ? '/investigations' : '/dashboard');
 }

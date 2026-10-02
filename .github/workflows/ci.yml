@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, canary]
   pull_request:
-    branches: [master]
+    branches: [master, canary]
 
 permissions:
   contents: read
@@ -84,6 +84,15 @@ jobs:
               psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
             done
           done
+
+      - name: Apply and verify canary app schema
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "CREATE ROLE straits_canary NOLOGIN"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "GRANT SELECT ON public.vessels TO straits_canary"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/canary-schema.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "SET ROLE straits_canary; INSERT INTO canary.performance_samples (sample_id, metric, route, device, connection, value, build_sha) VALUES ('00000000-0000-4000-8000-000000000001', 'LCP', '/investigations', 'desktop', 'unknown', 1, 'ci') ON CONFLICT DO NOTHING; DELETE FROM canary.performance_samples WHERE sample_id = '00000000-0000-4000-8000-000000000001'; RESET ROLE"
 
       - name: Verify schema security invariants
         env:

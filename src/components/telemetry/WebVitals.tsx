@@ -11,7 +11,7 @@ let warned = false;
 function getSample(): Sample {
   if (sample !== undefined) return sample;
   const route = window.location.pathname;
-  if (!['/dashboard', '/fleet', '/analytics', '/about'].includes(route) || Math.random() >= 0.1) {
+  if (!['/dashboard', '/fleet', '/analytics', '/about', '/investigations'].includes(route) || Math.random() >= 0.1) {
     sample = null;
     return sample;
   }
