@@ -105,7 +105,7 @@ export function CoverageClient() {
     : regionMapHref;
 
   return (
-    <main className="min-h-[calc(100vh-3.5rem)] bg-[#050505] px-4 py-5 text-zinc-200 md:px-8">
+    <main className="min-h-[calc(100vh-3.5rem)] bg-[#050505] px-4 py-5 text-zinc-200 md:px-8 phone:pb-[calc(var(--straits-nav-h)+1rem)]">
       <div className="mx-auto max-w-7xl space-y-5">
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-amber-500/20 pb-4">
           <div>
