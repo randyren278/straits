@@ -24,6 +24,33 @@ function routeGeoJson(index: number) {
   };
 }
 
+function projectRoute(coordinates: readonly (readonly [number, number])[]): string {
+  return coordinates.map(([longitude, latitude]) => {
+    const x = ((longitude + 23) / 102) * 1000;
+    const y = ((55 - latitude) / 95) * 500;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+}
+
+function RouteSketch({ highlighted }: { highlighted: HighlightedRoute }) {
+  const suez = projectRoute(PARALLEL_SEAS_ROUTES[0].waypoints.map(({ coordinate }) => coordinate));
+  const cape = projectRoute(PARALLEL_SEAS_ROUTES[1].waypoints.map(({ coordinate }) => coordinate));
+  return (
+    <svg viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" className="absolute inset-0 h-full w-full" aria-hidden="true">
+      <rect width="1000" height="500" fill="#071015" />
+      {[100, 200, 300, 400].map((y) => <line key={`lat-${y}`} x1="0" x2="1000" y1={y} y2={y} stroke="#132129" strokeWidth="1" />)}
+      {[200, 400, 600, 800].map((x) => <line key={`lon-${x}`} x1={x} x2={x} y1="0" y2="500" stroke="#132129" strokeWidth="1" />)}
+      <polyline points={suez} fill="none" stroke="#e6a23c" strokeWidth={highlighted === 'cape' ? 2 : 3.6} strokeOpacity={highlighted === 'cape' ? 0.24 : 0.98} strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={cape} fill="none" stroke="#58c4a3" strokeWidth={highlighted === 'suez' ? 2 : 3.6} strokeOpacity={highlighted === 'suez' ? 0.24 : 0.98} strokeLinecap="round" strokeLinejoin="round" />
+      {[[72.85, 18.93, 'MUMBAI'], [32.55, 29.95, 'SUEZ'], [18.4, -34.4, 'CAPE'], [4.48, 51.92, 'ROTTERDAM']].map(([longitude, latitude, label]) => {
+        const x = ((Number(longitude) + 23) / 102) * 1000;
+        const y = ((55 - Number(latitude)) / 95) * 500;
+        return <g key={String(label)}><circle cx={x} cy={y} r="5" fill="#f3f4f6" stroke="#071015" strokeWidth="2" /><text x={x + 8} y={y + 4} fill="#d1d5db" fontSize="12" fontFamily="monospace">{label}</text></g>;
+      })}
+    </svg>
+  );
+}
+
 function RouteMap({ highlighted }: { highlighted: HighlightedRoute }) {
   const element = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
@@ -44,11 +71,16 @@ function RouteMap({ highlighted }: { highlighted: HighlightedRoute }) {
         fitBoundsOptions: { padding: 30, maxZoom: 2.8, duration: 0 },
       });
     } catch {
+      // MapLibre construction touches browser WebGL APIs that can be unavailable.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMapError(true);
       return;
     }
     map.current = instance;
     instance.on('error', () => setMapError(true));
+    const resizeObserver = new ResizeObserver(() => instance.resize());
+    resizeObserver.observe(element.current);
+    const resizeFrame = requestAnimationFrame(() => instance.resize());
     instance.once('load', () => {
       instance.addSource('parallel-seas-suez', { type: 'geojson', data: routeGeoJson(0) });
       instance.addSource('parallel-seas-cape', { type: 'geojson', data: routeGeoJson(1) });
@@ -101,8 +133,15 @@ function RouteMap({ highlighted }: { highlighted: HighlightedRoute }) {
         paint: { 'text-color': '#d1d5db', 'text-halo-color': '#050607', 'text-halo-width': 1.2 },
       });
       setReady(true);
+      instance.once('idle', () => {
+        if (instance.queryRenderedFeatures({ layers: ['parallel-seas-suez-line', 'parallel-seas-cape-line'] }).length === 0) {
+          setMapError(true);
+        }
+      });
     });
     return () => {
+      resizeObserver.disconnect();
+      cancelAnimationFrame(resizeFrame);
       instance.remove();
       map.current = null;
     };
@@ -124,11 +163,12 @@ function RouteMap({ highlighted }: { highlighted: HighlightedRoute }) {
   return (
     <figure className="min-w-0 border border-gray-800 bg-[#080a0c]" aria-label="Approximate route map from Mumbai to Rotterdam">
       <div className="relative h-[320px] roomy:h-[420px]">
-        <div ref={element} className="absolute inset-0" aria-hidden="true" />
+        <div ref={element} className={`absolute inset-0 h-full w-full ${mapError ? 'opacity-0' : ''}`} aria-hidden="true" />
+        {mapError && <RouteSketch highlighted={highlighted} />}
         {mapError && (
           <div className="absolute inset-x-2 bottom-2 border border-gray-700 bg-black/90 px-3 py-2 text-center">
             <p className="text-[10px] leading-4 text-gray-400">
-              Basemap reported a tile error. Route assumptions and calculations remain available below.
+              The map renderer could not show the route layers. This schematic preserves the approximate comparison.
             </p>
           </div>
         )}
@@ -332,7 +372,7 @@ export function ParallelSeasWorkbench({
           <li>Speed is a constant average over the full route; weather, currents, vessel handling, and speed restrictions are excluded.</li>
           <li>Distances sum great-circle legs between fixed illustrative waypoints. Actual navigable routes and canal transits differ.</li>
           <li>Closure delay is a scenario input, not a report that Suez is closed.</li>
-          <li>Hormuz remains on both routes; this comparison does not model a Hormuz bypass.</li>
+          <li>These routes start outside the Persian Gulf; the Cape diversion does not provide a Hormuz bypass for vessels inside the Gulf.</li>
           <li>Fuel use, freight rates, cargo value, and economic effects are not estimated.</li>
         </ul>
       </section>
