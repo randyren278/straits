@@ -37,6 +37,7 @@
  *   AIS_OUTAGE_THRESHOLD       consecutive empty windows before an outage alert (default 3)
  *   DETECTOR_FAILURE_THRESHOLD consecutive detector-step failures before an alert (default 6)
  *   OUTAGE_RENOTIFY_HOURS      re-notify heartbeat while either alert is ongoing (default 6)
+ *   EGRESS_DAILY_BUDGET_MB     rolling-24h Supabase egress before the run warns (default 100)
  */
 import WebSocket from 'ws';
 import { execFileSync } from 'child_process';
@@ -45,6 +46,7 @@ import { homedir } from 'os';
 import { join } from 'path';
 import { pool } from '../../lib/db';
 import { withDbRetry } from './db-retry';
+import { meterPool, rollEgressHistory, sumBytes, egressBudgetWarning, formatMB, type EgressSample } from './egress-meter';
 import { computeSustainedAlert } from './outage-alert';
 import { fetchMiddleEastAisFallback, type MiddleEastFallbackPosition } from './middle-east-fallback';
 import {
@@ -109,6 +111,15 @@ const DETECTOR_FAILURE_THRESHOLD = Number(process.env.DETECTOR_FAILURE_THRESHOLD
 // this same interval while the incident continues, instead of firing once and
 // going quiet for the rest of a multi-day outage.
 const OUTAGE_RENOTIFY_INTERVAL_MS = Number(process.env.OUTAGE_RENOTIFY_HOURS ?? 6) * 60 * 60 * 1000;
+// The org's Free-plan egress quota is 5 GB/month (~166 MB/day) shared with the
+// website's reads; the harvester's share must stay well under that.
+const EGRESS_DAILY_BUDGET_BYTES = Number(process.env.EGRESS_DAILY_BUDGET_MB ?? 100) * 1e6;
+// Daily crossing counts don't need 10-minute freshness; recomputing them from
+// 3-4 days of raw positions every run cost ~1.7 MB of egress each time.
+const SUEZ_RECOMPUTE_MINUTES = 60;
+
+// Attached before the first query so every connection's bytes are counted.
+const egressMeter = meterPool(pool);
 
 // ── Types (standalone, mirrors index.ts to avoid importing the daemon) ────────
 interface Pos {
@@ -174,6 +185,14 @@ type Status = {
   detectorFailureAlertSent: boolean;
   /** ISO timestamp of the last detector-failure notification, or null. */
   detectorFailureLastNotifyAt: string | null;
+  /** Bytes downloaded from Supabase by this run (wire bytes, billed as egress). */
+  egressBytes: number;
+  /** This run's egress by phase: "core", each step() name, and "other". */
+  egressByStep: Record<string, number>;
+  /** One sample per run over the last 24h; carried forward across runs. */
+  egressHistory: EgressSample[];
+  /** Sum of egressHistory. */
+  egress24hBytes: number;
 };
 const status: Status = {
   lastRun: '', ok: false, error: null, durationMs: 0,
@@ -188,7 +207,10 @@ const status: Status = {
   warnings: [], consecutiveFailures: 0, lastOkRun: null,
   consecutiveEmptyAisWindows: 0, aisOutageAlertSent: false, aisOutageLastNotifyAt: null,
   consecutiveDetectorFailures: 0, detectorFailureAlertSent: false, detectorFailureLastNotifyAt: null,
+  egressBytes: 0, egressByStep: {}, egressHistory: [], egress24hBytes: 0,
 };
+/** egressHistory from the previous run's status.json, set once in main(). */
+let prevEgressHistory: unknown = [];
 
 /** Previous run's status, for the failure streak + last-ok carry-forward. */
 function readPrevStatus(): Partial<Status> {
@@ -199,8 +221,20 @@ function readPrevStatus(): Partial<Status> {
   }
 }
 
+/** Refresh the egress fields from the meter; safe to call repeatedly in a run. */
+function updateEgress(): void {
+  status.egressBytes = egressMeter.totalBytes();
+  const attributed = Object.entries(status.egressByStep)
+    .filter(([name]) => name !== 'other')
+    .reduce((sum, [, bytes]) => sum + bytes, 0);
+  status.egressByStep.other = Math.max(0, status.egressBytes - attributed);
+  status.egressHistory = rollEgressHistory(prevEgressHistory, { at: status.lastRun, bytes: status.egressBytes }, Date.now());
+  status.egress24hBytes = sumBytes(status.egressHistory);
+}
+
 function writeStatus(startedAt: number): void {
   status.durationMs = Date.now() - startedAt;
+  updateEgress();
   try {
     mkdirSync(STATE_DIR, { recursive: true });
     // Write-then-rename so a power cut mid-write can't leave a truncated
@@ -573,6 +607,7 @@ async function step(name: string, budgetMs: number, fn: () => Promise<void>): Pr
   // Started outside the race and given its own handler immediately: if the
   // budget loses, this reference is what lets us track (and later wait for)
   // the work instead of severing all contact with it.
+  const bytesBefore = egressMeter.totalBytes();
   const work = fn();
   work.catch(() => { /* surfaced below (or, if abandoned, logged as a warning already) */ });
   let timer: NodeJS.Timeout | undefined;
@@ -600,6 +635,9 @@ async function step(name: string, budgetMs: number, fn: () => Promise<void>): Pr
     return false;
   } finally {
     if (timer) clearTimeout(timer);
+    // Abandoned work keeps downloading after this point; those bytes land in
+    // whichever phase is measured next.
+    status.egressByStep[name] = egressMeter.totalBytes() - bytesBefore;
   }
 }
 
@@ -762,6 +800,7 @@ async function main(): Promise<void> {
   status.consecutiveDetectorFailures = prev.consecutiveDetectorFailures ?? 0;
   status.detectorFailureAlertSent = prev.detectorFailureAlertSent ?? false;
   const prevDetectorNotifiedAt = prev.detectorFailureLastNotifyAt ? new Date(prev.detectorFailureLastNotifyAt).getTime() : null;
+  prevEgressHistory = prev.egressHistory ?? [];
 
   if (!process.env.DATABASE_URL || !process.env.AISSTREAM_API_KEY) {
     status.error = 'DATABASE_URL and AISSTREAM_API_KEY are required';
@@ -876,6 +915,7 @@ async function main(): Promise<void> {
     status.ok = true;
     status.consecutiveFailures = 0;
     status.lastOkRun = status.lastRun;
+    status.egressByStep.core = egressMeter.totalBytes();
 
     // Publish the core result immediately. Detector/enrichment work can take
     // minutes, but the menu bar's health contract is about whether current
@@ -892,6 +932,10 @@ async function main(): Promise<void> {
     // days) before the prune, so a passage straddling the retention edge is
     // still counted once and no day is ever written from a truncated track.
     await step('suez crossings', 60_000, async () => {
+      if (!(await isStale(`SELECT MAX(computed_at) AS ts FROM chokepoint_daily WHERE chokepoint = 'suez'`, SUEZ_RECOMPUTE_MINUTES))) {
+        console.log(`Suez crossings: recomputed within ${SUEZ_RECOMPUTE_MINUTES}m, skipped`);
+        return;
+      }
       const r = await runSuezCrossingsJob({ days: 2 });
       console.log(`Suez crossings: ${r.complete} complete, ${r.incomplete} incomplete, ${r.waiting} waiting for ${r.writeDays.join(', ')} (${r.tracks} tracks since ${r.loadedSince.slice(0, 10)})`);
     });
@@ -921,6 +965,11 @@ async function main(): Promise<void> {
     status.detectorFailureLastNotifyAt = detectorFailures.notifiedAt
       ? new Date(detectorFailures.notifiedAt).toISOString() : null;
     if (detectorFailures.shouldNotify) notifyDetectorFailures(detectorFailures.count);
+
+    updateEgress();
+    const overBudget = egressBudgetWarning(status.egress24hBytes, EGRESS_DAILY_BUDGET_BYTES);
+    if (overBudget) warn(overBudget);
+    console.log(`Supabase egress: ${formatMB(status.egressBytes)} this run, ${formatMB(status.egress24hBytes)} in 24h`);
 
     if (status.warnings.length > 0) status.error = `${status.warnings.length} step(s) degraded`;
     console.log(`Harvest OK in ${Date.now() - startedAt}ms (${status.warnings.length} warnings)`);
