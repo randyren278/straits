@@ -3,6 +3,7 @@
  * aggregates that outlive the raw-position prune. Server-only.
  */
 import { pool } from './index';
+import { readerPool } from './reader';
 import { CHOKEPOINTS } from '../geo/chokepoints-constants';
 import type { TrackPoint, DailyCrossingCounts } from '../analytics/crossings';
 
@@ -35,7 +36,8 @@ export async function ensureChokepointDailySchema(): Promise<void> {
  */
 export async function loadSuezTracks(since: Date, until: Date = new Date()): Promise<Map<string, TrackPoint[]>> {
   const b = CHOKEPOINTS.suez.bounds;
-  const result = await pool.query<{ mmsi: string; time: Date; latitude: number; longitude: number }>(
+  // Mirrored table only, ≤ 4 days back — see readerPool().
+  const result = await readerPool().query<{ mmsi: string; time: Date; latitude: number; longitude: number }>(
     `SELECT mmsi, time, latitude, longitude
      FROM vessel_positions
      WHERE time >= $1 AND time < $2

@@ -97,6 +97,13 @@ LASTOK=$(read_json '.lastOkRun' 'lastOkRun')
 DETFAILS=$(read_json '.consecutiveDetectorFailures' 'consecutiveDetectorFailures')
 EGRESS_RUN=$(read_json '.egressBytes' 'egressBytes')
 EGRESS_24H=$(read_json '.egress24hBytes' 'egress24hBytes')
+MIRROR_SERVED=""
+MIRROR_REASON=""
+if command -v jq >/dev/null 2>&1; then
+  MIRROR_SERVED=$(jq -r 'if .mirror == null then "" else (.mirror.servedReads | tostring) end' "$STATUS" 2>/dev/null)
+  MIRROR_REASON=$(jq -r '.mirror.reason // ""' "$STATUS" 2>/dev/null)
+fi
+MIRRORFAILS=$(read_json '.consecutiveMirrorFailures' 'consecutiveMirrorFailures')
 WARNINGS=$(read_warnings)
 WARN_COUNT=0
 [ -n "$WARNINGS" ] && WARN_COUNT=$(printf '%s\n' "$WARNINGS" | wc -l | tr -d ' ')
@@ -160,6 +167,7 @@ fi
 # A one-off degraded run is normal (named below via WARNINGS); a run of them
 # is the pattern that used to go unnoticed for ~30 runs with no counter at all.
 [ -n "$DETFAILS" ] && [ "$DETFAILS" -gt 1 ] 2>/dev/null && echo "Detectors failing: ${DETFAILS} runs in a row | color=orange"
+[ -n "$MIRRORFAILS" ] && [ "$MIRRORFAILS" -gt 1 ] 2>/dev/null && echo "Local mirror unusable: ${MIRRORFAILS} runs in a row (Supabase egress) | color=orange"
 # Name the degraded steps rather than a generic "failed".
 if [ -n "$WARNINGS" ]; then
   echo "---"
@@ -190,6 +198,11 @@ echo "DB ${DBMB:-?} MB / 500 MB cap · ${TOTAL:-?} positions stored | size=11 co
 mb() { awk -v b="${1:-0}" 'BEGIN { printf "%.1f MB", b / 1e6 }'; }
 if [ -n "$EGRESS_24H" ]; then
   echo "Supabase egress: $(mb "$EGRESS_RUN") this run · $(mb "$EGRESS_24H") / 24h | size=11 color=gray"
+  if [ "$MIRROR_SERVED" = "true" ]; then
+    echo "Local mirror: serving heavy reads | size=11 color=gray"
+  elif [ "$MIRROR_SERVED" = "false" ]; then
+    echo "Local mirror: not used — ${MIRROR_REASON:-unknown} | size=11 color=orange"
+  fi
   if command -v jq >/dev/null 2>&1; then
     jq -r '(.egressByStep // {}) | to_entries | sort_by(-.value)[] | "\(.key)\t\(.value)"' "$STATUS" 2>/dev/null |
       while IFS=$'\t' read -r name bytes; do

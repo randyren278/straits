@@ -38,6 +38,9 @@
  *   DETECTOR_FAILURE_THRESHOLD consecutive detector-step failures before an alert (default 6)
  *   OUTAGE_RENOTIFY_HOURS      re-notify heartbeat while either alert is ongoing (default 6)
  *   EGRESS_DAILY_BUDGET_MB     rolling-24h Supabase egress before the run warns (default 100)
+ *   MIRROR_DATABASE_URL        local Postgres mirror (default postgres://postgres@127.0.0.1:5433/straits_mirror; "off" disables)
+ *   MIRROR_REPAIR_BUDGET_MB    rolling-24h cap on bytes pulled to build/repair the mirror (default 60)
+ *   MIRROR_FAILURE_THRESHOLD   consecutive runs without a usable mirror before an alert (default 3)
  */
 import WebSocket from 'ws';
 import { execFileSync } from 'child_process';
@@ -81,7 +84,13 @@ import { ensureCollectionBucketsSchema, upsertCollectionBuckets } from '../../li
 import { runSuezCrossingsJob } from './crossings-job';
 import { runTrackEngine } from '../../lib/tracks/engine';
 import { grid } from '../../lib/tracks/land';
-import { loadEngineVessels, loadLaneDensity, loadLearnState, saveEngineRun, saveLaneDensity } from '../../lib/db/tracks';
+import { loadEngineVessels, loadLaneDensity, loadLearnState, saveEngineRun, saveLaneDensity, laneDensityFromRows } from '../../lib/db/tracks';
+import { normalizeLearnState } from '../../lib/tracks/learn';
+import {
+  createMirrorPool, syncMirror, mirrorReader, loadLaneRowsMirrored, loadLearnMirrored, recordTrackStateSaved,
+  type MirrorSyncResult,
+} from '../../lib/db/mirror';
+import { setReaderPool } from '../../lib/db/reader';
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const WINDOW_MS = Number(process.env.HARVEST_WINDOW_MS ?? 90_000);
@@ -114,9 +123,19 @@ const OUTAGE_RENOTIFY_INTERVAL_MS = Number(process.env.OUTAGE_RENOTIFY_HOURS ?? 
 // The org's Free-plan egress quota is 5 GB/month (~166 MB/day) shared with the
 // website's reads; the harvester's share must stay well under that.
 const EGRESS_DAILY_BUDGET_BYTES = Number(process.env.EGRESS_DAILY_BUDGET_MB ?? 100) * 1e6;
-// Daily crossing counts don't need 10-minute freshness; recomputing them from
-// 3-4 days of raw positions every run cost ~1.7 MB of egress each time.
-const SUEZ_RECOMPUTE_MINUTES = 60;
+// Local Postgres mirror of the harvester's own tables (src/lib/db/mirror.ts):
+// heavy reads go there instead of costing Supabase egress.
+const MIRROR_URL = process.env.MIRROR_DATABASE_URL ?? 'postgres://postgres@127.0.0.1:5433/straits_mirror';
+const MIRROR_REPAIR_BUDGET_BYTES = Number(process.env.MIRROR_REPAIR_BUDGET_MB ?? 60) * 1e6;
+const MIRROR_FAILURE_THRESHOLD = Number(process.env.MIRROR_FAILURE_THRESHOLD ?? 3);
+// Without the mirror, the two heaviest reads (track engine ~6 MB, Suez
+// crossings ~1.7 MB per run) run at most this often, bounding egress while
+// the mirror is down. With it they run every harvest at no egress cost.
+const DEGRADED_HEAVY_STEP_MINUTES = 60;
+
+const mirrorPool = MIRROR_URL === 'off' ? null : createMirrorPool(MIRROR_URL);
+/** Set once the mirror is verified this run; cleared if a mirrored read fails. */
+let mirrorReady = false;
 
 // Attached before the first query so every connection's bytes are counted.
 const egressMeter = meterPool(pool);
@@ -193,6 +212,13 @@ type Status = {
   egressHistory: EgressSample[];
   /** Sum of egressHistory. */
   egress24hBytes: number;
+  /** This run's mirror sync; null when it never ran. `ready` is whether the
+   * heavy reads were served from the mirror. */
+  mirror: (Omit<MirrorSyncResult, 'bucketsChecked'> & { servedReads: boolean }) | null;
+  /** Consecutive runs whose heavy reads could not use the mirror. */
+  consecutiveMirrorFailures: number;
+  mirrorFailureAlertSent: boolean;
+  mirrorFailureLastNotifyAt: string | null;
 };
 const status: Status = {
   lastRun: '', ok: false, error: null, durationMs: 0,
@@ -208,6 +234,7 @@ const status: Status = {
   consecutiveEmptyAisWindows: 0, aisOutageAlertSent: false, aisOutageLastNotifyAt: null,
   consecutiveDetectorFailures: 0, detectorFailureAlertSent: false, detectorFailureLastNotifyAt: null,
   egressBytes: 0, egressByStep: {}, egressHistory: [], egress24hBytes: 0,
+  mirror: null, consecutiveMirrorFailures: 0, mirrorFailureAlertSent: false, mirrorFailureLastNotifyAt: null,
 };
 /** egressHistory from the previous run's status.json, set once in main(). */
 let prevEgressHistory: unknown = [];
@@ -280,6 +307,13 @@ function notifyOutage(windows: number): void {
   notifyOperator(
     'STRAITS · AIS feed dark',
     `No AIS positions for ${windows} consecutive windows. Check provider status.`
+  );
+}
+
+function notifyMirrorFailures(runs: number): void {
+  notifyOperator(
+    'STRAITS · Local mirror down',
+    `Heavy reads have used Supabase for ${runs} consecutive runs, so egress is climbing. See docs/HARVESTER.md "Local mirror".`
   );
 }
 
@@ -668,14 +702,40 @@ async function runDetectors(): Promise<void> {
 
 // ── Track engine: clean, smooth, estimate, learn ──────────────────────────────
 async function runTrackEngineStep(): Promise<void> {
+  if (!mirrorReady && !(await isStale(`SELECT updated_at AS ts FROM track_engine_state WHERE key = 'summary'`, DEGRADED_HEAVY_STEP_MINUTES))) {
+    console.log(`Track engine: mirror unavailable and ran within ${DEGRADED_HEAVY_STEP_MINUTES}m, skipped`);
+    return;
+  }
   const now = new Date();
+  const size = grid.w * grid.h;
+  const local = mirrorReady ? mirrorPool : null;
+  // Mirrored state is optional: any local failure falls back to Supabase.
+  const fallBack = <T>(what: string, load: () => Promise<T>) => (err: Error): Promise<T> => {
+    warn(`mirror ${what} unavailable, read from Supabase — ${err.message}`);
+    return load();
+  };
   const [vessels, density, learn] = await Promise.all([
-    loadEngineVessels(), loadLaneDensity(now, grid.w * grid.h), loadLearnState(),
+    loadEngineVessels(),
+    local
+      ? loadLaneRowsMirrored(pool, local).then((r) => laneDensityFromRows(r.rows, now, size))
+        .catch(fallBack('lane density', () => loadLaneDensity(now, size)))
+      : loadLaneDensity(now, size),
+    local
+      ? loadLearnMirrored(pool, local).then((r) => normalizeLearnState(r.value))
+        .catch(fallBack('learn state', loadLearnState))
+      : loadLearnState(),
   ]);
   const t0 = Date.now();
   const out = runTrackEngine({ vessels, now: now.getTime() / 60000, density, learn });
   await saveEngineRun(out.payloads, learn, { backtest: out.backtest, learned: out.learned }, out.replay);
   await saveLaneDensity(out.densityDelta);
+  if (local) {
+    try {
+      await recordTrackStateSaved(pool, local, { learnJson: JSON.stringify(learn), touchedCells: [...out.densityDelta.keys()] });
+    } catch (err) {
+      warn(`mirror could not record track state; the next run re-copies it — ${(err as Error).message}`);
+    }
+  }
   const moving = out.payloads.filter((p) => p.state === 'underway').length;
   console.log(`Track engine: ${out.payloads.length} vessels, ${moving} estimated, backtest ${out.backtest.n} → ${out.backtest.estimate.toFixed(2)} nm vs hold ${out.backtest.hold.toFixed(2)} nm (${Date.now() - t0} ms compute)`);
 }
@@ -782,6 +842,45 @@ async function writeCollectionBuckets(
   }
 }
 
+// ── Local mirror ──────────────────────────────────────────────────────────────
+/**
+ * Verify/repair the mirror, then — only if this step finished in budget and
+ * the mirror is identical to Supabase — send the heavy reads there for the
+ * rest of the run. An abandoned sync can never switch readers mid-run.
+ */
+async function runMirrorStep(): Promise<void> {
+  if (!mirrorPool) {
+    status.mirror = { ready: false, reason: 'disabled (MIRROR_DATABASE_URL=off)', bucketsRepaired: 0, bucketsPending: 0, rowsPulled: 0, bytesPulled: 0, servedReads: false };
+    return;
+  }
+  let result: MirrorSyncResult | null = null;
+  const finished = await step('mirror sync', 75_000, async () => {
+    result = await syncMirror(pool, mirrorPool, {
+      now: new Date(),
+      deadline: Date.now() + 50_000,
+      repairBudgetBytes: MIRROR_REPAIR_BUDGET_BYTES,
+    });
+  });
+  const r = result as MirrorSyncResult | null;
+  if (!finished || !r) {
+    status.mirror = { ready: false, reason: 'mirror sync did not finish in budget', bucketsRepaired: 0, bucketsPending: 0, rowsPulled: 0, bytesPulled: 0, servedReads: false };
+    return;
+  }
+  const { bucketsChecked, ...summary } = r;
+  status.mirror = { ...summary, servedReads: r.ready };
+  console.log(`Mirror: ${r.ready ? 'verified' : 'NOT ready'} — ${bucketsChecked} hours checked, ${r.bucketsRepaired} copied, ${r.rowsPulled} rows (${formatMB(r.bytesPulled)})${r.reason ? `; ${r.reason}` : ''}`);
+  if (!r.ready) {
+    warn(`mirror not ready, heavy reads use Supabase this run — ${r.reason}`);
+    return;
+  }
+  mirrorReady = true;
+  setReaderPool(mirrorReader(mirrorPool, pool, (err) => {
+    mirrorReady = false;
+    if (status.mirror) status.mirror.servedReads = false;
+    warn(`mirror read failed, reading Supabase for the rest of this run — ${err.message}`);
+  }));
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
   const startedAt = Date.now();
@@ -801,6 +900,9 @@ async function main(): Promise<void> {
   status.detectorFailureAlertSent = prev.detectorFailureAlertSent ?? false;
   const prevDetectorNotifiedAt = prev.detectorFailureLastNotifyAt ? new Date(prev.detectorFailureLastNotifyAt).getTime() : null;
   prevEgressHistory = prev.egressHistory ?? [];
+  status.consecutiveMirrorFailures = prev.consecutiveMirrorFailures ?? 0;
+  status.mirrorFailureAlertSent = prev.mirrorFailureAlertSent ?? false;
+  const prevMirrorNotifiedAt = prev.mirrorFailureLastNotifyAt ? new Date(prev.mirrorFailureLastNotifyAt).getTime() : null;
 
   if (!process.env.DATABASE_URL || !process.env.AISSTREAM_API_KEY) {
     status.error = 'DATABASE_URL and AISSTREAM_API_KEY are required';
@@ -927,13 +1029,14 @@ async function main(): Promise<void> {
     // Budgets are sized from measured cost, not guessed: the detector pass is
     // the expensive one (~50-120s over the pooler); prune/prices/news/sanctions
     // are all seconds, so they get modest ceilings and the detectors get room.
+    await runMirrorStep();
     const detectorsOk = await step('detectors', 150_000, runDetectors);
     // Recompute yesterday + today from a day-aligned 4-day window (2 buffer
     // days) before the prune, so a passage straddling the retention edge is
     // still counted once and no day is ever written from a truncated track.
     await step('suez crossings', 60_000, async () => {
-      if (!(await isStale(`SELECT MAX(computed_at) AS ts FROM chokepoint_daily WHERE chokepoint = 'suez'`, SUEZ_RECOMPUTE_MINUTES))) {
-        console.log(`Suez crossings: recomputed within ${SUEZ_RECOMPUTE_MINUTES}m, skipped`);
+      if (!mirrorReady && !(await isStale(`SELECT MAX(computed_at) AS ts FROM chokepoint_daily WHERE chokepoint = 'suez'`, DEGRADED_HEAVY_STEP_MINUTES))) {
+        console.log(`Suez crossings: mirror unavailable and recomputed within ${DEGRADED_HEAVY_STEP_MINUTES}m, skipped`);
         return;
       }
       const r = await runSuezCrossingsJob({ days: 2 });
@@ -966,6 +1069,21 @@ async function main(): Promise<void> {
       ? new Date(detectorFailures.notifiedAt).toISOString() : null;
     if (detectorFailures.shouldNotify) notifyDetectorFailures(detectorFailures.count);
 
+    // Read at the end: a mirror that failed mid-run counts as unavailable.
+    const mirrorFailures = computeSustainedAlert({
+      failing: mirrorPool !== null && !mirrorReady,
+      prevCount: status.consecutiveMirrorFailures,
+      prevAlertSent: status.mirrorFailureAlertSent,
+      threshold: MIRROR_FAILURE_THRESHOLD,
+      now: startedAt,
+      prevNotifiedAt: prevMirrorNotifiedAt,
+      renotifyIntervalMs: OUTAGE_RENOTIFY_INTERVAL_MS,
+    });
+    status.consecutiveMirrorFailures = mirrorFailures.count;
+    status.mirrorFailureAlertSent = mirrorFailures.alertSent;
+    status.mirrorFailureLastNotifyAt = mirrorFailures.notifiedAt ? new Date(mirrorFailures.notifiedAt).toISOString() : null;
+    if (mirrorFailures.shouldNotify) notifyMirrorFailures(mirrorFailures.count);
+
     updateEgress();
     const overBudget = egressBudgetWarning(status.egress24hBytes, EGRESS_DAILY_BUDGET_BYTES);
     if (overBudget) warn(overBudget);
@@ -991,6 +1109,7 @@ async function main(): Promise<void> {
       await Promise.allSettled(abandonedWork);
     }
     try { await pool.end(); } catch { /* ignore */ }
+    try { await mirrorPool?.end(); } catch { /* ignore */ }
   }
   process.exit(status.ok ? 0 : 1);
 }

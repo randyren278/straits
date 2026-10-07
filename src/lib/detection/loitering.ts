@@ -9,7 +9,7 @@
  *
  * Requirements: ANOM-02
  */
-import { pool } from '../db';
+import { readerPool } from '../db/reader';
 import { haversineDistance } from '../geo/haversine';
 import { isInAnchorage } from '../geo/anchorages';
 import { isDeclaredStationary } from '../ais/nav-status';
@@ -107,7 +107,8 @@ export async function detectLoitering(): Promise<number> {
   // Get positions from last 6 hours for all vessels, grouped by vessel.
   // Also surface the most recent nav_status and its timestamp so a fresh
   // declared "at anchor"/"moored" status can suppress false positives.
-  const result = await pool.query<{
+  // Mirrored tables only, last 6h — see readerPool().
+  const result = await readerPool().query<{
     imo: string;
     mmsi: string;
     positions: Position[];

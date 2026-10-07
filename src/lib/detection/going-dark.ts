@@ -10,6 +10,7 @@
  * Requirements: ANOM-01
  */
 import { pool } from '../db';
+import { readerPool } from '../db/reader';
 import { isInCoverageZone, getCoverageZone } from './coverage-zones';
 import { upsertAnomaliesBatch } from '../db/anomalies';
 import type { Confidence, UpsertAnomalyInput } from '../../types/anomaly';
@@ -104,8 +105,10 @@ export function shouldFlagAsGoingDark(lat: number, lon: number, gapMinutes: numb
 export async function detectGoingDark(): Promise<number> {
   // Query vessels with no update in >2 hours, bounded below by MAX_GAP_DAYS
   // so a prolonged feed outage can't grow this candidate set without limit
-  // (see MAX_GAP_DAYS doc comment above).
-  const result = await pool.query<GapCandidate>(`
+  // (see MAX_GAP_DAYS doc comment above). Mirrored tables only — the
+  // unbounded latest-position lookup is safe because the mirror is an exact
+  // copy of vessel_positions, prune included (see readerPool()).
+  const result = await readerPool().query<GapCandidate>(`
     SELECT v.imo, v.last_seen as "lastSeen",
            p.latitude as "lastLat", p.longitude as "lastLon",
            EXTRACT(EPOCH FROM (NOW() - v.last_seen)) / 60 as "gapMinutes"
