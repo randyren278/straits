@@ -19,10 +19,14 @@ launchd  (StartInterval=600, RunAtLoad)
               1. connect AISStream, collect ~90s; on an empty/rate-limited window, fetch the Middle East fallback
               2. dedupe → latest position per vessel this window
               3. bulk upsert vessels + insert positions  → Supabase (:6543 pooler)   ← the CORE
-              4. run anomaly detectors once                       ┐
-              5. prune vessel_positions older than RETENTION_DAYS │ each time-budgeted;
-              6. refresh prices / news / sanctions (freshness-gated) ┘ skipped, never fatal
-              7. write ~/.straits-harvester/status.json → exit
+              4. verify/repair the local mirror; if identical, heavy reads go to it ┐
+              5. run anomaly detectors, Suez crossings, track engine            │ each time-budgeted;
+              6. prune vessel_positions older than RETENTION_DAYS               │ skipped, never fatal
+              7. refresh prices / news / sanctions (freshness-gated)            ┘
+              8. write ~/.straits-harvester/status.json (incl. Supabase egress) → exit
+
+launchd  (KeepAlive)
+   └─ scripts/harvester/run-mirror-db.sh → Postgres 17 on 127.0.0.1:5433 (the local mirror)
 
 SwiftBar  (straits.10m.sh, optional)
    └─ reads status.json → ● menu-bar readout (hidden when healthy) + dropdown (open site, run now, view log)
@@ -251,6 +255,60 @@ stays open, server still pings) means the provider is down, not your key.
 
 ---
 
+## Egress & the local mirror
+
+The org's Free plan includes **5 GB/month of egress**: every byte Supabase
+sends out, including query results over the pooler to this Mac. Uploads are
+free. In Oct 2026 the harvester blew through it: each run re-downloaded
+~8-9 MB it had just written (track engine 6.1 MB, detectors 1.3 MB, Suez
+crossings 1.7 MB), about 1 GB/day.
+
+**Metering.** Every run counts the wire bytes received on each Supabase
+connection and records them in `status.json`: `egressBytes` (this run),
+`egressByStep` (per step), and `egress24hBytes` (rolling 24h). The SwiftBar
+dropdown shows the same, with a per-step submenu. Over
+`EGRESS_DAILY_BUDGET_MB` (default 100) in 24h, the run warns (amber).
+
+**Local mirror.** A Postgres on this Mac (`local.straits.mirror-db`, port
+5433) holds exact copies of the tables the harvester writes:
+`vessel_positions` (the last 5 days are verified; up to 90 days are kept),
+`vessels`, `vessel_fallback_metadata`, and the track engine's `lane_density`
+and learn state. Each run, after the core upload:
+
+1. Per-hour checksums of positions are compared on both sides (one small query
+   each). Only hours that differ are re-copied, normally just the hour this run
+   wrote into. Vessels and fallback metadata pull rows whose `last_seen` moved,
+   then whole-table checksums confirm they match.
+2. If everything matches, the heavy reads go to the mirror for the rest of the
+   run: the track engine, Suez crossings, and the loitering, speed, deviation
+   and teleport detectors (`readerPool()` in `src/lib/db/reader.ts`). Everything
+   else, including every write, still goes to Supabase.
+3. A mirrored read that fails switches the rest of the run back to Supabase.
+
+Supabase is the source of truth and the mirror is a disposable, verified
+cache. Copies are exact: they are read under `SET LOCAL extra_float_digits = 3`,
+while the mirror's sessions round floats like Supabase's pooled sessions do, so
+mirrored reads return exactly what Supabase reads would.
+`scripts/verify-mirror-equivalence.ts` proves this by diffing every mirrored
+read against Supabase.
+
+**When the mirror can't be used** (Postgres down, still bootstrapping, a repair
+budget hit), the run reads Supabase as before. The track engine and Suez
+crossings then run at most hourly to bound egress, and status warns. After
+`MIRROR_FAILURE_THRESHOLD` (default 3) such runs in a row, a macOS
+notification fires, with a heartbeat every `OUTAGE_RENOTIFY_HOURS`.
+
+**Safety limits.**
+- Building or repairing the mirror is capped at `MIRROR_REPAIR_BUDGET_MB`
+  (default 60) per rolling 24h. A full bootstrap is ~35 MB.
+- A copied range whose checksum still disagrees after the copy trips a breaker
+  that pauses repairs for 6h, so a checksum bug cannot re-download everything
+  every run.
+- The mirror's tables are rebuilt (not migrated) when `MIRROR_SCHEMA_VERSION`
+  changes.
+
+---
+
 ## Setup
 
 ### 1. Secrets: `.env.harvester` (repo root, gitignored)
@@ -267,6 +325,11 @@ RETENTION_DAYS=7
 # AIS_OUTAGE_THRESHOLD=3            # optional, consecutive empty windows before an outage alert
 # DETECTOR_FAILURE_THRESHOLD=6      # optional, consecutive detector failures before an alert
 # OUTAGE_RENOTIFY_HOURS=6           # optional, re-notify heartbeat while either alert is ongoing
+# EGRESS_DAILY_BUDGET_MB=100        # optional, rolling-24h Supabase egress before a warning
+# MIRROR_DATABASE_URL=off           # optional, disable the local mirror (default 127.0.0.1:5433/straits_mirror)
+# MIRROR_REPAIR_BUDGET_MB=60        # optional, rolling-24h cap on mirror bootstrap/repair downloads
+# MIRROR_RETENTION_DAYS=90          # optional, positions kept in the mirror
+# MIRROR_FAILURE_THRESHOLD=3        # optional, runs without a usable mirror before an alert
 ```
 
 `FRED_API_KEY` is genuinely optional: without a key (or with a malformed one —
@@ -306,6 +369,18 @@ from the menu bar. The dropdown (only reachable while the dot is showing)
 names each degraded step, shows the failure streak and last good run, and has:
 open dashboard, run harvest now, view log.
 
+### 4. Local mirror (Postgres)
+
+```bash
+bash scripts/harvester/install-mirror-db.sh
+```
+
+This installs `postgresql@17` with Homebrew if it's missing, creates the data
+directory `~/.straits-harvester/mirror-pg` (UTF8, en_US.UTF-8, UTC, matching
+Supabase), and loads the `local.straits.mirror-db` LaunchAgent. The next
+harvest creates the tables and bootstraps the copy over one or two runs. Re-run
+the script after moving the repo, since the LaunchAgent points into it.
+
 ---
 
 ## Operations
@@ -328,6 +403,12 @@ npx tsx --env-file=.env.harvester src/services/ais-ingester/harvest-once.ts
 
 # Uninstall (leaves the log dir)
 scripts/harvester/install-harvester.sh --uninstall
+
+# Local mirror: status, prove it matches Supabase, rebuild it from scratch
+launchctl print gui/$(id -u)/local.straits.mirror-db | grep -A2 state
+npx tsx --env-file=.env.harvester scripts/verify-mirror-equivalence.ts   # hold harvest.lock; ~8 MB egress
+/opt/homebrew/opt/postgresql@17/bin/dropdb -h 127.0.0.1 -p 5433 -U postgres straits_mirror &&
+  /opt/homebrew/opt/postgresql@17/bin/createdb -h 127.0.0.1 -p 5433 -U postgres straits_mirror   # next runs re-copy (~35 MB)
 ```
 
 ### Files
@@ -341,6 +422,14 @@ scripts/harvester/install-harvester.sh --uninstall
 | `scripts/harvester/straits.10m.sh` | SwiftBar plugin |
 | `.env.harvester` | Secrets (gitignored) |
 | `~/.straits-harvester/` | Runtime state: `status.json`, `harvest.log`, launchd stdio |
+| `src/services/ais-ingester/egress-meter.ts` | Per-step Supabase egress accounting |
+| `src/lib/db/mirror.ts` | Mirror sync, verification, breaker, track-state copies |
+| `src/lib/db/reader.ts` | `readerPool()`: where mirrored-table reads go |
+| `scripts/harvester/install-mirror-db.sh` | Mirror Postgres setup (idempotent) |
+| `scripts/harvester/run-mirror-db.sh` | Mirror LaunchAgent wrapper (locale, stale pid file) |
+| `scripts/harvester/local.straits.mirror-db.plist` | Mirror LaunchAgent template |
+| `scripts/verify-mirror-equivalence.ts` | Diffs every mirrored read against Supabase |
+| `~/.straits-harvester/mirror-pg/` | Mirror data directory (disposable) |
 
 ---
 
@@ -358,6 +447,16 @@ scripts/harvester/install-harvester.sh --uninstall
   the same step degraded run after run is worth investigating.
 - **"harvest skipped (already running)":** the single-flight lock did its job —
   a manual run overlapped the scheduled one. Nothing was lost.
+- **"mirror not ready … mirror unavailable: connect ECONNREFUSED 127.0.0.1:5433":**
+  the mirror's Postgres is down. Check `~/.straits-harvester/mirror-db.err.log`
+  and `~/.straits-harvester/mirror-pg/log/`, then re-run
+  `scripts/harvester/install-mirror-db.sh`. Until it's back, runs read Supabase
+  (with the heavy steps hourly) and egress rises.
+- **"integrity check failed … repairs paused":** a copy did not verify. The mirror
+  stays unused until the pause ends. Run `verify-mirror-equivalence.ts`, and if
+  it differs, rebuild the mirror (drop/create above).
+- **Egress over budget with the mirror ready:** look at `egressByStep` in
+  `status.json` to see which step grew.
 - **Every run fails identically at the same step:** suspect a livelock like the
   sanctions one above — work that cannot finish inside the budget, retried
   forever because its freshness gate never closes. Time the step in isolation

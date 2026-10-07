@@ -8,7 +8,7 @@
  *
  * Requirements: ANOM-02
  */
-import { pool } from '../db';
+import { readerPool } from '../db/reader';
 import { haversineDistance } from '../geo/haversine';
 import { upsertAnomaliesBatch } from '../db/anomalies';
 import type { SpoofedPositionDetails, UpsertAnomalyInput } from '../../types/anomaly';
@@ -90,7 +90,8 @@ export function detectTeleport(positions: TimedPosition[]): SpoofedPositionDetai
  * @returns Number of spoofed-position anomalies detected
  */
 export async function detectSpoofedPositions(): Promise<number> {
-  const result = await pool.query<{
+  // Mirrored tables only, last 2h — see readerPool().
+  const result = await readerPool().query<{
     imo: string;
     positions: Array<{ lat: number; lon: number; time: string }>;
   }>(`

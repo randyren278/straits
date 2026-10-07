@@ -7,7 +7,7 @@
  *
  * Requirements: ANOM-02, DEVI-01, DEVI-02
  */
-import { pool } from '../db';
+import { readerPool } from '../db/reader';
 import { isInAnchorage } from '../geo/anchorages';
 import { isDeclaredStationary } from '../ais/nav-status';
 import { upsertAnomaliesBatch, resolveAnomaliesBatch } from '../db/anomalies';
@@ -61,7 +61,8 @@ const NAV_STATUS_FRESHNESS_MINUTES = 15;
  */
 export async function detectSpeedAnomaly(): Promise<number> {
   // Get recent positions with speed for all vessels
-  const result = await pool.query<{
+  // Mirrored tables only, last hours — see readerPool().
+  const result = await readerPool().query<{
     imo: string;
     speed: number;
     latitude: number;
@@ -148,7 +149,8 @@ export function isDeviating(actualHeading: number, expectedHeading: number): boo
  * @returns Number of deviation anomalies detected/updated
  */
 export async function detectDeviation(): Promise<number> {
-  const result = await pool.query<{
+  // Mirrored tables only, last hours — see readerPool().
+  const result = await readerPool().query<{
     imo: string;
     destination: string;
     positions: Array<{

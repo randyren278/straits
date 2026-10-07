@@ -1,5 +1,6 @@
 /** Track engine persistence: engine input, per-vessel state, learning state, lane density. */
 import { pool } from './index';
+import { readerPool } from './reader';
 import type { EngineVessel } from '../tracks/engine';
 import { normalizeLearnState, type LearnState } from '../tracks/learn';
 import type { ReplayVessel, TrackPayload, TracksResponse } from '../tracks/types';
@@ -7,7 +8,8 @@ import type { ReplayVessel, TrackPayload, TracksResponse } from '../tracks/types
 const HALF_LIFE_DAYS = 14;
 
 export async function loadEngineVessels(): Promise<EngineVessel[]> {
-  const { rows } = await pool.query<{
+  // Mirrored tables only, last 24h — see readerPool().
+  const { rows } = await readerPool().query<{
     mmsi: string; t: string | Date; latitude: number; longitude: number;
     name: string | null; ship_type: number | null; flag: string | null; imo: string | null; destination: string | null;
   }>(`
@@ -34,8 +36,15 @@ export async function loadEngineVessels(): Promise<EngineVessel[]> {
 }
 
 export async function loadLaneDensity(now: Date, size: number): Promise<Float32Array> {
-  const out = new Float32Array(size);
   const { rows } = await pool.query<{ cell: number; w: number; updated_at: string | Date }>('SELECT cell, w, updated_at FROM lane_density');
+  return laneDensityFromRows(rows, now, size);
+}
+
+/** Stored lane weights decayed to `now` (shared by the Supabase and mirrored reads). */
+export function laneDensityFromRows(
+  rows: ReadonlyArray<{ cell: number; w: number; updated_at: string | Date }>, now: Date, size: number,
+): Float32Array {
+  const out = new Float32Array(size);
   for (const r of rows) {
     const days = (now.getTime() - new Date(r.updated_at).getTime()) / 86_400_000;
     if (r.cell >= 0 && r.cell < size) out[r.cell] = r.w * Math.pow(0.5, days / HALF_LIFE_DAYS);
