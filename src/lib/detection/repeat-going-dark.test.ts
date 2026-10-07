@@ -7,7 +7,7 @@
  * sent back to the client: downloading the event history every harvest was
  * ~0.5 MB of Supabase egress. Skipped when no local Postgres is reachable.
  */
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { Pool } from 'pg';
 import { PG_ADMIN_URL, pgAvailable, pgUrl } from '../../../tests/postgres';
 
@@ -16,6 +16,9 @@ const ADMIN_URL = PG_ADMIN_URL;
 const DB = `repeat_going_dark_it_${process.pid}`;
 
 const available = await pgAvailable();
+// Real database work (CREATE/DROP DATABASE, bulk copies) can be slow on a busy
+// machine or CI runner; the 5s/10s defaults turned load into false failures.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
 let admin: Pool;
 let pool: Pool;
