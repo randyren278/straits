@@ -127,15 +127,21 @@ function isWithinConfiguredBounds(ship: DecodedShip, bounds: readonly FallbackBo
   );
 }
 
-/** Fetch current, non-stale vessel positions from each Straits coverage zone. */
+/**
+ * Fetch current, non-stale vessel positions from each Straits coverage zone.
+ * Each request is abandoned after `timeoutMs`: a stalled connection used to
+ * hang the whole harvest until its hard timeout, losing the window.
+ */
 export async function fetchMiddleEastAisFallback(
   bounds: readonly FallbackBounds[],
   fetcher: FetchLike = fetch,
   now = new Date(),
+  timeoutMs = 20_000,
 ): Promise<MiddleEastFallbackPosition[]> {
   const responses = await Promise.all(bounds.map(async (bound) => {
     const url = `${MAP_ENDPOINT}?bbox=${bboxParam(bound)}&zoom=9&mmsi=0&mcbe=1`;
     const response = await fetcher(url, {
+      signal: AbortSignal.timeout(timeoutMs),
       headers: {
         Accept: '*/*',
         Referer: 'https://www.vesselfinder.com/',

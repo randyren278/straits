@@ -35,4 +35,14 @@ describe('fetchMiddleEastAisFallback', () => {
     await expect(fetchMiddleEastAisFallback(bounds, vi.fn().mockResolvedValue(new Response(payload({ stale: true }), { status: 200 })))).rejects.toThrow('no current Middle East positions');
     await expect(fetchMiddleEastAisFallback(bounds, vi.fn().mockResolvedValue(new Response('', { status: 429 })))).rejects.toThrow('HTTP 429');
   });
+
+  it('gives up on a fallback request that never answers instead of hanging the harvest', async () => {
+    // Resolves only when aborted, like a stalled connection.
+    const stalled = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+    }));
+    const started = Date.now();
+    await expect(fetchMiddleEastAisFallback([{ minLat: 24, maxLat: 27, minLon: 54, maxLon: 57 }], stalled, new Date(), 50)).rejects.toThrow();
+    expect(Date.now() - started).toBeLessThan(2_000);
+  });
 });
