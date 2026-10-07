@@ -20,6 +20,14 @@ LABEL=local.straits.mirror-db
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 
+# The LaunchAgent runs run-mirror-db.sh from this checkout, so it must be the
+# permanent one: a worktree disappears, and the mirror with it on next start.
+if [ "$(git -C "$REPO" rev-parse --path-format=absolute --git-dir 2>/dev/null)" != \
+     "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" ]; then
+  echo "Run this from the main checkout, not a git worktree ($REPO)." >&2
+  exit 1
+fi
+
 [ -x "$PGBIN/postgres" ] || HOMEBREW_NO_AUTO_UPDATE=1 brew install postgresql@17
 
 if [ ! -f "$DATA/PG_VERSION" ]; then
@@ -49,6 +57,12 @@ grep -q "^include_if_exists = 'straits.conf'" "$DATA/postgresql.conf" ||
 mkdir -p "$HOME/Library/LaunchAgents"
 sed -e "s#__REPO__#$REPO#g" -e "s#__HOME__#$HOME#g" "$REPO/scripts/harvester/$LABEL.plist" > "$PLIST"
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+# bootout returns before the old postgres has exited (it waits for connected
+# sessions); bootstrapping a label that is still loaded fails.
+for _ in $(seq 1 60); do
+  launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || break
+  sleep 1
+done
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 
 for _ in $(seq 1 30); do

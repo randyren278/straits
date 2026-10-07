@@ -129,8 +129,9 @@ const MIRROR_URL = process.env.MIRROR_DATABASE_URL ?? 'postgres://postgres@127.0
 const MIRROR_REPAIR_BUDGET_BYTES = Number(process.env.MIRROR_REPAIR_BUDGET_MB ?? 60) * 1e6;
 const MIRROR_FAILURE_THRESHOLD = Number(process.env.MIRROR_FAILURE_THRESHOLD ?? 3);
 // Without the mirror, the two heaviest reads (track engine ~6 MB, Suez
-// crossings ~1.7 MB per run) run at most this often, bounding egress while
-// the mirror is down. With it they run every harvest at no egress cost.
+// crossings ~1.7 MB per run) run at most this often, and not at all once the
+// rolling-24h egress budget is spent. With it they run every harvest at no
+// egress cost.
 const DEGRADED_HEAVY_STEP_MINUTES = 60;
 
 const mirrorPool = MIRROR_URL === 'off' ? null : createMirrorPool(MIRROR_URL);
@@ -257,6 +258,24 @@ function updateEgress(): void {
   status.egressByStep.other = Math.max(0, status.egressBytes - attributed);
   status.egressHistory = rollEgressHistory(prevEgressHistory, { at: status.lastRun, bytes: status.egressBytes }, Date.now());
   status.egress24hBytes = sumBytes(status.egressHistory);
+}
+
+/**
+ * Whether a heavy read that the mirror would have served may hit Supabase:
+ * at most hourly, and only while the rolling-24h egress budget lasts, so a
+ * long mirror outage cannot run the org past its quota.
+ */
+async function degradedHeavyReadDue(step: string, lastRunSql: string): Promise<boolean> {
+  updateEgress();
+  if (status.egress24hBytes >= EGRESS_DAILY_BUDGET_BYTES) {
+    warn(`${step} skipped — mirror unavailable and ${formatMB(status.egress24hBytes)} of Supabase egress already used in 24h`);
+    return false;
+  }
+  if (!(await isStale(lastRunSql, DEGRADED_HEAVY_STEP_MINUTES))) {
+    console.log(`${step}: mirror unavailable and ran within ${DEGRADED_HEAVY_STEP_MINUTES}m, skipped`);
+    return false;
+  }
+  return true;
 }
 
 function writeStatus(startedAt: number): void {
@@ -702,8 +721,7 @@ async function runDetectors(): Promise<void> {
 
 // ── Track engine: clean, smooth, estimate, learn ──────────────────────────────
 async function runTrackEngineStep(): Promise<void> {
-  if (!mirrorReady && !(await isStale(`SELECT updated_at AS ts FROM track_engine_state WHERE key = 'summary'`, DEGRADED_HEAVY_STEP_MINUTES))) {
-    console.log(`Track engine: mirror unavailable and ran within ${DEGRADED_HEAVY_STEP_MINUTES}m, skipped`);
+  if (!mirrorReady && !(await degradedHeavyReadDue('Track engine', `SELECT updated_at AS ts FROM track_engine_state WHERE key = 'summary'`))) {
     return;
   }
   const now = new Date();
@@ -1035,8 +1053,7 @@ async function main(): Promise<void> {
     // days) before the prune, so a passage straddling the retention edge is
     // still counted once and no day is ever written from a truncated track.
     await step('suez crossings', 60_000, async () => {
-      if (!mirrorReady && !(await isStale(`SELECT MAX(computed_at) AS ts FROM chokepoint_daily WHERE chokepoint = 'suez'`, DEGRADED_HEAVY_STEP_MINUTES))) {
-        console.log(`Suez crossings: mirror unavailable and recomputed within ${DEGRADED_HEAVY_STEP_MINUTES}m, skipped`);
+      if (!mirrorReady && !(await degradedHeavyReadDue('Suez crossings', `SELECT MAX(computed_at) AS ts FROM chokepoint_daily WHERE chokepoint = 'suez'`))) {
         return;
       }
       const r = await runSuezCrossingsJob({ days: 2 });

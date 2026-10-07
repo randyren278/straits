@@ -94,8 +94,10 @@ const SCHEMA_SQL = `
 
 /**
  * Pool for the local mirror. Its sessions match Supabase's pooled sessions —
- * UTC, ISO dates, floats rounded to 15 digits — so a mirrored read returns
- * exactly what the Supabase read it replaces would have.
+ * UTC, ISO dates, floats rounded to 15 digits (measured through the :6543
+ * pooler with node-pg on 2026-10-07: extra_float_digits=0, DateStyle "ISO,
+ * MDY", TimeZone UTC) — so a mirrored read returns exactly what the Supabase
+ * read it replaces would have.
  */
 export function createMirrorPool(url: string): Pool {
   const local = new Pool({
@@ -186,16 +188,23 @@ class MirrorIntegrityError extends Error {}
 async function withClient<T>(p: Pool, begin: string, fn: (c: PoolClient) => Promise<T>): Promise<T> {
   const c = await p.connect();
   let failure: Error | undefined;
+  // A checked-out client emits 'error' when its connection drops (Supavisor
+  // reset, mirror restart, sleep/wake). pg-pool only listens while the client
+  // is idle, and an unheard 'error' event would crash the whole harvest.
+  const onError = (err: Error) => { failure ??= err; };
+  c.on('error', onError);
   try {
     await c.query(begin);
     const out = await fn(c);
     await c.query('COMMIT');
+    if (failure) throw failure;
     return out;
   } catch (err) {
-    failure = err as Error;
+    failure ??= err as Error;
     await c.query('ROLLBACK').catch(() => {});
-    throw err;
+    throw failure;
   } finally {
+    c.off('error', onError);
     // A client that failed may have a dead connection; never pool it again.
     c.release(failure);
   }
@@ -268,8 +277,13 @@ export interface MirrorSyncOptions {
 
 /** Only a mirror this current is topped up by the tail; older gaps go through budgeted repair. */
 const TAIL_MAX_AGE_MS = 2 * HOUR_MS;
-/** Rows dated further ahead than this are ignored when finding the tail's start. */
-const TAIL_FUTURE_SLACK_MS = 5 * 60_000;
+/**
+ * Rows dated further ahead than this are ignored when finding where an
+ * incremental pull starts. Otherwise one bad clock stamp would become the
+ * high-water mark and every later write would fall behind it — re-copied by
+ * checksum repair, i.e. most of the table, every run.
+ */
+const FUTURE_SLACK_MS = 5 * 60_000;
 
 export interface MirrorSyncResult {
   ready: boolean;
@@ -284,7 +298,7 @@ export interface MirrorSyncResult {
 
 class BudgetExhausted extends Error {}
 
-async function syncKeyed(remote: Pool, local: Pool, spec: TableSpec, budgetBytes: number, result: MirrorSyncResult): Promise<void> {
+async function syncKeyed(remote: Pool, local: Pool, spec: TableSpec, now: Date, budgetBytes: number, result: MirrorSyncResult): Promise<void> {
   const pulled = async (rows: RawRow[]) => {
     const bytes = rawBytes(rows);
     result.rowsPulled += rows.length;
@@ -294,7 +308,11 @@ async function syncKeyed(remote: Pool, local: Pool, spec: TableSpec, budgetBytes
 
   // 1. Rows whose last_seen moved past the newest one mirrored (every harvester
   //    write bumps it). An empty mirror copies the whole table.
-  const { rows: [mark] } = await local.query({ text: `SELECT max(last_seen) AS ts FROM ${spec.table}`, types: RAW_TEXT });
+  const { rows: [mark] } = await local.query({
+    text: `SELECT max(last_seen) AS ts FROM ${spec.table} WHERE last_seen <= $1`,
+    values: [new Date(now.getTime() + FUTURE_SLACK_MS)],
+    types: RAW_TEXT,
+  });
   const since = (mark as { ts: string | null }).ts;
   if (since === null && (await repairBytes24h(local)) >= budgetBytes) throw new BudgetExhausted();
   const fresh = await inRemoteSnapshot(remote, (c) => since === null
@@ -336,7 +354,7 @@ async function syncKeyed(remote: Pool, local: Pool, spec: TableSpec, budgetBytes
 async function pullPositionsTail(remote: Pool, local: Pool, now: Date, result: MirrorSyncResult): Promise<void> {
   const { rows: [mark] } = await local.query({
     text: 'SELECT max(time) AS ts, max(time) > $1 AS fresh FROM vessel_positions WHERE time <= $2',
-    values: [new Date(now.getTime() - TAIL_MAX_AGE_MS), new Date(now.getTime() + TAIL_FUTURE_SLACK_MS)],
+    values: [new Date(now.getTime() - TAIL_MAX_AGE_MS), new Date(now.getTime() + FUTURE_SLACK_MS)],
     types: RAW_TEXT,
   });
   const { ts, fresh } = mark as { ts: string | null; fresh: string | null };
@@ -387,8 +405,8 @@ export async function syncMirror(remote: Pool, local: Pool, o: MirrorSyncOptions
       return result;
     }
 
-    await syncKeyed(remote, local, VESSELS, o.repairBudgetBytes, result);
-    await syncKeyed(remote, local, FALLBACK, o.repairBudgetBytes, result);
+    await syncKeyed(remote, local, VESSELS, o.now, o.repairBudgetBytes, result);
+    await syncKeyed(remote, local, FALLBACK, o.now, o.repairBudgetBytes, result);
 
     // Mirror Supabase's prune: nothing older than its oldest row survives here.
     const { rows: [oldest] } = await remote.query({ text: 'SELECT min(time) AS ts FROM vessel_positions', types: RAW_TEXT });

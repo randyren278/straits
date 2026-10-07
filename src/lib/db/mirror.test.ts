@@ -337,6 +337,36 @@ describe.skipIf(!available)('local mirror (integration)', () => {
     });
   });
 
+  it('reports not ready instead of crashing when a connection dies mid-transaction', async () => {
+    await seedRemote(2, 2);
+    // A checked-out pg client emits 'error' when its connection drops (Supavisor
+    // reset, mirror restart, sleep/wake); unhandled, that event kills the process.
+    const dying = Object.create(remote) as Pool;
+    dying.connect = (async () => {
+      const c = await remote.connect();
+      setImmediate(() => c.emit('error', new Error('Connection terminated unexpectedly')));
+      return c;
+    }) as Pool['connect'];
+    const r = await syncMirror(dying, local, opts());
+    expect(r.ready).toBe(false);
+    expect(r.reason).toMatch(/Connection terminated unexpectedly/);
+  });
+
+  it('keeps keyed sync incremental after a row is stamped in the future', async () => {
+    for (let i = 0; i < 50; i++) {
+      await remote.query("INSERT INTO vessel_fallback_metadata VALUES ($1, $2, 70, $3, 'vesselfinder')", [String(200000000 + i), `SHIP ${i}`, NOW]);
+    }
+    await syncMirror(remote, local, opts());
+    await remote.query("UPDATE vessel_fallback_metadata SET last_seen = $1 WHERE mmsi = '200000001'", [new Date(NOW.getTime() + 24 * HOUR)]);
+    await syncMirror(remote, local, opts());
+    // Later writes are stamped before the future row; they must still be pulled incrementally.
+    await remote.query("UPDATE vessel_fallback_metadata SET name = 'MOVED', last_seen = $1 WHERE mmsi = '200000009'", [new Date(NOW.getTime() + 600_000)]);
+    const r = await syncMirror(remote, local, opts({ now: new Date(NOW.getTime() + 660_000) }));
+    expect(r.ready).toBe(true);
+    expect(r.rowsPulled).toBeLessThanOrEqual(2); // the changed row, plus the future-stamped one re-read
+    expect(await exactRows(local, FALLBACK_ORDERED)).toEqual(await exactRows(remote, FALLBACK_ORDERED));
+  });
+
   it('mirrorReader falls back to Supabase on a local error and stays there', async () => {
     const errors: string[] = [];
     let localCalls = 0;
