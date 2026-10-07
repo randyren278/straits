@@ -24,6 +24,20 @@ jobs:
     name: Lint, types, tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # For the Postgres integration tests (local mirror, server-side detectors).
+    # tests/postgres.ts fails the run in CI if this server is unreachable.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -44,6 +58,8 @@ jobs:
         run: npm run typecheck
 
       - name: Unit and component tests
+        env:
+          MIRROR_TEST_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:5433/postgres
         run: npm run test:ci
 
   schema:

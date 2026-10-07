@@ -88,9 +88,9 @@ import { loadEngineVessels, loadLaneDensity, loadLearnState, saveEngineRun, save
 import { normalizeLearnState } from '../../lib/tracks/learn';
 import {
   createMirrorPool, syncMirror, mirrorReader, loadLaneRowsMirrored, loadLearnMirrored, recordTrackStateSaved,
-  type MirrorSyncResult,
 } from '../../lib/db/mirror';
 import { setReaderPool } from '../../lib/db/reader';
+import { runMirrorSyncStep, degradedHeavyReadAllowed, attributeEgress, type MirrorStatus } from './mirror-policy';
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const WINDOW_MS = Number(process.env.HARVEST_WINDOW_MS ?? 90_000);
@@ -213,9 +213,9 @@ type Status = {
   egressHistory: EgressSample[];
   /** Sum of egressHistory. */
   egress24hBytes: number;
-  /** This run's mirror sync; null when it never ran. `ready` is whether the
-   * heavy reads were served from the mirror. */
-  mirror: (Omit<MirrorSyncResult, 'bucketsChecked'> & { servedReads: boolean }) | null;
+  /** This run's mirror sync; null when it never ran. `servedReads` is whether
+   * the heavy reads were served from the mirror. */
+  mirror: MirrorStatus | null;
   /** Consecutive runs whose heavy reads could not use the mirror. */
   consecutiveMirrorFailures: number;
   mirrorFailureAlertSent: boolean;
@@ -252,30 +252,27 @@ function readPrevStatus(): Partial<Status> {
 /** Refresh the egress fields from the meter; safe to call repeatedly in a run. */
 function updateEgress(): void {
   status.egressBytes = egressMeter.totalBytes();
-  const attributed = Object.entries(status.egressByStep)
-    .filter(([name]) => name !== 'other')
-    .reduce((sum, [, bytes]) => sum + bytes, 0);
-  status.egressByStep.other = Math.max(0, status.egressBytes - attributed);
+  status.egressByStep = attributeEgress(status.egressByStep, status.egressBytes);
   status.egressHistory = rollEgressHistory(prevEgressHistory, { at: status.lastRun, bytes: status.egressBytes }, Date.now());
   status.egress24hBytes = sumBytes(status.egressHistory);
 }
 
-/**
- * Whether a heavy read that the mirror would have served may hit Supabase:
- * at most hourly, and only while the rolling-24h egress budget lasts, so a
- * long mirror outage cannot run the org past its quota.
- */
-async function degradedHeavyReadDue(step: string, lastRunSql: string): Promise<boolean> {
-  updateEgress();
-  if (status.egress24hBytes >= EGRESS_DAILY_BUDGET_BYTES) {
-    warn(`${step} skipped — mirror unavailable and ${formatMB(status.egress24hBytes)} of Supabase egress already used in 24h`);
-    return false;
-  }
-  if (!(await isStale(lastRunSql, DEGRADED_HEAVY_STEP_MINUTES))) {
-    console.log(`${step}: mirror unavailable and ran within ${DEGRADED_HEAVY_STEP_MINUTES}m, skipped`);
-    return false;
-  }
-  return true;
+/** A heavy read the mirror would have served: see degradedHeavyReadAllowed(). */
+function heavyReadAllowed(stepName: string, lastRunSql: string): Promise<boolean> {
+  return degradedHeavyReadAllowed({
+    stepName,
+    mirrorReady,
+    egress24hBytes: () => { updateEgress(); return status.egress24hBytes; },
+    budgetBytes: EGRESS_DAILY_BUDGET_BYTES,
+    lastRunAt: async () => {
+      const { rows } = await pool.query<{ ts: Date | null }>(lastRunSql);
+      return rows[0]?.ts ? new Date(rows[0].ts) : null;
+    },
+    now: Date.now(),
+    minIntervalMs: DEGRADED_HEAVY_STEP_MINUTES * 60_000,
+    warn,
+    log: (message) => console.log(message),
+  });
 }
 
 function writeStatus(startedAt: number): void {
@@ -721,9 +718,7 @@ async function runDetectors(): Promise<void> {
 
 // ── Track engine: clean, smooth, estimate, learn ──────────────────────────────
 async function runTrackEngineStep(): Promise<void> {
-  if (!mirrorReady && !(await degradedHeavyReadDue('Track engine', `SELECT updated_at AS ts FROM track_engine_state WHERE key = 'summary'`))) {
-    return;
-  }
+  if (!(await heavyReadAllowed('Track engine', `SELECT updated_at AS ts FROM track_engine_state WHERE key = 'summary'`))) return;
   const now = new Date();
   const size = grid.w * grid.h;
   const local = mirrorReady ? mirrorPool : null;
@@ -861,42 +856,27 @@ async function writeCollectionBuckets(
 }
 
 // ── Local mirror ──────────────────────────────────────────────────────────────
-/**
- * Verify/repair the mirror, then — only if this step finished in budget and
- * the mirror is identical to Supabase — send the heavy reads there for the
- * rest of the run. An abandoned sync can never switch readers mid-run.
- */
 async function runMirrorStep(): Promise<void> {
-  if (!mirrorPool) {
-    status.mirror = { ready: false, reason: 'disabled (MIRROR_DATABASE_URL=off)', bucketsRepaired: 0, bucketsPending: 0, rowsPulled: 0, bytesPulled: 0, servedReads: false };
-    return;
-  }
-  let result: MirrorSyncResult | null = null;
-  const finished = await step('mirror sync', 75_000, async () => {
-    result = await syncMirror(pool, mirrorPool, {
+  const out = await runMirrorSyncStep({
+    enabled: mirrorPool !== null,
+    step,
+    sync: () => syncMirror(pool, mirrorPool!, {
       now: new Date(),
       deadline: Date.now() + 50_000,
       repairBudgetBytes: MIRROR_REPAIR_BUDGET_BYTES,
-    });
+    }),
+    enableMirrorReads: () => {
+      mirrorReady = true;
+      setReaderPool(mirrorReader(mirrorPool!, pool, (err) => {
+        mirrorReady = false;
+        if (status.mirror) status.mirror.servedReads = false;
+        warn(`mirror read failed, reading Supabase for the rest of this run — ${err.message}`);
+      }));
+    },
+    warn,
+    log: (message) => console.log(message),
   });
-  const r = result as MirrorSyncResult | null;
-  if (!finished || !r) {
-    status.mirror = { ready: false, reason: 'mirror sync did not finish in budget', bucketsRepaired: 0, bucketsPending: 0, rowsPulled: 0, bytesPulled: 0, servedReads: false };
-    return;
-  }
-  const { bucketsChecked, ...summary } = r;
-  status.mirror = { ...summary, servedReads: r.ready };
-  console.log(`Mirror: ${r.ready ? 'verified' : 'NOT ready'} — ${bucketsChecked} hours checked, ${r.bucketsRepaired} copied, ${r.rowsPulled} rows (${formatMB(r.bytesPulled)})${r.reason ? `; ${r.reason}` : ''}`);
-  if (!r.ready) {
-    warn(`mirror not ready, heavy reads use Supabase this run — ${r.reason}`);
-    return;
-  }
-  mirrorReady = true;
-  setReaderPool(mirrorReader(mirrorPool, pool, (err) => {
-    mirrorReady = false;
-    if (status.mirror) status.mirror.servedReads = false;
-    warn(`mirror read failed, reading Supabase for the rest of this run — ${err.message}`);
-  }));
+  status.mirror = out.status;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -1053,9 +1033,7 @@ async function main(): Promise<void> {
     // days) before the prune, so a passage straddling the retention edge is
     // still counted once and no day is ever written from a truncated track.
     await step('suez crossings', 60_000, async () => {
-      if (!mirrorReady && !(await degradedHeavyReadDue('Suez crossings', `SELECT MAX(computed_at) AS ts FROM chokepoint_daily WHERE chokepoint = 'suez'`))) {
-        return;
-      }
+      if (!(await heavyReadAllowed('Suez crossings', `SELECT MAX(computed_at) AS ts FROM chokepoint_daily WHERE chokepoint = 'suez'`))) return;
       const r = await runSuezCrossingsJob({ days: 2 });
       console.log(`Suez crossings: ${r.complete} complete, ${r.incomplete} incomplete, ${r.waiting} waiting for ${r.writeDays.join(', ')} (${r.tracks} tracks since ${r.loadedSince.slice(0, 10)})`);
     });

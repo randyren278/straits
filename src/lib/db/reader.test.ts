@@ -4,6 +4,8 @@
  * on `pool`, or the mirror would answer it from tables it does not have.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readdirSync, readFileSync, statSync } from 'fs';
+import { join, relative } from 'path';
 
 vi.mock('./index', () => ({ pool: { query: vi.fn(async () => ({ rows: [], rowCount: 0 })) } }));
 vi.mock('./anomalies', () => ({
@@ -52,10 +54,11 @@ describe.each([
   ['detectSpoofedPositions', () => detectSpoofedPositions()],
   ['detectGoingDark', () => detectGoingDark()],
 ])('%s', (_name, run) => {
-  it('reads through readerPool, touching only mirrored tables', async () => {
+  it('reads through readerPool exactly once, touching only mirrored tables', async () => {
     await run();
     const sql = readerSql();
-    expect(sql.length).toBeGreaterThan(0);
+    // One read each: scripts/verify-mirror-equivalence.ts captures exactly that read.
+    expect(sql).toHaveLength(1);
     for (const text of sql) {
       const tables = tablesIn(text);
       expect(tables.length).toBeGreaterThan(0);
@@ -67,6 +70,31 @@ describe.each([
     await run();
     const poolSql = poolQuery.mock.calls.map((c) => String(c[0]));
     expect(poolSql.filter((t) => /\bFROM\s+vessel_positions\b|\bJOIN\s+vessel_positions\b/i.test(t) && /^\s*(WITH|SELECT)/i.test(t))).toEqual([]);
+  });
+});
+
+describe('readerPool() call sites', () => {
+  it('are exactly the reads covered above (add new ones to that table and to verify-mirror-equivalence.ts)', () => {
+    const src = join(process.cwd(), 'src');
+    const found: Record<string, number> = {};
+    const walk = (dir: string): void => {
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) { if (name !== 'node_modules') walk(path); continue; }
+        if (!/\.tsx?$/.test(name) || /\.test\.tsx?$/.test(name)) continue;
+        const n = (readFileSync(path, 'utf8').match(/readerPool\(\)\.query/g) ?? []).length;
+        if (n) found[relative(src, path)] = n;
+      }
+    };
+    walk(src);
+    expect(found).toEqual({
+      'lib/db/crossings.ts': 1,
+      'lib/db/tracks.ts': 1,
+      'lib/detection/deviation.ts': 2,
+      'lib/detection/going-dark.ts': 1,
+      'lib/detection/loitering.ts': 1,
+      'lib/detection/teleport.ts': 1,
+    });
   });
 });
 

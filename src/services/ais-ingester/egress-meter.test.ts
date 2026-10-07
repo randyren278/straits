@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EventEmitter } from 'events';
+import { Pool } from 'pg';
+import { PG_ADMIN_URL, pgAvailable } from '../../../tests/postgres';
 import { meterPool, rollEgressHistory, sumBytes, egressBudgetWarning, formatMB } from './egress-meter';
 
 function fakeClient(stream: unknown) {
@@ -25,20 +27,22 @@ describe('meterPool', () => {
     expect(meter.totalBytes()).toBe(42);
   });
 
-  it('keeps counting a connection after the pool has closed it', () => {
-    const pool = new EventEmitter();
-    const meter = meterPool(pool as never);
-    const s = { bytesRead: 10, _parent: { bytesRead: 500 } };
-    pool.emit('connect', fakeClient(s));
-    pool.emit('remove', fakeClient(s));
-    expect(meter.totalBytes()).toBe(500);
-  });
-
   it('ignores a client without a connection stream', () => {
     const pool = new EventEmitter();
     const meter = meterPool(pool as never);
     pool.emit('connect', {});
     expect(meter.totalBytes()).toBe(0);
+  });
+});
+
+describe.skipIf(!(await pgAvailable()))('meterPool with a real pg pool', () => {
+  it('counts a 1 MB result, and still counts it after the pool has closed its connections', async () => {
+    const pool = new Pool({ connectionString: PG_ADMIN_URL, max: 2 });
+    const meter = meterPool(pool);
+    await pool.query("SELECT repeat('x', 1000000) AS big");
+    await pool.end();
+    expect(meter.totalBytes()).toBeGreaterThan(1_000_000);
+    expect(meter.totalBytes()).toBeLessThan(1_050_000);
   });
 });
 
