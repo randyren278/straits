@@ -298,7 +298,9 @@ read against Supabase.
 
 **When the mirror can't be used** (Postgres down, still bootstrapping, a repair
 budget hit), the run reads Supabase as before. The track engine and Suez
-crossings then run at most hourly to bound egress, and status warns. After
+crossings then run at most hourly, and stop entirely once the rolling-24h
+egress passes `EGRESS_DAILY_BUDGET_MB`; the detectors keep running every run.
+Status warns. After
 `MIRROR_FAILURE_THRESHOLD` (default 3) such runs in a row, a macOS
 notification fires, with a heartbeat every `OUTAGE_RENOTIFY_HOURS`.
 
@@ -379,7 +381,9 @@ open dashboard, run harvest now, view log.
 bash scripts/harvester/install-mirror-db.sh
 ```
 
-This installs `postgresql@17` with Homebrew if it's missing, creates the data
+Run it from the main checkout: it refuses a worktree path, because the
+LaunchAgent runs `run-mirror-db.sh` from wherever the script ran. It installs
+`postgresql@17` with Homebrew if it's missing, creates the data
 directory `~/.straits-harvester/mirror-pg` (UTF8, en_US.UTF-8, UTC, matching
 Supabase), and loads the `local.straits.mirror-db` LaunchAgent. The next
 harvest creates the tables and bootstraps the copy over one or two runs. Re-run
