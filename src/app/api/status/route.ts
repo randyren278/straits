@@ -39,7 +39,9 @@ export async function GET() {
   // newest row is routinely several minutes old between runs. Thresholds are
   // sized to the cadence: live within 15m, degraded up to 60m, else offline.
   const ais = classify(aisResult.rows[0]?.last_update, 15 * 60 * 1000, 60 * 60 * 1000);
-  const prices = classify(pricesResult.rows[0]?.last_update, 2 * 60 * 60 * 1000, 24 * 60 * 60 * 1000);
+  // The harvester refreshes prices every 3h (harvest-once.ts refreshPrices), so
+  // live allows one cycle plus slack; degraded means at least one missed refresh.
+  const prices = classify(pricesResult.rows[0]?.last_update, 4 * 60 * 60 * 1000, 24 * 60 * 60 * 1000);
   const news = classify(newsResult.rows[0]?.last_update, 60 * 60 * 1000, 12 * 60 * 60 * 1000);
 
   return NextResponse.json({ ais, prices, news });
