@@ -6,7 +6,7 @@
  * rounded exactly as the pooler rounds it) and the Mac's mirror ("local").
  * Skipped when no server is reachable (CI without Postgres).
  */
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { Pool } from 'pg';
 import { PG_ADMIN_URL, pgAvailable, pgUrl } from '../../../tests/postgres';
 import {
@@ -21,6 +21,9 @@ const REMOTE_DB = `mirror_it_remote_${process.pid}`;
 const LOCAL_DB = `mirror_it_local_${process.pid}`;
 
 const available = await pgAvailable();
+// Real database work (CREATE/DROP DATABASE, bulk copies) can be slow on a busy
+// machine or CI runner; the 5s/10s defaults turned load into false failures.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
 // Production column types (information_schema, Oct 2026), including the
 // unmirrored raw_message column the mirror must not depend on.
