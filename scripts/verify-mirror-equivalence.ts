@@ -8,8 +8,21 @@
  * Costs roughly one unmirrored harvest of Supabase egress (~8 MB), plus the
  * mirror bootstrap if it is empty. Run it while no harvest is in progress
  * (hold ~/.straits-harvester/harvest.lock): a harvest writing between the two
- * reads shows up as a difference. Detector reads are captured by a reader that
- * records the query and then throws, so no detector ever writes anything.
+ * reads shows up as a difference.
+ *
+ * What it proves, and its limits:
+ *  - Detector reads are captured by a reader that records the query and then
+ *    throws, so no detector writes anything. That captures each detector's
+ *    first mirrored read only; src/lib/db/reader.test.ts enforces that each
+ *    has exactly one.
+ *  - Rows are compared as sorted multisets. Row order is checked only where
+ *    it is part of the value (each vessel's fixes, each array_agg); the
+ *    callers do not depend on top-level row order.
+ *  - Lane density and learn state count as verified only if the mirror's copy
+ *    was already current (run it after at least one harvest with the mirror);
+ *    a copy that had to be refreshed during the check is a failure.
+ *  - Positions, vessels and fallback metadata are also checked bit-exactly on
+ *    every harvest by syncMirror's checksums; this script checks the queries.
  */
 import { pool } from '../src/lib/db';
 import { setReaderPool, type Reader } from '../src/lib/db/reader';
@@ -103,7 +116,12 @@ async function main(): Promise<void> {
   const size = grid.w * grid.h;
   const now = new Date();
   const laneSupabase = await loadLaneDensity(now, size);
-  const laneMirror = laneDensityFromRows((await loadLaneRowsMirrored(pool, local)).rows, now, size);
+  const laneMirrored = await loadLaneRowsMirrored(pool, local);
+  const laneMirror = laneDensityFromRows(laneMirrored.rows, now, size);
+  if (laneMirrored.source !== 'mirror') {
+    failures++;
+    console.log('  ✗ lane density: the mirror copy was stale and had to be re-copied');
+  }
   // Millions of grid cells: compare in place rather than through compare().
   const laneDiffs = laneSupabase.reduce((n, w, i) => n + (Object.is(w, laneMirror[i]) ? 0 : 1), 0);
   if (laneDiffs === 0 && laneSupabase.length === laneMirror.length) {
@@ -112,7 +130,12 @@ async function main(): Promise<void> {
     failures++;
     console.log(`  ✗ lane density: ${laneDiffs} cells differ`);
   }
-  compare('learn state', [await loadLearnState()], [normalizeLearnState((await loadLearnMirrored(pool, local)).value)]);
+  const learnMirrored = await loadLearnMirrored(pool, local);
+  if (learnMirrored.source !== 'mirror') {
+    failures++;
+    console.log('  ✗ learn state: the mirror copy was stale and had to be re-copied');
+  }
+  compare('learn state', [await loadLearnState()], [normalizeLearnState(learnMirrored.value)]);
 }
 
 main()

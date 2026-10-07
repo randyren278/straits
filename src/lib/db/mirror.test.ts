@@ -8,22 +8,19 @@
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Pool } from 'pg';
+import { PG_ADMIN_URL, pgAvailable, pgUrl } from '../../../tests/postgres';
 import {
   createMirrorPool, ensureMirrorSchema, syncMirror, mirrorReader, diffBuckets, chunkHours,
   loadLaneRowsMirrored, loadLearnMirrored, recordTrackStateSaved, MIRROR_SCHEMA_VERSION,
   type MirrorSyncOptions,
 } from './mirror';
 
-const ADMIN_URL = process.env.MIRROR_TEST_ADMIN_URL ?? 'postgres://postgres@127.0.0.1:5433/postgres';
+const ADMIN_URL = PG_ADMIN_URL;
 // Per-process names: concurrent test runs must never drop each other's databases.
 const REMOTE_DB = `mirror_it_remote_${process.pid}`;
 const LOCAL_DB = `mirror_it_local_${process.pid}`;
 
-async function serverAvailable(): Promise<boolean> {
-  const p = new Pool({ connectionString: ADMIN_URL, connectionTimeoutMillis: 1000, max: 1 });
-  try { await p.query('SELECT 1'); return true; } catch { return false; } finally { await p.end().catch(() => {}); }
-}
-const available = await serverAvailable();
+const available = await pgAvailable();
 
 // Production column types (information_schema, Oct 2026), including the
 // unmirrored raw_message column the mirror must not depend on.
@@ -92,10 +89,9 @@ describe.skipIf(!available)('local mirror (integration)', () => {
       await admin.query(`DROP DATABASE IF EXISTS ${db} WITH (FORCE)`);
       await admin.query(`CREATE DATABASE ${db}`);
     }
-    const base = ADMIN_URL.replace(/\/postgres$/, '');
     // Supabase's pooled sessions: UTC, and floats rounded to 15 digits.
-    remote = new Pool({ connectionString: `${base}/${REMOTE_DB}`, options: '-c extra_float_digits=0 -c TimeZone=UTC' });
-    local = createMirrorPool(`${base}/${LOCAL_DB}`);
+    remote = new Pool({ connectionString: pgUrl(REMOTE_DB), options: '-c extra_float_digits=0 -c TimeZone=UTC' });
+    local = createMirrorPool(pgUrl(LOCAL_DB));
   });
 
   afterAll(async () => {
@@ -214,15 +210,14 @@ describe.skipIf(!available)('local mirror (integration)', () => {
 
   it('buckets by UTC epoch hour regardless of the remote session time zone', async () => {
     await remote.end();
-    const base = ADMIN_URL.replace(/\/postgres$/, '');
-    remote = new Pool({ connectionString: `${base}/${REMOTE_DB}`, options: '-c extra_float_digits=0 -c TimeZone=Asia/Kolkata' });
+    remote = new Pool({ connectionString: pgUrl(REMOTE_DB), options: '-c extra_float_digits=0 -c TimeZone=Asia/Kolkata' });
     await seedRemote(3, 2);
     const first = await syncMirror(remote, local, opts());
     const second = await syncMirror(remote, local, opts());
     expect(first.ready).toBe(true);
     expect(second.bucketsRepaired).toBe(0);
     await remote.end();
-    remote = new Pool({ connectionString: `${base}/${REMOTE_DB}`, options: '-c extra_float_digits=0 -c TimeZone=UTC' });
+    remote = new Pool({ connectionString: pgUrl(REMOTE_DB), options: '-c extra_float_digits=0 -c TimeZone=UTC' });
   });
 
   it('stops at the deadline, reports not ready with hours pending, and finishes on the next sync', async () => {
@@ -365,6 +360,65 @@ describe.skipIf(!available)('local mirror (integration)', () => {
     expect(r.ready).toBe(true);
     expect(r.rowsPulled).toBeLessThanOrEqual(2); // the changed row, plus the future-stamped one re-read
     expect(await exactRows(local, FALLBACK_ORDERED)).toEqual(await exactRows(remote, FALLBACK_ORDERED));
+  });
+
+  it('detects a NULL that moved between adjacent columns', async () => {
+    await seedRemote(2, 2);  // course NULL, heading 271.5
+    await remote.query(`INSERT INTO vessels (imo, mmsi, name, flag, destination, last_seen) VALUES ('9000001', '100000001', 'ALPHA', NULL, 'PA', $1)`, [NOW]);
+    await syncMirror(remote, local, opts());
+    await local.query('UPDATE vessel_positions SET course = heading, heading = NULL WHERE ctid = (SELECT ctid FROM vessel_positions ORDER BY time LIMIT 1)');
+    await local.query("UPDATE vessels SET flag = destination, destination = NULL WHERE imo = '9000001'");
+    const r = await syncMirror(remote, local, opts());
+    expect(r.ready).toBe(true);
+    expect(r.bucketsRepaired).toBe(1);
+    expect(await exactRows(local, POSITIONS_ORDERED)).toEqual(await exactRows(remote, POSITIONS_ORDERED));
+    expect(await exactRows(local, VESSELS_ORDERED)).toEqual(await exactRows(remote, VESSELS_ORDERED));
+  });
+
+  it('detects a timestamp that differs by one microsecond', async () => {
+    await seedRemote(3, 2);
+    await syncMirror(remote, local, opts());
+    await local.query("UPDATE vessel_positions SET time = time + interval '1 microsecond' WHERE ctid = (SELECT ctid FROM vessel_positions ORDER BY time LIMIT 1)");
+    const r = await syncMirror(remote, local, opts());
+    expect(r.bucketsRepaired).toBe(1);
+    expect(await exactRows(local, POSITIONS_ORDERED)).toEqual(await exactRows(remote, POSITIONS_ORDERED));
+  });
+
+  it('leaves a mirror more than 2h behind to budgeted hour repair instead of an unbounded tail pull', async () => {
+    await seedRemote(2, 2);
+    await syncMirror(remote, local, opts());
+    const later = new Date(NOW.getTime() + 3 * HOUR);
+    await insertPosition(remote, later, '100000077');
+    const r = await syncMirror(remote, local, opts({ now: new Date(later.getTime() + 60_000), deadline: Date.now() - 1 }));
+    expect(r.rowsPulled).toBe(0);
+    expect(r.ready).toBe(false);
+    expect(r.bucketsPending).toBe(1);
+  });
+
+  it('trips the breaker when a repaired vessels bucket still disagrees', async () => {
+    await remote.query(`INSERT INTO vessels (imo, mmsi, name, last_seen) VALUES ('9000001', '100000001', 'ALPHA', $1)`, [NOW]);
+    await local.query(`CREATE FUNCTION skew() RETURNS trigger AS $$ BEGIN NEW.name := NEW.name || '!'; RETURN NEW; END $$ LANGUAGE plpgsql;
+      CREATE TRIGGER skew BEFORE INSERT ON vessels FOR EACH ROW EXECUTE FUNCTION skew();`);
+    const r = await syncMirror(remote, local, opts());
+    expect(r.ready).toBe(false);
+    expect(r.reason).toMatch(/integrity check failed.*vessels/);
+  });
+
+  it('reports the repair budget, not ready, when even the keyed bootstrap would exceed it', async () => {
+    await remote.query(`INSERT INTO vessels (imo, mmsi, name, last_seen) VALUES ('9000001', '100000001', 'ALPHA', $1)`, [NOW]);
+    const r = await syncMirror(remote, local, opts({ repairBudgetBytes: 0 }));
+    expect(r.ready).toBe(false);
+    expect(r.reason).toMatch(/repair budget/);
+  });
+
+  it('opens mirror sessions with the settings of Supabase\'s pooled sessions', async () => {
+    const { rows } = await local.query("SELECT current_setting('TimeZone') AS tz, current_setting('DateStyle') AS ds, current_setting('extra_float_digits') AS efd");
+    expect(rows[0]).toEqual({ tz: 'UTC', ds: 'ISO, MDY', efd: '0' });
+    // So a mirrored read parses exactly as the Supabase read did.
+    await insertPosition(remote, new Date(NOW.getTime() - HOUR), '100000009', 0.1 + 0.2, 56.98765432109876);
+    await syncMirror(remote, local, opts());
+    const sql = "SELECT latitude, longitude, speed, time FROM vessel_positions WHERE mmsi = '100000009'";
+    expect((await local.query(sql)).rows).toEqual((await remote.query(sql)).rows);
   });
 
   it('mirrorReader falls back to Supabase on a local error and stays there', async () => {

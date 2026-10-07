@@ -9,16 +9,13 @@
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { Pool } from 'pg';
+import { PG_ADMIN_URL, pgAvailable, pgUrl } from '../../../tests/postgres';
 
-const ADMIN_URL = process.env.MIRROR_TEST_ADMIN_URL ?? 'postgres://postgres@127.0.0.1:5433/postgres';
+const ADMIN_URL = PG_ADMIN_URL;
 // Per-process names: concurrent test runs must never drop each other's databases.
 const DB = `repeat_going_dark_it_${process.pid}`;
 
-async function serverAvailable(): Promise<boolean> {
-  const p = new Pool({ connectionString: ADMIN_URL, connectionTimeoutMillis: 1000, max: 1 });
-  try { await p.query('SELECT 1'); return true; } catch { return false; } finally { await p.end().catch(() => {}); }
-}
-const available = await serverAvailable();
+const available = await pgAvailable();
 
 let admin: Pool;
 let pool: Pool;
@@ -57,7 +54,7 @@ describe.skipIf(!available)('detectRepeatGoingDark (integration)', () => {
     await admin.query(`DROP DATABASE IF EXISTS ${DB} WITH (FORCE)`);
     await admin.query(`CREATE DATABASE ${DB}`);
     // The module's pool reads DATABASE_URL when it is first imported.
-    process.env.DATABASE_URL = ADMIN_URL.replace(/\/postgres$/, `/${DB}`);
+    process.env.DATABASE_URL = pgUrl(DB);
     ({ pool } = await import('../db'));
     ({ detectRepeatGoingDark } = await import('./repeat-going-dark'));
   });
@@ -78,7 +75,6 @@ describe.skipIf(!available)('detectRepeatGoingDark (integration)', () => {
         details JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
       CREATE UNIQUE INDEX idx_anomalies_active ON vessel_anomalies (imo, anomaly_type) WHERE resolved_at IS NULL;
       CREATE INDEX idx_anomalies_type ON vessel_anomalies (anomaly_type, detected_at DESC);`);
-    await pool.query("SET TIME ZONE 'UTC'");
   });
 
   it('flags 3+ going-dark events in 30 days with exactly the details the client-side version stored', async () => {

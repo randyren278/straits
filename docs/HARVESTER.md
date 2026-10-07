@@ -270,20 +270,28 @@ dropdown shows the same, with a per-step submenu. Over
 `EGRESS_DAILY_BUDGET_MB` (default 100) in 24h, the run warns (amber).
 
 **Local mirror.** A Postgres on this Mac (`local.straits.mirror-db`, port
-5433) holds exact copies of the tables the harvester writes:
-`vessel_positions` (the last 5 days are verified; up to 90 days are kept),
-`vessels`, `vessel_fallback_metadata`, and the track engine's `lane_density`
-and learn state. Each run, after the core upload:
+5433) holds an exact copy of the tables the harvester writes —
+`vessel_positions`, `vessels` and `vessel_fallback_metadata`, including
+whatever Supabase has pruned — plus the track engine's `lane_density` and
+learn state. Each run, after the core upload:
 
-1. Per-hour checksums of positions are compared on both sides (one small query
-   each). Only hours that differ are re-copied, normally just the hour this run
-   wrote into. Vessels and fallback metadata pull rows whose `last_seen` moved,
-   then whole-table checksums confirm they match.
+1. Positions: drop what Supabase has pruned (everything older than its oldest
+   row), download only rows newer than the newest mirrored row (normally just
+   this run's inserts), then compare per-hour checksums of the whole table
+   (one small query per side). Any hour that still differs, such as a row that
+   arrived with an older timestamp or local corruption, is re-copied. Vessels
+   and fallback metadata pull rows whose `last_seen` moved, then whole-table
+   checksums confirm they match.
 2. If everything matches, the heavy reads go to the mirror for the rest of the
-   run: the track engine, Suez crossings, and the loitering, speed, deviation
-   and teleport detectors (`readerPool()` in `src/lib/db/reader.ts`). Everything
-   else, including every write, still goes to Supabase.
-3. A mirrored read that fails switches the rest of the run back to Supabase.
+   run: the track engine, Suez crossings, and the going-dark, loitering,
+   speed, deviation and teleport detectors (`readerPool()` in
+   `src/lib/db/reader.ts`). Everything else, including every write, still goes
+   to Supabase.
+3. A mirrored read that fails or hangs (30 s client timeout) switches the rest
+   of the run back to Supabase.
+
+Measured on production data (Oct 2026), a harvest now downloads ~0.16 MB from
+Supabase (mirror sync ~85 KB, detectors ~60 KB) instead of ~9 MB.
 
 Two detectors that only aggregated and rewrote Supabase data, repeat-going-dark
 and risk scoring, now run entirely inside Postgres (`INSERT … SELECT`), so
@@ -305,8 +313,11 @@ Status warns. After
 notification fires, with a heartbeat every `OUTAGE_RENOTIFY_HOURS`.
 
 **Safety limits.**
+- A connection that drops mid-sync (Supavisor reset, mirror restart,
+  sleep/wake) makes that run's mirror not ready; it never fails the harvest.
 - Building or repairing the mirror is capped at `MIRROR_REPAIR_BUDGET_MB`
-  (default 60) per rolling 24h. A full bootstrap is ~35 MB.
+  (default 60) per rolling 24h. A full bootstrap of the current data was
+  ~25 MB.
 - A copied range whose checksum still disagrees after the copy trips a breaker
   that pauses repairs for 6h, so a checksum bug cannot re-download everything
   every run.
@@ -334,7 +345,6 @@ RETENTION_DAYS=7
 # EGRESS_DAILY_BUDGET_MB=100        # optional, rolling-24h Supabase egress before a warning
 # MIRROR_DATABASE_URL=off           # optional, disable the local mirror (default 127.0.0.1:5433/straits_mirror)
 # MIRROR_REPAIR_BUDGET_MB=60        # optional, rolling-24h cap on mirror bootstrap/repair downloads
-# MIRROR_RETENTION_DAYS=90          # optional, positions kept in the mirror
 # MIRROR_FAILURE_THRESHOLD=3        # optional, runs without a usable mirror before an alert
 ```
 
@@ -388,6 +398,8 @@ directory `~/.straits-harvester/mirror-pg` (UTF8, en_US.UTF-8, UTC, matching
 Supabase), and loads the `local.straits.mirror-db` LaunchAgent. The next
 harvest creates the tables and bootstraps the copy over one or two runs. Re-run
 the script after moving the repo, since the LaunchAgent points into it.
+The Postgres integration tests (`npx vitest run`) also use this server, in
+per-run scratch databases; set `MIRROR_TEST_ADMIN_URL` to use another.
 
 ---
 
@@ -416,7 +428,7 @@ scripts/harvester/install-harvester.sh --uninstall
 launchctl print gui/$(id -u)/local.straits.mirror-db | grep -A2 state
 npx tsx --env-file=.env.harvester scripts/verify-mirror-equivalence.ts   # hold harvest.lock; ~8 MB egress
 /opt/homebrew/opt/postgresql@17/bin/dropdb -h 127.0.0.1 -p 5433 -U postgres straits_mirror &&
-  /opt/homebrew/opt/postgresql@17/bin/createdb -h 127.0.0.1 -p 5433 -U postgres straits_mirror   # next runs re-copy (~35 MB)
+  /opt/homebrew/opt/postgresql@17/bin/createdb -h 127.0.0.1 -p 5433 -U postgres straits_mirror   # next runs re-copy (~25 MB)
 ```
 
 ### Files
