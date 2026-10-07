@@ -95,6 +95,8 @@ ERR=$(read_json '.error' 'error')
 FAILS=$(read_json '.consecutiveFailures' 'consecutiveFailures')
 LASTOK=$(read_json '.lastOkRun' 'lastOkRun')
 DETFAILS=$(read_json '.consecutiveDetectorFailures' 'consecutiveDetectorFailures')
+EGRESS_RUN=$(read_json '.egressBytes' 'egressBytes')
+EGRESS_24H=$(read_json '.egress24hBytes' 'egress24hBytes')
 WARNINGS=$(read_warnings)
 WARN_COUNT=0
 [ -n "$WARNINGS" ] && WARN_COUNT=$(printf '%s\n' "$WARNINGS" | wc -l | tr -d ' ')
@@ -184,4 +186,15 @@ echo "News refreshed: ${NEWS:-0}"
 echo "Pruned (>7d): ${PRUNED:-0}"
 echo "---"
 echo "DB ${DBMB:-?} MB / 500 MB cap · ${TOTAL:-?} positions stored | size=11 color=gray"
+# Supabase bills these downloads against the org's 5 GB/month egress quota.
+mb() { awk -v b="${1:-0}" 'BEGIN { printf "%.1f MB", b / 1e6 }'; }
+if [ -n "$EGRESS_24H" ]; then
+  echo "Supabase egress: $(mb "$EGRESS_RUN") this run · $(mb "$EGRESS_24H") / 24h | size=11 color=gray"
+  if command -v jq >/dev/null 2>&1; then
+    jq -r '(.egressByStep // {}) | to_entries | sort_by(-.value)[] | "\(.key)\t\(.value)"' "$STATUS" 2>/dev/null |
+      while IFS=$'\t' read -r name bytes; do
+        [ -n "$name" ] && echo "--$name: $(mb "$bytes") | size=11 color=gray"
+      done
+  fi
+fi
 footer
