@@ -44,6 +44,24 @@ function compare(name: string, a: unknown[], b: unknown[]): void {
   for (const v of onlyB) console.log(`      mirror only:   ${v.slice(0, 300)}`);
 }
 
+/**
+ * Like compare(), for rows carrying a NOW()-derived column: the two servers
+ * evaluate NOW() a fraction of a second apart, so that column may differ by
+ * up to `maxDelta`; every other field must match exactly.
+ */
+function compareTimeDerived(name: string, a: Record<string, unknown>[], b: Record<string, unknown>[], key: string, field: string, maxDelta: number): void {
+  const strip = (r: Record<string, unknown>) => ({ ...r, [field]: null });
+  compare(`${name} (excluding ${field})`, a.map(strip), b.map(strip));
+  const other = new Map(b.map((r) => [String(r[key]), Number(r[field])]));
+  const worst = a.reduce((m, r) => Math.max(m, Math.abs(Number(r[field]) - (other.get(String(r[key])) ?? Infinity))), 0);
+  if (worst <= maxDelta) {
+    console.log(`  ✓ ${name} ${field}: max difference ${worst.toFixed(4)} (≤ ${maxDelta})`);
+  } else {
+    failures++;
+    console.log(`  ✗ ${name} ${field}: max difference ${worst}`);
+  }
+}
+
 /** Run `fn` with reads routed to `reader`. */
 async function via<T>(reader: Reader, fn: () => Promise<T>): Promise<T> {
   setReaderPool(reader);
@@ -78,7 +96,8 @@ async function main(): Promise<void> {
     if (captured.length !== 1) throw new Error(`${name}: expected one captured read, got ${captured.length}`);
     const { text, values } = captured[0];
     const [a, b] = await Promise.all([pool.query(text, values), local.query(text, values)]);
-    compare(`${name} read`, a.rows, b.rows);
+    if (name === 'detectGoingDark') compareTimeDerived(`${name} read`, a.rows, b.rows, 'imo', 'gapMinutes', 0.1);
+    else compare(`${name} read`, a.rows, b.rows);
   }
 
   const size = grid.w * grid.h;

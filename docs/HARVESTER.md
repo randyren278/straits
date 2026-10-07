@@ -285,6 +285,10 @@ and learn state. Each run, after the core upload:
    else, including every write, still goes to Supabase.
 3. A mirrored read that fails switches the rest of the run back to Supabase.
 
+Two detectors that only aggregated and rewrote Supabase data, repeat-going-dark
+and risk scoring, now run entirely inside Postgres (`INSERT … SELECT`), so
+they download nothing.
+
 Supabase is the source of truth and the mirror is a disposable, verified
 cache. Copies are exact: they are read under `SET LOCAL extra_float_digits = 3`,
 while the mirror's sessions round floats like Supabase's pooled sessions do, so
