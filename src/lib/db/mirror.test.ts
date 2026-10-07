@@ -352,6 +352,15 @@ describe.skipIf(!available)('local mirror (integration)', () => {
   });
 });
 
+describe('createMirrorPool', () => {
+  it('times out queries on the client, so a hung mirror cannot stall a harvest', async () => {
+    // statement_timeout is enforced by the server, which a hung server never does.
+    const p = createMirrorPool('postgres://postgres@127.0.0.1:1/none');
+    expect((p as unknown as { options: { query_timeout?: number } }).options.query_timeout).toBeGreaterThan(0);
+    await p.end();
+  });
+});
+
 describe('diffBuckets', () => {
   it('returns hours whose count or hash differ, or that exist on one side only, newest first', () => {
     const remoteB = [{ h: '10', n: '3', hash: '7' }, { h: '11', n: '2', hash: '5' }, { h: '12', n: '1', hash: '1' }];
