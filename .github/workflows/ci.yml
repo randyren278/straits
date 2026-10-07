@@ -28,7 +28,8 @@ jobs:
     # tests/postgres.ts fails the run in CI if this server is unreachable.
     services:
       postgres:
-        image: postgres:17-alpine
+        # Debian (glibc) rather than alpine (musl), so collation matches Supabase.
+        image: postgres:17
         env:
           POSTGRES_PASSWORD: postgres
         ports:
