@@ -103,6 +103,10 @@ export function createMirrorPool(url: string): Pool {
     max: 10,
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 3_000,
+    // Client-side: a hung (not dead) mirror never answers, so the server-side
+    // statement_timeout below would never fire. A timed-out query rejects and
+    // its connection is discarded; mirrorReader then falls back to Supabase.
+    query_timeout: 30_000,
     options: '-c TimeZone=UTC -c DateStyle=ISO,MDY -c extra_float_digits=0 -c statement_timeout=60000',
   });
   // An idle client dying (mirror restarted, Mac slept) is emitted on the pool;
