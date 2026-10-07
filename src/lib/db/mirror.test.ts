@@ -15,8 +15,9 @@ import {
 } from './mirror';
 
 const ADMIN_URL = process.env.MIRROR_TEST_ADMIN_URL ?? 'postgres://postgres@127.0.0.1:5433/postgres';
-const REMOTE_DB = 'mirror_it_remote';
-const LOCAL_DB = 'mirror_it_local';
+// Per-process names: concurrent test runs must never drop each other's databases.
+const REMOTE_DB = `mirror_it_remote_${process.pid}`;
+const LOCAL_DB = `mirror_it_local_${process.pid}`;
 
 async function serverAvailable(): Promise<boolean> {
   const p = new Pool({ connectionString: ADMIN_URL, connectionTimeoutMillis: 1000, max: 1 });
