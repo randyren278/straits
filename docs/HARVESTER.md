@@ -305,10 +305,10 @@ mirrored reads return exactly what Supabase reads would.
 read against Supabase.
 
 **When the mirror can't be used** (Postgres down, still bootstrapping, a repair
-budget hit), the run reads Supabase as before. The track engine and Suez
-crossings then run at most hourly, and stop entirely once the rolling-24h
-egress passes `EGRESS_DAILY_BUDGET_MB`; the detectors keep running every run.
-Status warns. After
+budget hit), the run reads Supabase as before. The detectors, the track
+engine and Suez crossings then run at most hourly, and stop entirely once the
+rolling-24h egress passes `EGRESS_DAILY_BUDGET_MB`, which keeps even a long
+mirror outage near that budget. Status warns. After
 `MIRROR_FAILURE_THRESHOLD` (default 3) such runs in a row, a macOS
 notification fires, with a heartbeat every `OUTAGE_RENOTIFY_HOURS`.
 

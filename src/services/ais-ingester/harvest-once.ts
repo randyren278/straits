@@ -128,10 +128,10 @@ const EGRESS_DAILY_BUDGET_BYTES = Number(process.env.EGRESS_DAILY_BUDGET_MB ?? 1
 const MIRROR_URL = process.env.MIRROR_DATABASE_URL ?? 'postgres://postgres@127.0.0.1:5433/straits_mirror';
 const MIRROR_REPAIR_BUDGET_BYTES = Number(process.env.MIRROR_REPAIR_BUDGET_MB ?? 60) * 1e6;
 const MIRROR_FAILURE_THRESHOLD = Number(process.env.MIRROR_FAILURE_THRESHOLD ?? 3);
-// Without the mirror, the two heaviest reads (track engine ~6 MB, Suez
-// crossings ~1.7 MB per run) run at most this often, and not at all once the
-// rolling-24h egress budget is spent. With it they run every harvest at no
-// egress cost.
+// Without the mirror, the reads it would have served (track engine ~6 MB, Suez
+// crossings ~1.7 MB, detectors ~0.5 MB per run) run at most this often, and
+// not at all once the rolling-24h egress budget is spent. With it they run
+// every harvest at no egress cost.
 const DEGRADED_HEAVY_STEP_MINUTES = 60;
 
 const mirrorPool = MIRROR_URL === 'off' ? null : createMirrorPool(MIRROR_URL);
@@ -693,6 +693,11 @@ async function step(name: string, budgetMs: number, fn: () => Promise<void>): Pr
 
 // ── Run all detectors once ────────────────────────────────────────────────────
 async function runDetectors(): Promise<void> {
+  // Without the mirror the detectors' position reads cost ~0.5 MB per run, so
+  // they fall under the same hourly + egress-budget gate as the heavy steps.
+  // computeRiskScores stamps computed_at on every pass, which dates the last one.
+  // Returning here is a deliberate skip, not a failure (status.anomalies stays null).
+  if (!(await heavyReadAllowed('Detectors', 'SELECT MAX(computed_at) AS ts FROM vessel_risk_scores'))) return;
   const going = await detectGoingDark();
   await generateAlertsForNewAnomalies('going_dark');
 
