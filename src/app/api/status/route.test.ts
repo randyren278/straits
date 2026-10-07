@@ -78,10 +78,23 @@ describe('GET /api/status', () => {
     expect(data).toEqual({ ais: 'offline', prices: 'offline', news: 'offline' });
   });
 
-  it('returns degraded for prices when fetched_at is between 2hr and 24hr old', async () => {
+  it('keeps prices live through the harvester\'s 3-hour refresh cycle', async () => {
+    const { pool } = await import('@/lib/db/index');
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({ rows: [{ last_update: new Date(Date.now() - 2 * MIN) }] } as any)
+      .mockResolvedValueOnce({ rows: [{ last_update: new Date(Date.now() - (2 * HR + 59 * MIN)) }] } as any)
+      .mockResolvedValueOnce({ rows: [{ last_update: new Date(Date.now() - 20 * MIN) }] } as any);
+
+    const { GET } = await import('./route');
+    const data = await (await GET()).json();
+
+    expect(data.prices).toBe('live');
+  });
+
+  it('returns degraded for prices once a refresh has been missed (4hr to 24hr old)', async () => {
     const { pool } = await import('@/lib/db/index');
     const recentAis = new Date(Date.now() - 2 * MIN);
-    const degradedPrices = new Date(Date.now() - 3 * HR); // 3 hours ago
+    const degradedPrices = new Date(Date.now() - 5 * HR); // a 3-hour refresh is overdue
     const recentNews = new Date(Date.now() - 20 * MIN);
 
     vi.mocked(pool.query)
