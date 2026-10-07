@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { EventEmitter } from 'events';
 
 // Create a mock query function
 const mockQuery = vi.fn();
 
-// Create a proper mock class for Pool
-class MockPool {
+// Create a proper mock class for Pool (pg's Pool is an EventEmitter)
+class MockPool extends EventEmitter {
   query = mockQuery;
   constructor(public config: Record<string, unknown>) {
+    super();
     MockPool.lastConfig = config;
     MockPool.instanceCount++;
   }
@@ -72,5 +74,13 @@ describe('Database Connection Pool', () => {
     vi.resetModules();
     await import('./index');
     expect(MockPool.lastConfig.idleTimeoutMillis).toBe(30000);
+  });
+
+  it('survives an idle client error instead of crashing the process', async () => {
+    vi.resetModules();
+    const { pool } = await import('./index');
+    // pg-pool reports a dropped idle connection as an 'error' event on the pool;
+    // with no listener, Node turns it into an uncaught exception.
+    expect(() => (pool as unknown as EventEmitter).emit('error', new Error('Connection terminated unexpectedly'))).not.toThrow();
   });
 });

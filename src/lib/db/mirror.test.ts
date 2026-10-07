@@ -54,6 +54,17 @@ function opts(overrides: Partial<MirrorSyncOptions> = {}): MirrorSyncOptions {
   return { now: NOW, deadline: Date.now() + 60_000, repairBudgetBytes: 50_000_000, ...overrides };
 }
 
+/**
+ * A stand-in for Supabase's pooled sessions: UTC (unless overridden) and floats
+ * rounded to 15 digits. afterAll's DROP DATABASE … WITH (FORCE) can terminate a
+ * connection pool.end() is still closing, which pg-pool re-emits as an error.
+ */
+function remotePool(timeZone = 'UTC'): Pool {
+  const p = new Pool({ connectionString: pgUrl(REMOTE_DB), options: `-c extra_float_digits=0 -c TimeZone=${timeZone}` });
+  p.on('error', () => {});
+  return p;
+}
+
 /** Every mirrored column as exact text, ordered — what "identical" means. */
 async function exactRows(p: Pool, sql: string): Promise<string[][]> {
   const c = await p.connect();
@@ -92,8 +103,7 @@ describe.skipIf(!available)('local mirror (integration)', () => {
       await admin.query(`DROP DATABASE IF EXISTS ${db} WITH (FORCE)`);
       await admin.query(`CREATE DATABASE ${db}`);
     }
-    // Supabase's pooled sessions: UTC, and floats rounded to 15 digits.
-    remote = new Pool({ connectionString: pgUrl(REMOTE_DB), options: '-c extra_float_digits=0 -c TimeZone=UTC' });
+    remote = remotePool();
     local = createMirrorPool(pgUrl(LOCAL_DB));
   });
 
@@ -213,14 +223,14 @@ describe.skipIf(!available)('local mirror (integration)', () => {
 
   it('buckets by UTC epoch hour regardless of the remote session time zone', async () => {
     await remote.end();
-    remote = new Pool({ connectionString: pgUrl(REMOTE_DB), options: '-c extra_float_digits=0 -c TimeZone=Asia/Kolkata' });
+    remote = remotePool('Asia/Kolkata');
     await seedRemote(3, 2);
     const first = await syncMirror(remote, local, opts());
     const second = await syncMirror(remote, local, opts());
     expect(first.ready).toBe(true);
     expect(second.bucketsRepaired).toBe(0);
     await remote.end();
-    remote = new Pool({ connectionString: pgUrl(REMOTE_DB), options: '-c extra_float_digits=0 -c TimeZone=UTC' });
+    remote = remotePool();
   });
 
   it('stops at the deadline, reports not ready with hours pending, and finishes on the next sync', async () => {

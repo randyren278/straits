@@ -104,6 +104,9 @@ describe.skipIf(!available)('computeRiskScores (integration)', () => {
     // The module's pool reads DATABASE_URL when it is first imported.
     process.env.DATABASE_URL = pgUrl(DB);
     ({ pool } = await import('../db'));
+    // afterAll's DROP DATABASE … WITH (FORCE) can terminate a connection that
+    // pool.end() is still closing; unheard, pg-pool re-emits that as an error.
+    pool.on('error', () => {});
     ({ computeRiskScores } = await import('./risk-score'));
   });
 

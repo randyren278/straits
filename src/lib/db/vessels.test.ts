@@ -7,6 +7,7 @@ const mockQuery = vi.fn();
 // Create mock pool class
 class MockPool {
   query = mockQuery;
+  on = vi.fn(); // pg's Pool is an EventEmitter; index.ts listens for 'error'
   constructor(public config: Record<string, unknown>) {}
 }
 

@@ -42,6 +42,14 @@ export const pool = new Pool({
   connectionTimeoutMillis: 8000,
 });
 
+// An idle client whose connection drops (Supavisor restart, network change,
+// Mac sleep) is reported as an 'error' event on the pool. With no listener,
+// Node turns that into an uncaught exception that kills the harvest or the
+// serverless function. pg-pool has already discarded the client; log it.
+pool.on('error', (err) => {
+  console.error('Idle database client error:', err.message);
+});
+
 /**
  * Execute a parameterized SQL query and return typed results.
  * Uses parameterized queries to prevent SQL injection.
