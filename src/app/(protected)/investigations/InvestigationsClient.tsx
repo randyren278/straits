@@ -196,9 +196,7 @@ export function InvestigationsClient() {
               Test a specific claim against dated observations. Empty coverage stays uncertain; a contact is not automatically a passage.
             </p>
           </div>
-          <Link href="/dashboard" className="border border-gray-700 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-gray-400 hover:border-amber-500/50 hover:text-amber-400">
-            Open live map
-          </Link>
+          <div className="flex gap-2"><Link href="/investigations/encounters" className="border border-amber-500/50 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-amber-400 hover:bg-amber-500/10">Encounter Caseboard ↗</Link><Link href="/dashboard" className="border border-gray-700 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-gray-400 hover:border-amber-500/50 hover:text-amber-400">Open live map</Link></div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(19rem,0.85fr)]">
@@ -345,10 +343,10 @@ export function InvestigationsClient() {
                     <ul className="max-h-[25rem] divide-y divide-gray-900 overflow-y-auto">
                       {evidence.vessels.slice(0, showAllVessels ? 30 : 10).map((vessel) => (
                         <li key={vessel.imo ?? vessel.mmsi}>
-                          <Link href={vessel.mapHref} className="flex min-h-11 items-center justify-between gap-3 py-2 text-xs hover:text-amber-300">
+                          <div className="flex min-h-11 items-center justify-between gap-3 py-2 text-xs">
                             <span className="min-w-0 truncate text-gray-300">{vessel.name}<span className="ml-2 text-[10px] text-gray-600">{vessel.flag ?? 'Flag unknown'} · {vessel.imo ?? vessel.mmsi}</span></span>
-                            <span className="shrink-0 font-mono text-[9px] text-gray-600">{formatDate(vessel.observedAt)}</span>
-                          </Link>
+                            <span className="flex shrink-0 items-center gap-3 font-mono text-[9px]"><span className="text-gray-600">{formatDate(vessel.observedAt)}</span>{vessel.imo && /^\d{7}$/.test(vessel.imo) && <Link href={`/investigations/encounters/${vessel.imo}`} className="text-amber-400 underline underline-offset-2 hover:text-amber-200">Caseboard</Link>}<Link href={vessel.mapHref} className="text-gray-400 underline underline-offset-2 hover:text-white">Map</Link></span>
+                          </div>
                         </li>
                       ))}
                     </ul>
