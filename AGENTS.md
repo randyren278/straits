@@ -28,6 +28,18 @@ A geopolitical intelligence dashboard tracking all vessels across the Middle Eas
 - Status derived from DB freshness timestamps (no API pings)
 - Bloomberg aesthetic: true black + amber, JetBrains Mono, sharp corners
 
+## Agent workflow and verification
+
+Use `$r-mode` in Codex for rstack workflows. Project configuration is in
+`.rstack/config.json`; empty `roles` inherit the active session's model and
+reasoning settings. `max_workers: 2` is a guidance limit, not authorization to
+delegate or a host setting. Follow the session's delegation rules.
+
+See [docs/RSTACK.md](docs/RSTACK.md) for launch prerequisites, verification
+commands, browser requirements, and the distinction between local checks and
+the full GitHub CI workflow. Run checks relevant to the change and report any
+skips or unavailable dependencies explicitly.
+
 ## Running Locally
 ```bash
 ./run.sh                      # one command: DB + schema + seed + dev server → :3000/dashboard
