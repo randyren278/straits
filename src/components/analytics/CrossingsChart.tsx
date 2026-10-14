@@ -67,7 +67,7 @@ export function CrossingsChart({ days, selectedDay, onSelectDay, incompleteRatio
             />
             <Legend wrapperStyle={{ fontFamily: MONO, fontSize: 11 }} itemSorter={() => 0} />
             {(['northbound', 'southbound', 'waiting', 'incomplete'] as const).map((key) => (
-              <Bar key={key} dataKey={key} name={key} stackId="d" maxBarSize={48} fill={COLORS[key]} stroke={key === 'incomplete' ? COLORS.waiting : undefined} strokeDasharray={key === 'incomplete' ? '3 2' : undefined} cursor="pointer">
+              <Bar key={key} isAnimationActive={false} dataKey={key} name={key} stackId="d" maxBarSize={48} fill={COLORS[key]} stroke={key === 'incomplete' ? COLORS.waiting : undefined} strokeDasharray={key === 'incomplete' ? '3 2' : undefined} cursor="pointer">
                 {days.map((d) => (
                   <Cell key={d.day} opacity={selectedDay && selectedDay !== d.day ? 0.45 : 1} />
                 ))}

@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { VesselMap } from '@/components/map/VesselMap';
 import { ReplayControls } from '@/components/map/ReplayControls';
-import { VesselPanel } from '@/components/panels/VesselPanel';
+import { VesselPanel } from '@/components/panels/LazyVesselPanel';
 import { VesselPeek } from '@/components/panels/VesselPeek';
 import { OilPricePanel } from '@/components/panels/OilPricePanel';
 import { NewsPanel } from '@/components/panels/NewsPanel';

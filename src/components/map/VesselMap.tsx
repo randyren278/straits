@@ -723,7 +723,8 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     };
   }, [tankersOnly, setLastUpdate, setLastObservation]);
 
-  // Update map data when vessels change (or anomaly filter changes)
+  // Submit once after any input to the vessel source changes. Separate effects
+  // for tracks and vessels submitted the same snapshot twice on map load.
   useEffect(() => {
     if (!map.current || !mapLoaded || acceptedResponseSequenceRef.current === 0) return;
 
@@ -731,13 +732,7 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
 
     // Re-run proximity detection after data update
     detectProximityGroup();
-  }, [vessels, mapLoaded, submitVesselGeoJson, detectProximityGroup]);
-
-  // Re-split dots vs overlay whenever the track engine reports or the stale toggle flips.
-  useEffect(() => {
-    if (!map.current || !mapLoaded || acceptedResponseSequenceRef.current === 0) return;
-    submitVesselGeoJson(vesselsRef.current, acceptedResponseSequenceRef.current);
-  }, [trackMap, showStale, mapLoaded, submitVesselGeoJson]);
+  }, [vessels, mapLoaded, trackMap, showStale, submitVesselGeoJson, detectProximityGroup]);
 
   // Handle track layer for selected vessel
   const TRACK_HOURS = 24;

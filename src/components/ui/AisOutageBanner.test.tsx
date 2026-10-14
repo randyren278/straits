@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { clearInactivePolledJsonCache } from '@/lib/hooks/usePolledJson';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import { AisOutageBanner } from './AisOutageBanner';
 import { StatusChip } from './StatusChip';
@@ -16,6 +17,7 @@ function stubStatus(ais: string) {
 
 afterEach(() => {
   cleanup();
+  clearInactivePolledJsonCache();
   vi.unstubAllGlobals();
 });
 

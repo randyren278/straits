@@ -48,4 +48,15 @@ describe('buildFrame', () => {
     const f = buildFrame({ vessels: [vessel('a', 56.4, 25.3)], nc, byMmsi: new Map(), tMin: 0, zoom: 10, project: () => ({ x: 0, y: 0 }), selected: null });
     expect(f.glowMix).toBe(0);
   });
+
+  it('keeps moving contacts and selection while omitting invisible detail at regional zoom', () => {
+    const nc = new Nowcaster(); const ps = [payload('m', true)]; nc.ingest(ps, 1000);
+    const f = buildFrame({ vessels: [vessel('m', 57, 25)], nc, byMmsi: new Map(ps.map(p => [p.mmsi, p])),
+      tMin: 1030, zoom: 5, project: (lon, lat) => ({ x: lon * 100, y: -lat * 100 }), selected: 'm' });
+    expect(f.ships).toHaveLength(1);
+    expect(f.sel).toEqual({ x: f.ships[0].x, y: f.ships[0].y });
+    expect(f.tails).toHaveLength(0);
+    expect(f.ahead).toHaveLength(0);
+    expect(f.rings).toHaveLength(0);
+  });
 });

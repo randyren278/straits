@@ -289,6 +289,7 @@ describe('VesselMap loading state', () => {
     gate.resolve(response([vessel(1)]));
     await flush();
     await waitForSetData(activeMap);
+    expect(activeMap.getSource('vessels')?.setData).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'loading');
 
     await emitMapRender(activeMap);
@@ -315,6 +316,7 @@ describe('VesselMap loading state', () => {
     expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-map-state', 'ready');
     expect(screen.getByRole('status')).toHaveTextContent(/map online/i);
     await waitForSetData(activeMap);
+    expect(activeMap.getSource('vessels')?.setData).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'loading');
     await emitMapRender(activeMap);
     await waitFor(() => expect(screen.getByTestId('vessel-map')).toHaveAttribute('data-vessel-state', 'ready'));

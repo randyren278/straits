@@ -11,6 +11,7 @@ import { VoyagesTable } from './VoyagesTable';
 import type { DailyCrossingCounts } from '@/lib/analytics/crossings';
 import type { VoyageRow } from '@/app/api/chokepoints/[id]/crossings/route';
 import type { TimeRange } from '@/types/analytics';
+import { fetchCachedJson } from '@/lib/client/cached-json';
 
 interface CrossingsResponse {
   days: DailyCrossingCounts[];
@@ -35,8 +36,7 @@ export function ChokepointPulse({ range }: { range: TimeRange }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/chokepoints/suez/crossings?range=${range}`)
-      .then((r) => r.json() as Promise<CrossingsResponse>)
+    fetchCachedJson<CrossingsResponse>(`/api/chokepoints/suez/crossings?range=${range}`)
       .then((json) => { if (!cancelled) setDays(json.days ?? []); })
       .catch(() => { if (!cancelled) setDays([]); });
     return () => { cancelled = true; };
@@ -48,8 +48,7 @@ export function ChokepointPulse({ range }: { range: TimeRange }) {
     setLoadingDay(true);
     setVoyages(null);
     setReason(null);
-    fetch(`/api/chokepoints/suez/crossings?range=${range}&day=${day}`)
-      .then((r) => r.json() as Promise<CrossingsResponse>)
+    fetchCachedJson<CrossingsResponse>(`/api/chokepoints/suez/crossings?range=${range}&day=${day}`)
       .then((json) => {
         if (seq !== requestSeq.current) return; // a later click superseded this one
         setVoyages(json.voyages ?? null); setReason(json.reason ?? null);

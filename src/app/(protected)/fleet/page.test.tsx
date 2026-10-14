@@ -7,6 +7,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FleetPage from './page';
+import { clearJsonSnapshots } from '@/lib/client/cached-json';
 
 afterEach(() => {
   cleanup();
@@ -41,6 +42,7 @@ const payload = {
 };
 
 beforeEach(() => {
+  clearJsonSnapshots();
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string) => {

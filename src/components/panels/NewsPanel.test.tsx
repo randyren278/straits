@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { clearInactivePolledJsonCache } from '@/lib/hooks/usePolledJson';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NewsPanel, VISIBLE_HEADLINES } from './NewsPanel';
@@ -11,6 +12,7 @@ const headlines = Array.from({ length: 15 }, (_, i) => ({
 }));
 
 beforeEach(() => {
+  clearInactivePolledJsonCache();
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ headlines }) })));
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });

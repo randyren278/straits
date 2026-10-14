@@ -8,7 +8,7 @@
  */
 'use client';
 
-import Link from 'next/link';
+import { IntentLink as Link } from './IntentLink';
 import { usePathname } from 'next/navigation';
 import { Map, BarChart3, Ship, Info, FlaskConical } from 'lucide-react';
 import { IS_CANARY_CLIENT } from '@/lib/canary-client';
@@ -39,7 +39,7 @@ export function MobileBottomNav() {
           <Link
             key={href}
             href={href}
-            prefetch={false}
+            prefetchOnIntent={href !== '/investigations'}
             aria-current={active ? 'page' : undefined}
             className={`min-h-[44px] flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-mono uppercase tracking-wider transition-colors ${
               active ? 'text-amber-500' : 'text-gray-500'

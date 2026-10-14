@@ -9,7 +9,7 @@
 import { useEffect, useRef } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import type { MapVessel } from '@/lib/map/map-vessel';
-import { buildFrame, type Frame } from '@/lib/tracks/frame';
+import { buildFrame, motionDetail, REGION_ZOOM, type Frame } from '@/lib/tracks/frame';
 import { DOT_RADIUS, DOT_TIER_SIZE, zoomScale } from '@/lib/map/marker-style';
 import { useTrackStore } from '@/stores/tracks';
 import { useReplayStore } from '@/stores/replay';
@@ -18,8 +18,6 @@ import { useVesselStore } from '@/stores/vessel';
 const AMBER = '#f59e0b';
 /** Wakes and estimate lines are capped in screen length, so they read the same at every zoom. */
 const TAIL_PX = 120, AHEAD_PX = 90;
-/** Below this zoom a whole region is on screen: moving ships draw as dots, wakes fade out. */
-const REGION_ZOOM = 6.3;
 
 /** Index from which the last `maxPx` of a screen polyline starts. */
 function tailStart(pts: { x: number; y: number }[], maxPx: number): number {
@@ -28,7 +26,6 @@ function tailStart(pts: { x: number; y: number }[], maxPx: number): number {
   return 0;
 }
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-const smoothstep = (a: number, b: number, x: number) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const easeOut = (x: number) => 1 - (1 - x) ** 3;
 
 function glowSprite(): HTMLCanvasElement {
@@ -123,7 +120,7 @@ export function MotionOverlay({ map, vessels, frameRef, hoverRef }: {
 
       const zs = zoomScale(zoom);
       // Detail that only reads up close: rings, then dashed estimates, fade out as you zoom out.
-      const ringMix = smoothstep(8.3, 9.2, zoom), aheadMix = smoothstep(6.6, 7.6, zoom), tailMix = smoothstep(REGION_ZOOM - 0.5, REGION_ZOOM + 0.5, zoom);
+      const { ringMix, aheadMix, tailMix } = motionDetail(zoom);
       // Replay: ships at rest (live, the map's dot layer draws them), same size and greys.
       if (f.dots.length) {
         const byColor = new Map<string, Path2D>();

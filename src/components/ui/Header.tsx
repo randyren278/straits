@@ -5,7 +5,7 @@
  */
 'use client';
 
-import Link from 'next/link';
+import { IntentLink as Link } from './IntentLink';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Search } from 'lucide-react';
@@ -69,7 +69,6 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
         <div className="flex items-center phone:justify-between phone:min-h-11 phone:w-full">
           <Link
             href="/dashboard"
-            prefetch={false}
             className="flex items-center gap-2 shrink-0 phone:min-w-[44px] phone:min-h-[44px] tablet:min-w-[44px] tablet:min-h-[44px]"
           >
             <StraitsMark size={20} className="shrink-0" />
@@ -88,7 +87,7 @@ export function Header({ onSearchSelect, onChokepointSelect }: HeaderProps) {
               <Link
                 key={href}
                 href={href}
-                prefetch={false}
+                prefetchOnIntent={id !== 'investigations'}
                 aria-current={activeTab === id ? 'page' : undefined}
                 className={`inline-flex items-center whitespace-nowrap px-3 py-1 tablet:min-h-[44px] text-xs font-mono uppercase tracking-wider border transition-colors ${
                   activeTab === id

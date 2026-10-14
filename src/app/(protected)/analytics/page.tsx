@@ -18,6 +18,7 @@ import { describeEmptyTraffic } from '@/components/charts/TrafficChart';
 import { ChartQualityRow } from '@/components/analytics/ChartQualityRow';
 import { ChokepointPulse } from '@/components/analytics/ChokepointPulse';
 import { useCoverageQuality, QUALITY_RANK } from '@/lib/hooks/useCoverageQuality';
+import { fetchCachedJson } from '@/lib/client/cached-json';
 import type { TrafficWithPrices, RouteTrafficPoint, RouteRegion, TrafficCoverage } from '@/types/analytics';
 
 interface CorrelationData {
@@ -67,22 +68,17 @@ export default function AnalyticsPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Fetch data for the active view (chokepoint correlation or route traffic)
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (signal: AbortSignal) => {
     setIsLoading(true);
     setError(null);
 
     try {
       if (viewMode === 'route') {
         const routesParam = selectedRoutes.join(',');
-        const res = await fetch(
-          `/api/analytics/traffic?range=${timeRange}&groupBy=route&routes=${routesParam}`
+        const json = await fetchCachedJson<{ data: RouteTrafficPoint[] }>(
+          `/api/analytics/traffic?range=${timeRange}&groupBy=route&routes=${routesParam}`, { signal }
         );
-
-        if (!res.ok) {
-          throw new Error('Failed to fetch route traffic');
-        }
-
-        const json: { data: RouteTrafficPoint[] } = await res.json();
+        if (signal.aborted) return;
 
         // Group the flat route series by route region for per-route charts.
         const grouped: Record<string, TrafficWithPrices[]> = {};
@@ -96,33 +92,31 @@ export default function AnalyticsPage() {
 
         await Promise.all(
           selectedChokepoints.map(async (cpId) => {
-            const res = await fetch(
-              `/api/analytics/correlation?range=${timeRange}&chokepoint=${cpId}&priceSymbol=${priceSymbol}&shipType=${shipTypeFilter}`
+            const json = await fetchCachedJson<CorrelationData>(
+              `/api/analytics/correlation?range=${timeRange}&chokepoint=${cpId}&priceSymbol=${priceSymbol}&shipType=${shipTypeFilter}`, { signal }
             );
-
-            if (!res.ok) {
-              throw new Error(`Failed to fetch data for ${cpId}`);
-            }
-
-            const json: CorrelationData = await res.json();
             results[cpId] = json.data;
             coverages[cpId] = json.coverage ?? null;
           })
         );
 
+        if (signal.aborted) return;
         setChartData(results);
         setCoverage(coverages);
       }
     } catch (err) {
+      if (signal.aborted) return;
       console.error('Analytics fetch error:', err);
       setError('Failed to load analytics data. Please try again.');
     } finally {
-      setIsLoading(false);
+      if (!signal.aborted) setIsLoading(false);
     }
   }, [viewMode, timeRange, selectedChokepoints, selectedRoutes, priceSymbol, shipTypeFilter, setIsLoading]);
 
   useEffect(() => {
-    fetchData();
+    const controller = new AbortController();
+    void fetchData(controller.signal);
+    return () => controller.abort();
   }, [fetchData]);
 
   return (

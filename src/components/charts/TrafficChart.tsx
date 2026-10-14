@@ -176,6 +176,7 @@ export function TrafficChart({
           />
           <Legend wrapperStyle={{ fontFamily: MONO, fontSize: 11 }} />
           <Area
+            isAnimationActive={false}
             yAxisId="left"
             type="monotone"
             dataKey="vesselCount"
@@ -186,6 +187,7 @@ export function TrafficChart({
             strokeWidth={2}
           />
           <Area
+            isAnimationActive={false}
             yAxisId="left"
             type="monotone"
             dataKey="tankerCount"
@@ -197,6 +199,7 @@ export function TrafficChart({
           />
           {showPrice && (
             <Line
+              isAnimationActive={false}
               yAxisId="right"
               type="monotone"
               dataKey="oilPrice"

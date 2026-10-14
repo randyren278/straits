@@ -13,7 +13,7 @@
 
 import { CurrentWatchPanel } from './CurrentWatchPanel';
 import { ClusterPanel } from './ClusterPanel';
-import { VesselPanel } from './VesselPanel';
+import { VesselPanel } from './LazyVesselPanel';
 import { WatchlistPanel } from './WatchlistPanel';
 import { OilPricePanel } from './OilPricePanel';
 import { NewsPanel } from './NewsPanel';

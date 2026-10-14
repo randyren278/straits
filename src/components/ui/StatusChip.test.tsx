@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { clearInactivePolledJsonCache } from '@/lib/hooks/usePolledJson';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StatusChip, worstStatus, compactAge } from './StatusChip';
@@ -15,6 +16,7 @@ vi.mock('@/stores/vessel', () => ({
 }));
 
 beforeEach(() => {
+  clearInactivePolledJsonCache();
   vi.stubGlobal('fetch', vi.fn(async () => ({
     ok: true,
     json: async () => ({ ais: 'live', prices: 'degraded', news: 'live' }),

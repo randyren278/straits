@@ -18,7 +18,7 @@ export function ChartQualityRow({ chokepointId, coverage }: ChartQualityRowProps
   return (
     <div
       data-testid={`chart-quality-${chokepointId}`}
-      className="flex items-center justify-between gap-3 px-4 py-1.5 border border-t-0 border-amber-500/20 bg-black text-[11px] font-mono"
+      className="flex items-center justify-between gap-3 phone:flex-col phone:items-start phone:gap-1 px-4 py-1.5 border border-t-0 border-amber-500/20 bg-black text-[11px] font-mono"
     >
       <span className="uppercase tracking-wider text-gray-500">Observation quality · last 24h</span>
       {coverage ? (

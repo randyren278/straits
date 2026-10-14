@@ -19,6 +19,7 @@ type Listener = () => void;
 
 interface RegistryEntry<T> {
   data: T | null;
+  fetchedAt: number;
   subscribers: number;
   timerId: ReturnType<typeof setTimeout> | null;
   inFlight: Promise<void> | null;
@@ -30,10 +31,17 @@ interface RegistryEntry<T> {
 
 const registry = new Map<string, RegistryEntry<unknown>>();
 
+/** Release inactive snapshots when resetting a client session. */
+export function clearInactivePolledJsonCache(): void {
+  for (const [key, entry] of registry) {
+    if (entry.subscribers === 0) registry.delete(key);
+  }
+}
+
 function getEntry<T>(key: string): RegistryEntry<T> {
   let entry = registry.get(key) as RegistryEntry<T> | undefined;
   if (!entry) {
-    entry = { data: null, subscribers: 0, timerId: null, inFlight: null, controller: null, failures: 0, stop: null, listeners: new Set() };
+    entry = { data: null, fetchedAt: 0, subscribers: 0, timerId: null, inFlight: null, controller: null, failures: 0, stop: null, listeners: new Set() };
     registry.set(key, entry as RegistryEntry<unknown>);
   }
   return entry;
@@ -48,6 +56,7 @@ function poll<T>(key: string, fetcher: (signal: AbortSignal) => Promise<T>): Pro
     .then((data) => {
       if (controller.signal.aborted) return;
       entry.data = data;
+      entry.fetchedAt = Date.now();
       entry.failures = 0;
       entry.listeners.forEach((listener) => listener());
     })
@@ -96,15 +105,15 @@ export function usePolledJson<T>(
 
       if (entry.subscribers === 1) {
         let active = true;
-        const schedule = () => {
+        const schedule = (remainingMs = intervalMs) => {
           if (!active || document.hidden) return;
           const backoff = Math.min(2 ** entry.failures, 5);
           const jitter = intervalMs < 10_000 ? 1 : 0.9 + Math.random() * 0.2;
-          entry.timerId = setTimeout(run, Math.min(intervalMs * backoff * jitter, 300_000));
+          entry.timerId = setTimeout(run, Math.min(remainingMs * backoff * jitter, 300_000));
         };
         const run = () => {
           if (!active || document.hidden) return;
-          void poll(key, fetcherRef.current).finally(schedule);
+          void poll(key, fetcherRef.current).finally(() => schedule());
         };
         const onVisibility = () => {
           clearTimer(entry);
@@ -118,7 +127,9 @@ export function usePolledJson<T>(
           document.removeEventListener('visibilitychange', onVisibility);
         };
         document.addEventListener('visibilitychange', onVisibility);
-        run();
+        const remaining = intervalMs - (Date.now() - entry.fetchedAt);
+        if (entry.data !== null && remaining > 0) schedule(remaining);
+        else run();
       }
 
       return () => {

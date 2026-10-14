@@ -14,6 +14,7 @@ import { FleetTablePanel } from '@/components/fleet/FleetTablePanel';
 import { FleetTabs, type FleetTab } from '@/components/fleet/FleetTabs';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ANOMALY_TYPE_LABELS, type Anomaly, type AnomalyType } from '@/types/anomaly';
+import { fetchCachedJson } from '@/lib/client/cached-json';
 
 const SANCTIONED_TAB_ID = 'sanctioned';
 
@@ -34,12 +35,9 @@ export default function FleetPage() {
       setError(null);
 
       try {
-        const res = await fetch('/api/anomalies?view=fleet-summary', { signal: controller.signal });
-        if (!res.ok) {
-          const body = await res.json().catch(() => null);
-          throw new Error(body?.error || `HTTP ${res.status}: Failed to fetch anomalies`);
-        }
-        const data: { counts: FleetCount[]; initialTab: string | null; initialAnomalies: Anomaly[] } = await res.json();
+        const data = await fetchCachedJson<{ counts: FleetCount[]; initialTab: string | null; initialAnomalies: Anomaly[] }>(
+          '/api/anomalies?view=fleet-summary', { signal: controller.signal }
+        );
         if (!controller.signal.aborted) {
           setCounts(data.counts || []);
           setInitialPage(data.initialTab ? { tab: data.initialTab, rows: data.initialAnomalies || [] } : null);

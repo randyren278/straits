@@ -5,6 +5,7 @@ import { AnomalyTable } from './AnomalyTable';
 import { SanctionedVessels } from './SanctionedVessels';
 import type { TableView, SortDir } from '@/lib/hooks/useTableView';
 import type { Anomaly, AnomalyType } from '@/types/anomaly';
+import { fetchCachedJson } from '@/lib/client/cached-json';
 
 const PAGE_SIZE = 15;
 const EMPTY_ROWS: Anomaly[] = [];
@@ -27,11 +28,7 @@ export function FleetTablePanel({ tab, total, initialRows }: { tab: string; tota
     const params = new URLSearchParams({
       view: 'fleet-page', tab, page: String(page), sort: sort.key, dir: sort.dir,
     });
-    fetch(`/api/anomalies?${params}`, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to load fleet page`);
-        return response.json() as Promise<{ anomalies: Anomaly[] }>;
-      })
+    fetchCachedJson<{ anomalies: Anomaly[] }>(`/api/anomalies?${params}`, { signal: controller.signal })
       .then((data) => { if (!controller.signal.aborted) setResult({ key: requestKey, rows: data.anomalies, error: null }); })
       .catch((cause) => {
         if (!controller.signal.aborted) setResult({

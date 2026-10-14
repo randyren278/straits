@@ -89,6 +89,20 @@ describe('usePolledJson', () => {
     b.unmount();
   });
 
+  it('reuses fresh data across screen remounts and refreshes at the original deadline', async () => {
+    const fetcher = vi.fn().mockResolvedValue({ ok: true });
+    const a = renderHook(() => usePolledJson('remount-key', fetcher, 1000));
+    await act(async () => { await Promise.resolve(); });
+    a.unmount();
+    vi.advanceTimersByTime(500);
+    const b = renderHook(() => usePolledJson('remount-key', fetcher, 1000));
+    expect(b.result.current).toEqual({ ok: true });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await act(async () => { vi.advanceTimersByTime(500); await Promise.resolve(); });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    b.unmount();
+  });
+
   it('aborts the current request while hidden and refreshes when visible', async () => {
     let hidden = false;
     vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);

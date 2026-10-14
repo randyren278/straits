@@ -41,7 +41,7 @@ export function QualityChip({ id, quality, basis, variant = 'compact' }: Quality
       data-testid={`quality-chip-${id}`}
       data-quality={quality}
       title={detail}
-      className={`inline-flex items-center gap-1 whitespace-nowrap text-[10px] font-mono uppercase tracking-wider ${tone.text} ${variant === 'full' ? `border ${tone.border} px-1.5 py-0.5` : ''}`}
+      className={`inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider ${tone.text} ${variant === 'full' ? `max-w-full flex-wrap whitespace-normal border ${tone.border} px-1.5 py-0.5` : 'whitespace-nowrap'}`}
     >
       <span className={`w-2 h-2 flex-shrink-0 ${tone.dot}`} aria-hidden="true" />
       <span>{variant === 'full' ? QUALITY_LABEL[quality] : SHORT_LABEL[quality]}</span>

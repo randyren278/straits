@@ -18,6 +18,14 @@ export interface Frame {
   hov: XY | null;
 }
 const smoothstep = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+export const REGION_ZOOM = 6.3;
+export function motionDetail(zoom: number) {
+  return {
+    ringMix: smoothstep(8.3, 9.2, zoom),
+    aheadMix: smoothstep(6.6, 7.6, zoom),
+    tailMix: smoothstep(REGION_ZOOM - 0.5, REGION_ZOOM + 0.5, zoom),
+  };
+}
 const anomalyColor = (v: MapVessel) => {
   const a = v.anomalyType;
   if (!a) return null;
@@ -37,12 +45,13 @@ export function buildFrame(input: {
   replay?: { has: (mmsi: string) => boolean };
 }): Frame {
   const { vessels, nc, byMmsi, tMin, zoom, project, selected, hovered = null, replay } = input;
+  const detail = motionDetail(zoom);
   const f: Frame = { glow: [], glowMix: 1 - smoothstep(8.2, 9.2, zoom), tails: [], ahead: [], rings: [], ships: [], dots: [], sel: null, selMoving: false, hov: null };
   const focus = (mmsi: string, p: XY, moving: boolean) => {
     if (mmsi === selected) { f.sel = p; f.selMoving = moving; }
     if (mmsi === hovered) f.hov = p;
   };
-  const pxPerNm = project(0, 0).y - project(0, 1 / 60).y;
+  const pxPerNm = detail.ringMix > 0.01 ? project(0, 0).y - project(0, 1 / 60).y : 0;
   for (const v of vessels) {
     const s = nc.sample(v.mmsi, tMin, true);
     const tier = byMmsi.get(v.mmsi)?.tier ?? 3;
@@ -53,9 +62,9 @@ export function buildFrame(input: {
         const p = s ? project(s.lon, s.lat) : project(v.position.longitude, v.position.latitude);
         f.dots.push({ mmsi: v.mmsi, x: p.x, y: p.y, tier, color: anomalyColor(v) ?? REST_GREYS[Math.min(3, tier)] });
         focus(v.mmsi, p, false);
-        if (tier <= 2 && !v.anomalyType && !v.isSanctioned) f.glow.push(p);
+        if (f.glowMix > 0.01 && tier <= 2 && !v.anomalyType && !v.isSanctioned) f.glow.push(p);
       } else {
-        const glows = tier <= 2 && !v.anomalyType && !v.isSanctioned;
+        const glows = f.glowMix > 0.01 && tier <= 2 && !v.anomalyType && !v.isSanctioned;
         if (!glows && v.mmsi !== selected && v.mmsi !== hovered) continue;   // most ships: nothing to project
         const p = project(v.position.longitude, v.position.latitude);
         focus(v.mmsi, p, false);
@@ -67,11 +76,11 @@ export function buildFrame(input: {
     focus(v.mmsi, p, true);
     f.ships.push({ mmsi: v.mmsi, name: v.name, x: p.x, y: p.y, heading: s.heading, estimated: s.estimated, age: s.age, tier: s.tier,
       color: anomalyColor(v) ?? (s.tier === 0 ? '#fff6e3' : '#d8dbe0') });
-    if (s.tier <= 1 || v.mmsi === selected || replay) {
+    if (detail.tailMix > 0.01 && (s.tier <= 1 || v.mmsi === selected || replay)) {
       const t = nc.trailBehind(v.mmsi, tMin).filter((_, k, a) => k >= a.length - 42);
       f.tails.push({ pts: t.map((q) => project(q.lon, q.lat)), est: t.map((q) => q.estimated), tier: s.tier });
     }
-    f.ahead.push({ pts: nc.pathAhead(v.mmsi, tMin, 45, 3).map(([lon, lat]) => project(lon, lat)), tier: s.tier });
+    if (detail.aheadMix > 0.01) f.ahead.push({ pts: nc.pathAhead(v.mmsi, tMin, 45, 3).map(([lon, lat]) => project(lon, lat)), tier: s.tier });
     const u = byMmsi.get(v.mmsi)?.uncert ?? 0.03, r = (0.15 + u * s.age) * pxPerNm;
     if (s.estimated && s.tier <= 1 && r > 3 && r < 40) f.rings.push({ x: p.x, y: p.y, r });
   }
