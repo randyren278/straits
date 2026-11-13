@@ -888,8 +888,6 @@ export function VesselMap({ initialCenter }: { initialCenter?: MapCenter } = {})
     const b = (best?.chokepoint ?? CHOKEPOINTS.hormuz).bounds;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     map.current.flyTo({ center: [(b.minLon + b.maxLon) / 2, (b.minLat + b.maxLat) / 2], zoom: 8, duration: reduce ? 0 : 2600, essential: true });
-    // The glide in plays the last 6 hours, then lands on live; only Skip ends it early.
-    if (!reduce) void useReplayStore.getState().startIntro();
   }, [trackMap, vessels, mapLoaded]);
 
   // Hydrate pending target vessel from cross-route navigation (fleet → dashboard)

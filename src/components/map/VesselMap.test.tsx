@@ -117,6 +117,8 @@ vi.mock('@/stores/vessel', () => {
 vi.mock('@/lib/hooks/useTracks', () => ({ useTracks: () => {} }));
 
 import { VesselMap } from './VesselMap';
+import { useReplayStore } from '@/stores/replay';
+import { useTrackStore } from '@/stores/tracks';
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -227,6 +229,32 @@ afterEach(() => {
 });
 
 describe('VesselMap loading state', () => {
+  it('stays live when loaded tracks frame the opening map', async () => {
+    const previousTracks = useTrackStore.getState().byMmsi;
+    const fetchMock = vi.fn(async (...args: unknown[]) => {
+      if (String(args[0]).includes('/api/tracks/replay')) throw new Error('Unexpected automatic replay request');
+      return response([vessel(1)]);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    useTrackStore.setState({ byMmsi: new Map([['123456781', {
+      mmsi: '123456781', tier: 0, score: 1, parts: [1, 1, 1, 1, 1],
+      state: 'underway', sog: 10, cog: 90, lastRealAt: Date.now() / 60000,
+      method: null, tau: null, uncert: 0, path: null, trail: null,
+      cleaning: { kept: 1, rejected: 0, inland: 0, rerouted: 0 },
+    }]]) });
+    try {
+      const { map } = await renderMap();
+      const flyTo = vi.spyOn(map, 'flyTo');
+      await emitMapLoad(map);
+      await waitForSetData(map);
+      expect(flyTo).toHaveBeenCalled();
+      expect(useReplayStore.getState().active).toBe(false);
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/tracks/replay'))).toBe(false);
+    } finally {
+      useTrackStore.setState({ byMmsi: previousTracks });
+    }
+  });
+
   it('explains the WebGL2 requirement when map initialization fails', () => {
     const mark = vi.spyOn(performance, 'mark');
     mapHarness.constructorError = new Error('WebGL2 unavailable');

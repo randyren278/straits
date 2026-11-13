@@ -20,11 +20,6 @@ interface ReplayStore {
   speed: number;
   /** Eased 0..1 so play/pause ramps instead of snapping. */
   rate: number;
-  /** The opening flourish: the last few hours played fast, handing off to live at `introEnd`. */
-  intro: boolean;
-  introStart: number;
-  introEnd: number;
-  startIntro: (opts?: { hours?: number; seconds?: number; stillWanted?: () => boolean }) => Promise<void>;
   load: () => Promise<void>;
   enter: () => Promise<void>;
   exit: () => void;
@@ -39,7 +34,6 @@ let inflight: Promise<void> | null = null;
 
 export const useReplayStore = create<ReplayStore>((set, get) => ({
   data: null, model: null, status: 'idle', active: false, playing: false, t: 0, speed: 6, rate: 0,
-  intro: false, introStart: 0, introEnd: 0,
 
   load: () => {
     if (get().data) return Promise.resolve();
@@ -65,17 +59,9 @@ export const useReplayStore = create<ReplayStore>((set, get) => ({
     await get().load();
     const { data } = get();
     if (!data) return;
-    set({ active: true, intro: false, playing: true, rate: 0, t: data.from, speed: 6 });
+    set({ active: true, playing: true, rate: 0, t: data.from, speed: 6 });
   },
-  // 6 h at ~8 replay-min per second: brisk enough to read as a day's traffic, slow enough that
-  // ships sail rather than streak (45 min/s was far too fast). Any touch skips it.
-  startIntro: async ({ hours = 6, seconds = 45, stillWanted = () => true } = {}) => {
-    await get().load();
-    if (!get().data || get().active || !stillWanted()) return;
-    const end = Date.now() / 60000, start = Math.max(get().data!.from, end - hours * 60);
-    set({ active: true, intro: true, playing: true, rate: 0, t: start, introStart: start, introEnd: end, speed: (end - start) / seconds });
-  },
-  exit: () => set({ active: false, playing: false, rate: 0, intro: false, speed: 6 }),
+  exit: () => set({ active: false, playing: false, rate: 0, speed: 6 }),
   setPlaying: (playing) => {
     const { data, t } = get();
     // Playing from the end starts the day over.
@@ -89,14 +75,8 @@ export const useReplayStore = create<ReplayStore>((set, get) => ({
   },
   setSpeed: (speed) => set({ speed }),
   tick: (dt, reducedMotion) => {
-    const { active, playing, rate, t, speed, data, intro, introEnd } = get();
+    const { active, playing, rate, t, speed, data } = get();
     if (!active || !data) return;
-    // The intro runs at full speed from its first frame, and ends by handing the map back to live.
-    if (intro) {
-      const next = t + dt * speed;
-      if (next >= introEnd) get().exit(); else set({ t: next, rate: 1 });
-      return;
-    }
     const r = reducedMotion ? (playing ? 1 : 0) : rate + ((playing ? 1 : 0) - rate) * Math.min(1, dt * 7);
     if (r < 0.001 && !playing) { if (rate !== 0) set({ rate: 0 }); return; }
     // The replay runs an hour past the last harvest, on the live estimates.
